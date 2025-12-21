@@ -1,0 +1,844 @@
+﻿===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\conftest.py =====
+import sys
+from pathlib import Path
+import pytest
+
+# Ensure the project root (tft calcs) is importable
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+
+@pytest.fixture
+def toy_set_data():
+    return {
+        "champions": [
+            {"apiName": "TFT16_Alpha", "name": "Alpha", "characterName": "Alpha", "cost": 1, "traits": ["X", "Y"]},
+            {"apiName": "TFT16_Beta",  "name": "Beta",  "characterName": "Beta",  "cost": 1, "traits": ["X", "Z"]},
+            {"apiName": "TFT16_Gamma", "name": "Gamma", "characterName": "Gamma", "cost": 1, "traits": ["Y", "Z"]},
+            {"apiName": "TFT16_Delta", "name": "Delta", "characterName": "Delta", "cost": 1, "traits": ["W"]},  # exclusive
+        ],
+        "traits": [
+            {"name": "X", "effects": [{"minUnits": 2}, {"minUnits": 4}]},
+            {"name": "Y", "effects": [{"minUnits": 2}]},
+            {"name": "Z", "effects": [{"minUnits": 2}]},
+            {"name": "W", "effects": [{"minUnits": 1}]},
+            {"name": "Targon", "effects": [{"minUnits": 1}]},
+        ],
+    }
+
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_beam_search.py =====
+from bronze_for_life import solve_beam_search_bronze_with_emblems
+
+
+def test_beam_search_returns_valid_team(toy_set_data):
+    champs = [c["apiName"] for c in toy_set_data["champions"]]
+    champ_traits = {c["apiName"]: c["traits"] for c in toy_set_data["champions"]}
+    trait_bps = {t["name"]: sorted(e["minUnits"] for e in t["effects"]) for t in toy_set_data["traits"]}
+    eligible = {"X", "Y", "Z"}  # exclude W and Targon for bronze logic
+
+    power_map = {c: 0.0 for c in champs}
+
+    team, emblems, team_power, bronze_count, counts, bronze_traits, active_traits, upgraded_traits, used_traits = (
+        solve_beam_search_bronze_with_emblems(
+            champs=champs,
+            champ_traits=champ_traits,
+            trait_bps=trait_bps,
+            eligible_traits=eligible,
+            team_size=2,
+            beam_width=50,
+            hard_emblems={},
+            max_emblems_total=0,
+            power_map=power_map,
+        )
+    )
+
+    assert len(team) == 2
+    assert set(team).issubset(set(champs))
+    assert isinstance(bronze_count, int)
+    assert bronze_count >= 0
+
+
+def test_beam_search_team_has_no_duplicates_and_correct_size(result_from_beam_search):
+    team = result_from_beam_search  # adjust if your fixture returns tuple
+    assert len(team) == len(set(team))
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_blacklist.py =====
+from bronze_for_life import load_set_data
+
+
+def test_blacklisted_trait_not_in_eligible(toy_set_data, monkeypatch, tmp_path):
+    # Write a temporary json file that looks like your en_us structure
+    data = {"sets": {"16": toy_set_data}}
+    p = tmp_path / "toy.json"
+    p.write_text(__import__("json").dumps(data), encoding="utf-8")
+
+    # Monkeypatch blacklist to include Targon (like real code)
+    # If your blacklist is module-level constant, import module and patch it.
+    import bronze_for_life as bfl
+    bfl.BLACKLIST_TRAITS_BY_NAME = {"Targon"}
+
+    set_data, champs, champ_traits, trait_bps, champ_cost, eligible, freq = load_set_data(str(p), "16")
+    assert "Targon" not in eligible
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_emblems.py =====
+from bronze_for_life import apply_emblem_starts
+
+def test_apply_emblem_starts_adds_to_existing_counts():
+    base = {"X": 1, "Y": 2}
+    emblems = {"X": 1, "Z": 1}
+    out = apply_emblem_starts(base, emblems)
+
+    assert out["X"] == 2
+    assert out["Y"] == 2
+    assert out["Z"] == 1
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_helpers.py =====
+from bronze_for_life import normalize_name, apply_emblem_starts, unit_power
+
+def test_normalize_name():
+    assert normalize_name("Lucian & Senna") == "luciansenna"
+    assert normalize_name("Cho'Gath") == "chogath"
+    assert normalize_name("T-Hex") == "thex"
+
+def test_apply_emblem_starts():
+    base = {"Zaun": 2, "Void": 1}
+    emblems = {"Zaun": 1, "Ixtal": 1}
+    out = apply_emblem_starts(base, emblems)
+    assert out["Zaun"] == 3
+    assert out["Void"] == 1
+    assert out["Ixtal"] == 1
+
+def test_unit_power_missing_stats_is_zero():
+    assert unit_power("TFT16_A", {}) == 0.0
+
+def test_unit_power_prefers_better_stats():
+    stats = {
+        "TFT16_A": {"win": 0.20, "avg": 4.0, "freq": 0.10},
+        "TFT16_B": {"win": 0.10, "avg": 5.0, "freq": 0.10},
+    }
+    assert unit_power("TFT16_A", stats) > unit_power("TFT16_B", stats)
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_metatft_parsing.py =====
+from bronze_for_life import parse_metatft_units, metatft_to_unit_stats
+
+def test_parse_metatft_units_basic():
+    text = """
+    Unit
+    Tier
+    Avg Place
+    Win Rate
+    Frequency
+    Popular Items
+    Alpha
+    S
+    3.50
+    12.0%
+    100,000 5.0%
+    Infinity Edge
+    """
+    raw = parse_metatft_units(text)
+    assert "Alpha" in raw
+    assert raw["Alpha"]["avg"] == 3.50
+    assert abs(raw["Alpha"]["win"] - 0.12) < 1e-9
+    assert abs(raw["Alpha"]["freq"] - 0.05) < 1e-9
+
+
+def test_metatft_to_unit_stats_maps_to_api(toy_set_data):
+    text = """
+    Alpha
+    S
+    3.50
+    12.0%
+    100,000 5.0%
+    """
+    stats = metatft_to_unit_stats(text, toy_set_data)
+    assert "TFT16_Alpha" in stats
+    assert stats["TFT16_Alpha"]["avg"] == 3.50
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_metatft_parsing_realistic.py =====
+from bronze_for_life import parse_metatft_units
+
+def test_parse_metatft_units_ignores_items_and_still_parses_units():
+    text = """
+    Unit
+    Tier
+    Avg Place
+    Win Rate
+    Frequency
+    Popular Items
+    Unlockable UnitAlpha
+    S
+    3.50
+    12.0%
+    100,000 5.0%
+    Infinity Edge
+    Hand Of Justice
+    Unlockable UnitBeta
+    A
+    4.10
+    9.0%
+    50,000 2.5%
+    Guinsoo's Rageblade
+    """
+    raw = parse_metatft_units(text)
+
+    assert "Alpha" in raw
+    assert "Beta" in raw
+    assert raw["Alpha"]["avg"] == 3.50
+    assert abs(raw["Alpha"]["win"] - 0.12) < 1e-9
+    assert abs(raw["Alpha"]["freq"] - 0.05) < 1e-9
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_name_mapping.py =====
+from bronze_for_life import build_name_to_api_map, normalize_name
+
+
+def test_build_name_to_api_map_handles_apiname_tail_and_punctuation():
+    set_data = {
+        "champions": [
+            {"apiName": "TFT16_ChoGath", "name": "Cho'Gath", "characterName": "Cho'Gath"},
+            {"apiName": "TFT16_THex", "name": "T-Hex", "characterName": "T-Hex"},
+            {"apiName": "TFT16_LucianSenna", "name": "Lucian & Senna", "characterName": "Lucian & Senna"},
+        ]
+    }
+    m = build_name_to_api_map(set_data)
+
+    assert m[normalize_name("Cho'Gath")] == "TFT16_ChoGath"
+    assert m[normalize_name("T-Hex")] == "TFT16_THex"
+    assert m[normalize_name("Lucian & Senna")] == "TFT16_LucianSenna"
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_traits.py =====
+from bronze_for_life import classify_traits
+
+def test_classify_traits_bronze_vs_upgraded(toy_set_data):
+    champ_traits = {c["apiName"]: c["traits"] for c in toy_set_data["champions"]}
+    trait_bps = {t["name"]: sorted(e["minUnits"] for e in t["effects"]) for t in toy_set_data["traits"]}
+
+    eligible = {"X", "Y", "Z"}  # W is exclusive, Targon blacklisted in real code
+
+    team = ["TFT16_Alpha", "TFT16_Beta"]  # X=2 -> active, bronze (tier2 at 4)
+    counts, bronze, active_any, upgraded, used = classify_traits(
+        team, champ_traits, trait_bps, eligible, emblem_counts={}
+    )
+
+    assert counts["X"] == 2
+    assert "X" in bronze
+    assert "X" in active_any
+    assert "X" not in upgraded
+
+
+def test_classify_traits_with_emblem_start(toy_set_data):
+    champ_traits = {c["apiName"]: c["traits"] for c in toy_set_data["champions"]}
+    trait_bps = {t["name"]: sorted(e["minUnits"] for e in t["effects"]) for t in toy_set_data["traits"]}
+
+    eligible = {"X", "Y", "Z"}
+
+    team = ["TFT16_Alpha"]  # X=1, plus emblem X=+1 => 2 activates
+    counts, bronze, active_any, upgraded, used = classify_traits(
+        team, champ_traits, trait_bps, eligible, emblem_counts={"X": 1}
+    )
+
+    assert counts["X"] == 2
+    assert "X" in bronze
+    assert "X" in active_any
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_traits_dynamic.py =====
+from bronze_for_life import classify_traits
+
+
+def test_classify_traits_uses_fixture_names_not_hardcoded(toy_set_data):
+    champ_traits = {c["apiName"]: c["traits"] for c in toy_set_data["champions"]}
+    trait_bps = {t["name"]: sorted(e["minUnits"] for e in t["effects"]) for t in toy_set_data["traits"]}
+    eligible = {"X", "Y", "Z"}
+
+    alpha = next(c["apiName"] for c in toy_set_data["champions"] if c["name"] == "Alpha")
+    beta = next(c["apiName"] for c in toy_set_data["champions"] if c["name"] == "Beta")
+
+    counts, bronze, active_any, upgraded, used = classify_traits(
+        [alpha, beta], champ_traits, trait_bps, eligible, emblem_counts={}
+    )
+
+    assert counts["X"] == 2
+    assert "X" in bronze
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\.pytest_cache\.gitignore =====
+# Created by pytest automatically.
+*
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\.pytest_cache\CACHEDIR.TAG =====
+Signature: 8a477f597d28d172789f06886806bc55
+# This file is a cache directory tag created by pytest.
+# For information about cache directory tags, see:
+#	https://bford.info/cachedir/spec.html
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\.pytest_cache\README.md =====
+# pytest cache directory #
+
+This directory contains data from the pytest's cache plugin,
+which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
+
+**Do not** commit this to version control.
+
+See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\.pytest_cache\v\cache\nodeids =====
+[
+  "test_helpers.py::test_apply_emblem_starts",
+  "test_helpers.py::test_normalize_name",
+  "test_helpers.py::test_unit_power_missing_stats_is_zero",
+  "test_helpers.py::test_unit_power_prefers_better_stats"
+]
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\conftest.cpython-310-pytest-8.0.2.pyc =====
+o
+
+    ¼õ>it  ã                   @   sz   d dl Zd dlm  mZ d dlZd dlmZ d dl	Z	ee
+ƒ ¡ jd Z
+ee
+ƒejvr4ej d ee
+ƒ¡ e	jdd„ ƒZdS )é    N)ÚPathé   c                	   C   sœ   ddddddgdœdddddd	gdœd
+ddddd	gdœdd
+d
+ddgdœgdddiddigdœdddigdœd	ddigdœdddigdœdddigdœgdœS )NZTFT16_AlphaÚAlphar   ÚXÚY)ZapiNameÚnameZ
+characterNameZcostÚtraitsZ
+TFT16_BetaZBetaÚZZTFT16_GammaZGammaZTFT16_DeltaZDeltaÚWZminUnitsé   é   )r   ZeffectsZTargon)Z	championsr   © r
+   r
+   r
+   úBC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\conftest.pyÚtoy_set_data   s   üûùr   )ÚbuiltinsÚ@py_builtinsÚ_pytest.assertion.rewriteÚ	assertionÚrewriteÚ
+@pytest_arÚsysÚpathlibr   ÚpytestÚ__file__ÚresolveÚparentsZROOTÚstrÚpathÚinsertÚfixturer   r
+   r
+   r
+   r   Ú<module>   s   " 
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\conftest.cpython-39-pytest-8.4.2.pyc =====
+a
+
+    ¼õ>it  ã                   @   sz   d dl Zd dlm  mZ d dlZd dlmZ d dl	Z	ee
+ƒ ¡ jd Z
+ee
+ƒejvrhej d ee
+ƒ¡ e	jdd„ ƒZdS )é    N)ÚPathé   c                	   C   sœ   ddddddgdœdddddd	gdœd
+ddddd	gdœdd
+d
+ddgdœgdddiddigdœdddigdœd	ddigdœdddigdœdddigdœgdœS )NZTFT16_AlphaÚAlphar   ÚXÚY)ZapiNameÚnameZ
+characterNameZcostÚtraitsZ
+TFT16_BetaZBetaÚZZTFT16_GammaZGammaZTFT16_DeltaZDeltaÚWZminUnitsé   é   )r   ZeffectsZTargon)Z	championsr   © r
+   r
+   r
+   úBC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\conftest.pyÚtoy_set_data   s    üûùr   )ÚbuiltinsÚ@py_builtinsÚ_pytest.assertion.rewriteÚ	assertionÚrewriteÚ
+@pytest_arÚsysÚpathlibr   ÚpytestÚ__file__ÚresolveÚparentsZROOTÚstrÚpathÚinsertÚfixturer   r
+   r
+   r
+   r   Ú<module>   s   "
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\test_beam_search.cpython-310-pytest-8.0.2.pyc =====
+o
+
+    %÷>i0  ã                   @   s:   d dl Zd dlm  mZ d dlmZ dd„ Zdd„ Z	dS )é    N)Ú%solve_beam_search_bronze_with_emblemsc                 C   sB  dd„ | d D ƒ}dd„ | d D ƒ}dd„ | d D ƒ}h d£}d	d„ |D ƒ}t ||||d
+di d|d
+	\	}}}}	}
+}}}
+}t|ƒ}d
+}||k}|st d|fd||f¡dt ¡ v s]t t¡rbt t¡nddt ¡ v snt |¡rst |¡ndt |¡t |¡dœ }dd|i }tt 	|¡ƒ‚d  } }}t
+|ƒ}|j}t
+|ƒ}||ƒ}|sddt ¡ v s±t t
+¡r¶t t
+¡nddt ¡ v sÂt |¡rÇt |¡ndt |¡t |¡dt ¡ v sÛt t
+¡ràt t
+¡nddt ¡ v sìt |¡rñt |¡ndt |¡t |¡dœ }tt 	|¡ƒ‚d  } } }}t|	t
+ƒ}|s^ddt ¡ v s#t t¡r(t t¡nddt ¡ v s6t |	¡r;t |	¡nddt ¡ v sIt t
+¡rNt t
+¡ndt |¡dœ }tt 	|¡ƒ‚d }d}|	|k}|s›t d|fd|	|f¡dt ¡ v s€t |	¡r…t |	¡ndt |¡d œ }d!d"|i }tt 	|¡ƒ‚d  }}d S )#Nc                 S   s   g | ]}|d  ‘qS )ÚapiName© ©Ú.0Úcr   r   úJC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_beam_search.pyÚ
+<listcomp>   s    z7test_beam_search_returns_valid_team.<locals>.<listcomp>Ú	championsc                 S   s   i | ]	}|d  |d “qS )r   Útraitsr   r   r   r   r   Ú
+<dictcomp>   s    z7test_beam_search_returns_valid_team.<locals>.<dictcomp>c                 S   s(   i | ]}|d  t dd„ |d D ƒƒ“qS )Únamec                 s   s    | ]}|d  V  qdS )ÚminUnitsNr   )r   Úer   r   r   Ú	<genexpr>   s   € zAtest_beam_search_returns_valid_team.<locals>.<dictcomp>.<genexpr>Úeffects)Úsorted)r   Útr   r   r   r      s   ( r   >   ÚYÚZÚXc                 S   s   i | ]}|d “qS )g        r   r   r   r   r   r   
+   s    é   é2   r   )	ÚchampsÚchamp_traitsÚ	trait_bpsZeligible_traitsZ	team_sizeZ
+beam_widthZhard_emblemsZmax_emblems_totalÚ	power_map©ú==)z0%(py3)s
+{%(py3)s = %(py0)s(%(py1)s)
+} == %(py6)sÚlenÚteam)Úpy0Úpy1Úpy3Úpy6zassert %(py8)sZpy8zˆassert %(py11)s
+{%(py11)s = %(py5)s
+{%(py5)s = %(py3)s
+{%(py3)s = %(py0)s(%(py1)s)
+}.issubset
+}(%(py9)s
+{%(py9)s = %(py6)s(%(py7)s)
+})
+}Úsetr   ©r!   r"   r#   Úpy5r$   Zpy7Zpy9Zpy11z5assert %(py4)s
+{%(py4)s = %(py0)s(%(py1)s, %(py2)s)
+}Ú
+isinstanceÚbronze_countÚint)r!   r"   Zpy2Zpy4)ú>=)z%(py0)s >= %(py3)s)r!   r#   zassert %(py5)sr'   )r   r   Ú
+@pytest_arÚ_call_reprcompareÚ@py_builtinsÚlocalsÚ_should_repr_global_nameÚ	_safereprÚAssertionErrorÚ_format_explanationr%   Úissubsetr(   r*   )Útoy_set_datar   r   r   Zeligibler   r    ZemblemsZ
+team_powerr)   ÚcountsZ
+bronze_traitsZ
+active_traitsZupgraded_traitsZused_traitsÚ@py_assert2Z@py_assert5Ú@py_assert4Z@py_format7Z@py_format9Ú@py_assert8Ú@py_assert10Ú@py_format12Z@py_assert3Z@py_format5Z@py_assert1Z@py_format4Z@py_format6r   r   r   Ú#test_beam_search_returns_valid_team   s*   ÷ÿ®ô¦‚r<   c                 C   s4  | }t |ƒ}t|ƒ}t |ƒ}||k}|st d|fd||f¡dt ¡ v s)t t ¡r.t t ¡nddt ¡ v s:t |¡r?t |¡ndt |¡dt ¡ v sOt t ¡rTt t ¡nddt ¡ v s`t t¡ret t¡nddt ¡ v sqt |¡rvt |¡ndt |¡t |¡dœ }dd|i }tt 	|¡ƒ‚d  } } }}d S )	Nr   )zn%(py3)s
+{%(py3)s = %(py0)s(%(py1)s)
+} == %(py11)s
+{%(py11)s = %(py5)s(%(py9)s
+{%(py9)s = %(py6)s(%(py7)s)
+})
+}r   r    r%   r&   zassert %(py13)sZpy13)
+r   r%   r,   r-   r.   r/   r0   r1   r2   r3   )Zresult_from_beam_searchr    r7   r9   r:   r8   r;   Z@py_format14r   r   r   Ú8test_beam_search_team_has_no_duplicates_and_correct_size    s   þ2 r=   )
+Úbuiltinsr.   Ú_pytest.assertion.rewriteÚ	assertionÚrewriter,   Zbronze_for_lifer   r<   r=   r   r   r   r   Ú<module>   s   & 
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\test_beam_search.cpython-39-pytest-8.4.2.pyc =====
+a
+
+    @õ>i^  ã                   @   s2   d dl Zd dlm  mZ d dlmZ dd„ ZdS )é    N)Ú%solve_beam_search_bronze_with_emblemsc                 C   sT  dd„ | d D ƒ}dd„ | d D ƒ}dd„ | d D ƒ}h d£}d	d„ |D ƒ}t ||||d
+di d|d
+	\	}}}}	}
+}}}
+}t|ƒ}d
+}||k}|st d|fd||f¡dt ¡ v s¼t t¡rÆt t¡nddt ¡ v sÞt |¡rèt |¡ndt |¡t |¡dœ }dd|i }tt 	|¡ƒ‚d  } }}t
+|ƒ}|j}t
+|ƒ}||ƒ}|sddt ¡ v sht t
+¡rrt t
+¡nddt ¡ v sŽt |¡r˜t |¡ndt |¡t |¡dt ¡ v sÄt t
+¡rÎt t
+¡nddt ¡ v sêt |¡rôt |¡ndt |¡t |¡dœ }tt 	|¡ƒ‚d  } } }}t|	t
+ƒ}|sÎddt ¡ v sXt t¡rbt t¡nddt ¡ v s~t |	¡rˆt |	¡nddt ¡ v s¤t t
+¡r®t t
+¡ndt |¡dœ }tt 	|¡ƒ‚d }d}|	|k}|sHt d|fd|	|f¡dt ¡ v st |	¡rt |	¡ndt |¡d œ }d!d"|i }tt 	|¡ƒ‚d  }}d S )#Nc                 S   s   g | ]}|d  ‘qS )ÚapiName© ©Ú.0Úcr   r   úJC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_beam_search.pyÚ
+<listcomp>   ó    z7test_beam_search_returns_valid_team.<locals>.<listcomp>Ú	championsc                 S   s   i | ]}|d  |d “qS )r   Útraitsr   r   r   r   r   Ú
+<dictcomp>   r
+   z7test_beam_search_returns_valid_team.<locals>.<dictcomp>c                 S   s(   i | ] }|d  t dd„ |d D ƒƒ“qS )Únamec                 s   s   | ]}|d  V  qdS )ÚminUnitsNr   )r   Úer   r   r   Ú	<genexpr>   r
+   zAtest_beam_search_returns_valid_team.<locals>.<dictcomp>.<genexpr>Úeffects)Úsorted)r   Útr   r   r   r
+      r
+   r   >   ÚXÚYÚZc                 S   s   i | ]
+}|d “qS )g        r   r   r   r   r   r
+   	   r
+   é   é2   r   )	ÚchampsÚchamp_traitsÚ	trait_bpsZeligible_traitsZ	team_sizeZ
+beam_widthZhard_emblemsZmax_emblems_totalÚ	power_map)ú==)z0%(py3)s
+{%(py3)s = %(py0)s(%(py1)s)
+} == %(py6)sÚlenÚteam)Úpy0Úpy1Úpy3Úpy6zassert %(py8)sZpy8zˆassert %(py11)s
+{%(py11)s = %(py5)s
+{%(py5)s = %(py3)s
+{%(py3)s = %(py0)s(%(py1)s)
+}.issubset
+}(%(py9)s
+{%(py9)s = %(py6)s(%(py7)s)
+})
+}Úsetr   )r!   r"   r#   Úpy5r$   Zpy7Zpy9Zpy11z5assert %(py4)s
+{%(py4)s = %(py0)s(%(py1)s, %(py2)s)
+}Ú
+isinstanceÚbronze_countÚint)r!   r"   Úpy2Zpy4)ú>=)z%(py0)s >= %(py3)s)r!   r#   zassert %(py5)sr&   )r   r   Ú
+@pytest_arÚ_call_reprcompareÚ@py_builtinsÚlocalsÚ_should_repr_global_nameÚ	_safereprÚAssertionErrorÚ_format_explanationr%   Úissubsetr'   r)   )Útoy_set_datar   r   r   Zeligibler   r    ZemblemsZ
+team_powerr(   ÚcountsZ
+bronze_traitsZ
+active_traitsZupgraded_traitsZused_traitsZ@py_assert2Z@py_assert5Z@py_assert4Z@py_format7Z@py_format9Z@py_assert8Z@py_assert10Z@py_format12Z@py_assert3Z@py_format5Z@py_assert1Z@py_format4Z@py_format6r   r   r   Ú#test_beam_search_returns_valid_team   s,    ÷ÿ°ÿ ¦r7   )	Úbuiltinsr.   Ú_pytest.assertion.rewriteÚ	assertionÚrewriter,   Zbronze_for_lifer   r7   r   r   r   r   Ú<module>   s   &
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\test_blacklist.cpython-310-pytest-8.0.2.pyc =====
+o
+
+    F÷>iÊ  ã                   @   s2   d dl Zd dlm  mZ d dlmZ dd„ ZdS )é    N)Ú
+load_set_datac                 C   sÔ   dd| ii}|d }|j tdƒ |¡dd dd l}dh|_tt|ƒdƒ\}}}}	}
+}}d}
+|
+|v}|sdt d	|fd
+|
+|f¡t 	|
+¡dt
+ ¡ v sMt |¡rRt 	|¡nddœ }d
+d|i }t
+t |¡ƒ‚d  }
+}d S )NÚsetsÚ16ztoy.jsonÚjsonzutf-8)Úencodingr   ÚTargon)únot in)z%(py1)s not in %(py3)sÚeligible)Úpy1Úpy3zassert %(py5)sÚpy5)Ú
+write_textÚ
+__import__ÚdumpsÚbronze_for_lifeÚBLACKLIST_TRAITS_BY_NAMEr   ÚstrÚ
+@pytest_arÚ_call_reprcompareÚ	_safereprÚ@py_builtinsÚlocalsÚ_should_repr_global_nameÚAssertionErrorÚ_format_explanation)Útoy_set_dataÚmonkeypatchÚtmp_pathÚdataÚpZbflÚset_dataÚchampsÚchamp_traitsÚ	trait_bpsÚ
+champ_costr	   ÚfreqZ@py_assert0Ú@py_assert2Ú@py_format4Ú@py_format6© r)   úHC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_blacklist.pyÚ&test_blacklisted_trait_not_in_eligible   s   |r+   )	Úbuiltinsr   Ú_pytest.assertion.rewriteÚ	assertionÚrewriter   r   r   r+   r)   r)   r)   r*   Ú<module>   s   & 
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\test_emblems.cpython-310-pytest-8.0.2.pyc =====
+o
+
+    ÷>i'  ã                   @   s2   d dl Zd dlm  mZ d dlmZ dd„ ZdS )é    N)Úapply_emblem_startsc                  C   s`  dddœ} dddœ}t | |ƒ}|d }d}||k}|s>t d|fd||f¡t |¡t |¡dœ }d	d
+|i }tt |¡ƒ‚d  } }}|d }d}||k}|sst d|fd||f¡t |¡t |¡dœ }d	d
+|i }tt |¡ƒ‚d  } }}|d }d}||k}|s¨t d|fd||f¡t |¡t |¡dœ }d	d
+|i }tt |¡ƒ‚d  } }}d S )
+Né   é   )ÚXÚY)r   ÚZr   )ú==)z%(py1)s == %(py4)s)Úpy1Úpy4zassert %(py6)sÚpy6r   r   )r   Ú
+@pytest_arÚ_call_reprcompareÚ	_safereprÚAssertionErrorÚ_format_explanation)ÚbaseÚemblemsÚoutÚ@py_assert0Ú@py_assert3Ú@py_assert2Ú@py_format5Ú@py_format7© r   úFC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_emblems.pyÚ0test_apply_emblem_starts_adds_to_existing_counts   s   
+
+
+jjnr   )	ÚbuiltinsÚ@py_builtinsÚ_pytest.assertion.rewriteÚ	assertionÚrewriter   Úbronze_for_lifer   r   r   r   r   r   Ú<module>   s   & 
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\test_helpers.cpython-310-pytest-8.0.2.pyc =====
+o
+
+    ëô>ib  ã                   @   sR   d dl Zd dlm  mZ d dlmZmZm	Z	 dd„ Z
+dd„ Zdd„ Zd	d
+„ Z
+dS )é    N)Únormalize_nameÚapply_emblem_startsÚ
+unit_powerc                  C   sØ  d} t | ƒ}d}||k}|sFt d|fd||f¡dt ¡ v s#t t ¡r(t t ¡ndt | ¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }  } }}d	} t | ƒ}d
+}||k}|s”t d|fd||f¡dt ¡ v sqt t ¡rvt t ¡ndt | ¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }  } }}d} t | ƒ}d}||k}|sât d|fd||f¡dt ¡ v s¿t t ¡rÄt t ¡ndt | ¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }  } }}d S )
+NzLucian & SennaZluciansenna©ú==)z0%(py4)s
+{%(py4)s = %(py0)s(%(py2)s)
+} == %(py7)sr   )Úpy0Úpy2Úpy4Úpy7zassert %(py9)sÚpy9zCho'GathZchogathzT-HexZthex)	r   Ú
+@pytest_arÚ_call_reprcompareÚ@py_builtinsÚlocalsÚ_should_repr_global_nameÚ	_safereprÚAssertionErrorÚ_format_explanation)Ú@py_assert1Ú@py_assert3Ú@py_assert6Ú@py_assert5Z@py_format8Ú@py_format10© r   úFC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_helpers.pyÚtest_normalize_name   s   œœ r   c                  C   s`  dddœ} dddœ}t | |ƒ}|d }d}||k}|s>t d|fd||f¡t |¡t |¡d	œ }d
+d|i }tt |¡ƒ‚d  } }}|d }d}||k}|sst d|fd||f¡t |¡t |¡d	œ }d
+d|i }tt |¡ƒ‚d  } }}|d
+ }d}||k}|s¨t d|fd||f¡t |¡t |¡d	œ }d
+d|i }tt |¡ƒ‚d  } }}d S )Né   é   )ÚZaunÚVoid)r   ÚIxtalr   é   r   )z%(py1)s == %(py4)s)Úpy1r	   zassert %(py6)sÚpy6r   r    )r   r   r
+   r   r   r   )ÚbaseÚemblemsÚoutZ@py_assert0r   Ú@py_assert2Ú@py_format5Ú@py_format7r   r   r   Útest_apply_emblem_starts   s   
+
+
+jjnr*   c                  C   s²   d} i }t | |ƒ}d}||k}|sMt d|fd||f¡dt ¡ v s&t t ¡r+t t ¡ndt | ¡t |¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }  } } }}d S )	NÚTFT16_Ag        r   )z9%(py6)s
+{%(py6)s = %(py0)s(%(py2)s, %(py4)s)
+} == %(py9)sr   )r   r   r	   r#   r   zassert %(py11)sÚpy11©	r   r   r
+   r   r   r   r   r   r   )r   r   r   Ú@py_assert8Z@py_assert7r   Ú@py_format12r   r   r   Ú%test_unit_power_missing_stats_is_zero   s   ²r0   c                  C   s8  ddddœddddœdœ} d}t || ƒ}d}t || ƒ}||k}|st d	|fd
+||f¡dt ¡ v s6t t ¡r;t t ¡ndt |¡dt ¡ v sKt | ¡rPt | ¡ndt |¡dt ¡ v s`t t ¡ret t ¡ndt |¡dt ¡ v sut | ¡rzt | ¡ndt |¡d
+œ }dd|i }tt |¡ƒ‚d  } } } }}d S )Ngš™™™™™É?g      @gš™™™™™¹?)ÚwinÚavgÚfreqg      @)r+   ÚTFT16_Br+   r4   )ú>)zb%(py5)s
+{%(py5)s = %(py0)s(%(py2)s, %(py3)s)
+} > %(py12)s
+{%(py12)s = %(py7)s(%(py9)s, %(py10)s)
+}r   Ústats)r   r   Úpy3Úpy5r
+   r   Zpy10Zpy12zassert %(py14)sZpy14r-   )r6   r   Ú@py_assert4r.   Z@py_assert11r   Z@py_format13Z@py_format15r   r   r   Ú$test_unit_power_prefers_better_stats   s
+   
+
+þþ  r:   )Úbuiltinsr   Ú_pytest.assertion.rewriteÚ	assertionÚrewriter   Úbronze_for_lifer   r   r   r   r*   r0   r:   r   r   r   r   Ú<module>   s
+   . 
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\test_helpers.cpython-39-pytest-8.4.2.pyc =====
+a
+
+    ëô>ib  ã                   @   sR   d dl Zd dlm  mZ d dlmZmZm	Z	 dd„ Z
+dd„ Zdd„ Zd	d
+„ Z
+dS )é    N)Únormalize_nameÚapply_emblem_startsÚ
+unit_powerc                  C   sà  d} t | ƒ}d}||k}|sŒt d|fd||f¡dt ¡ v sFt t ¡rPt t ¡ndt | ¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }  } }}d	} t | ƒ}d
+}||k}|s*t d|fd||f¡dt ¡ v sät t ¡rît t ¡ndt | ¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }  } }}d} t | ƒ}d}||k}|sÌt d|fd||f¡dt ¡ v s†t t ¡rt t ¡ndt | ¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }  } }}d S )
+NzLucian & SennaZluciansenna©ú==)z0%(py4)s
+{%(py4)s = %(py0)s(%(py2)s)
+} == %(py7)sr   )Úpy0Úpy2Úpy4Úpy7zassert %(py9)sÚpy9zCho'GathZchogathzT-HexZthex)	r   Ú
+@pytest_arÚ_call_reprcompareÚ@py_builtinsÚlocalsÚ_should_repr_global_nameÚ	_safereprÚAssertionErrorÚ_format_explanation)Ú@py_assert1Ú@py_assert3Ú@py_assert6Ú@py_assert5Z@py_format8Ú@py_format10© r   úFC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_helpers.pyÚtest_normalize_name   s    œžr   c                  C   sb  dddœ} dddœ}t | |ƒ}|d }d}||k}|s|t d|fd||f¡t |¡t |¡d	œ }d
+d|i }tt |¡ƒ‚d  } }}|d }d}||k}|sæt d|fd||f¡t |¡t |¡d	œ }d
+d|i }tt |¡ƒ‚d  } }}|d
+ }d}||k}|sRt d|fd||f¡t |¡t |¡d	œ }d
+d|i }tt |¡ƒ‚d  } }}d S )Né   é   )ÚZaunÚVoid)r   ÚIxtalr   é   r   )z%(py1)s == %(py4)s)Zpy1r	   zassert %(py6)sÚpy6r   r    )r   r   r
+   r   r   r   )ÚbaseZemblemsÚoutZ@py_assert0r   Z@py_assert2Z@py_format5Z@py_format7r   r   r   Útest_apply_emblem_starts   s    
+
+
+jjr%   c                  C   s²   d} i }t | |ƒ}d}||k}|sšt d|fd||f¡dt ¡ v sLt t ¡rVt t ¡ndt | ¡t |¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }  } } }}d S )	NÚTFT16_Ag        r   )z9%(py6)s
+{%(py6)s = %(py0)s(%(py2)s, %(py4)s)
+} == %(py9)sr   )r   r   r	   r"   r   zassert %(py11)sZpy11©	r   r   r
+   r   r   r   r   r   r   )r   r   r   Ú@py_assert8Z@py_assert7r   Z@py_format12r   r   r   Ú%test_unit_power_missing_stats_is_zero   s    r)   c                  C   s:  ddddœddddœdœ} d}t || ƒ}d}t || ƒ}||k}|s"t d	|fd
+||f¡dt ¡ v snt t ¡rxt t ¡ndt |¡dt ¡ v s˜t | ¡r¢t | ¡ndt |¡dt ¡ v sÂt t ¡rÌt t ¡ndt |¡dt ¡ v sìt | ¡röt | ¡ndt |¡d
+œ }dd|i }tt |¡ƒ‚d  } } } }}d S )Ngš™™™™™É?g      @gš™™™™™¹?)ÚwinZavgÚfreqg      @)r&   ÚTFT16_Br&   r,   )ú>)zb%(py5)s
+{%(py5)s = %(py0)s(%(py2)s, %(py3)s)
+} > %(py12)s
+{%(py12)s = %(py7)s(%(py9)s, %(py10)s)
+}r   Ústats)r   r   Úpy3Zpy5r
+   r   Zpy10Zpy12zassert %(py14)sZpy14r'   )r.   r   Z@py_assert4r(   Z@py_assert11r   Z@py_format13Z@py_format15r   r   r   Ú$test_unit_power_prefers_better_stats   s    
+
+þr0   )Úbuiltinsr   Ú_pytest.assertion.rewriteÚ	assertionÚrewriter   Zbronze_for_lifer   r   r   r   r%   r)   r0   r   r   r   r   Ú<module>   s   .
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\test_metatft_parsing.cpython-310-pytest-8.0.2.pyc =====
+o
+
+    Èõ>i  ã                   @   s>   d dl Zd dlm  mZ d dlmZmZ dd„ Z	dd„ Z
+dS )é    N)Úparse_metatft_unitsÚmetatft_to_unit_statsc                  C   s|  d} t | ƒ}d}||v }|s>t d|fd||f¡t |¡dt ¡ v s't |¡r,t |¡nddœ }dd|i }tt |¡ƒ‚d  }}|d d	 }d
+}||k}|sst d|fd||f¡t |¡t |¡d
+œ }dd|i }tt |¡ƒ‚d  } }}|d d }	d}|	| }
+t	|
+ƒ}d}||k }
+|
+sÍt d|
+fd||f¡dt ¡ v s¦t t	¡r«t t	¡ndt |	¡t |¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }	 } }
+ } }
+}|d d }	d}|	| }
+t	|
+ƒ}d}||k }
+|
+s0t d|
+fd||f¡dt ¡ v s	t t	¡rt t	¡ndt |	¡t |¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }	 } }
+ } }
+}d S )Nz˜
+    Unit
+    Tier
+    Avg Place
+    Win Rate
+    Frequency
+    Popular Items
+    Alpha
+    S
+    3.50
+    12.0%
+    100,000 5.0%
+    Infinity Edge
+    ÚAlpha©Úin©z%(py1)s in %(py3)sÚraw©Úpy1Úpy3úassert %(py5)sÚpy5Úavgç      @©ú==©z%(py1)s == %(py4)s©r
+   Úpy4úassert %(py6)sÚpy6Úwing¸…ëQ¸¾?g•Ö&è.>)ú<)z<%(py7)s
+{%(py7)s = %(py0)s((%(py2)s - %(py4)s))
+} < %(py10)sÚabs)Úpy0Úpy2r   Úpy7Úpy10zassert %(py12)sÚpy12Úfreqgš™™™™™©?)
+r   Ú
+@pytest_arÚ_call_reprcompareÚ	_safereprÚ@py_builtinsÚlocalsÚ_should_repr_global_nameÚAssertionErrorÚ_format_explanationr   )Útextr   Ú@py_assert0Ú@py_assert2Ú@py_format4Ú@py_format6Ú@py_assert3Ú@py_format5Ú@py_format7Ú@py_assert1Ú@py_assert5Ú@py_assert6Z@py_assert9Ú@py_assert8Z@py_format11Ú@py_format13© r5   úNC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_metatft_parsing.pyÚtest_parse_metatft_units_basic   s   xnÀÊr7   c           
+      C   sø   d}t || ƒ}d}||v }|s?t d|fd||f¡t |¡dt ¡ v s(t |¡r-t |¡nddœ }dd|i }tt |¡ƒ‚d  }}|d d	 }d
+}||k}|stt d|fd||f¡t |¡t |¡d
+œ }dd|i }	tt |	¡ƒ‚d  } }}d S )Nz9
+    Alpha
+    S
+    3.50
+    12.0%
+    100,000 5.0%
+    ÚTFT16_Alphar   r   Ústatsr	   r   r
+   r   r   r   r   r   r   r   )	r   r    r!   r"   r#   r$   r%   r&   r'   )
+Útoy_set_datar(   r9   r)   r*   r+   r,   r-   r.   r/   r5   r5   r6   Ú&test_metatft_to_unit_stats_maps_to_api   s   
+xrr;   )Úbuiltinsr#   Ú_pytest.assertion.rewriteÚ	assertionÚrewriter    Úbronze_for_lifer   r   r7   r;   r5   r5   r5   r6   Ú<module>   s   * 
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\test_metatft_parsing.cpython-39-pytest-8.4.2.pyc =====
+a
+
+    Èõ>i  ã                   @   s>   d dl Zd dlm  mZ d dlmZmZ dd„ Z	dd„ Z
+dS )é    N)Úparse_metatft_unitsÚmetatft_to_unit_statsc                  C   s‚  d} t | ƒ}d}||v }|s|t d|fd||f¡t |¡dt ¡ v sNt |¡rXt |¡nddœ }dd|i }tt |¡ƒ‚d  }}|d d	 }d
+}||k}|sæt d|fd||f¡t |¡t |¡d
+œ }dd|i }tt |¡ƒ‚d  } }}|d d }	d}|	| }
+t	|
+ƒ}d}||k }
+|
+s t d|
+fd||f¡dt ¡ v sRt t	¡r\t t	¡ndt |	¡t |¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }	 } }
+ } }
+}|d d }	d}|	| }
+t	|
+ƒ}d}||k }
+|
+sft d|
+fd||f¡dt ¡ v st t	¡r"t t	¡ndt |	¡t |¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }	 } }
+ } }
+}d S )Nz˜
+    Unit
+    Tier
+    Avg Place
+    Win Rate
+    Frequency
+    Popular Items
+    Alpha
+    S
+    3.50
+    12.0%
+    100,000 5.0%
+    Infinity Edge
+    ÚAlpha©Úin©z%(py1)s in %(py3)sÚraw©Úpy1Úpy3úassert %(py5)sÚpy5Úavgç      @©ú==©z%(py1)s == %(py4)s©r
+   Úpy4úassert %(py6)sÚpy6Úwing¸…ëQ¸¾?g•Ö&è.>)ú<)z<%(py7)s
+{%(py7)s = %(py0)s((%(py2)s - %(py4)s))
+} < %(py10)sÚabs)Úpy0Úpy2r   Úpy7Úpy10zassert %(py12)sÚpy12Úfreqgš™™™™™©?)
+r   Ú
+@pytest_arÚ_call_reprcompareÚ	_safereprÚ@py_builtinsÚlocalsÚ_should_repr_global_nameÚAssertionErrorÚ_format_explanationr   )Útextr   Ú@py_assert0Ú@py_assert2Ú@py_format4Ú@py_format6Ú@py_assert3Ú@py_format5Ú@py_format7Ú@py_assert1Ú@py_assert5Ú@py_assert6Z@py_assert9Ú@py_assert8Z@py_format11Ú@py_format13© r5   úNC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_metatft_parsing.pyÚtest_parse_metatft_units_basic   s    xnÆr7   c           
+      C   sø   d}t || ƒ}d}||v }|s~t d|fd||f¡t |¡dt ¡ v sPt |¡rZt |¡nddœ }dd|i }tt |¡ƒ‚d  }}|d d	 }d
+}||k}|sèt d|fd||f¡t |¡t |¡d
+œ }dd|i }	tt |	¡ƒ‚d  } }}d S )Nz9
+    Alpha
+    S
+    3.50
+    12.0%
+    100,000 5.0%
+    ÚTFT16_Alphar   r   Ústatsr	   r   r
+   r   r   r   r   r   r   r   )	r   r    r!   r"   r#   r$   r%   r&   r'   )
+Útoy_set_datar(   r9   r)   r*   r+   r,   r-   r.   r/   r5   r5   r6   Ú&test_metatft_to_unit_stats_maps_to_api   s    
+xr;   )Úbuiltinsr#   Ú_pytest.assertion.rewriteÚ	assertionÚrewriter    Úbronze_for_lifer   r   r7   r;   r5   r5   r5   r6   Ú<module>   s   *
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\test_metatft_parsing_realistic.cpython-310-pytest-8.0.2.pyc =====
+o
+
+    áö>iž  ã                   @   s2   d dl Zd dlm  mZ d dlmZ dd„ ZdS )é    N)Úparse_metatft_unitsc                  C   sö  d} t | ƒ}d}||v }|s>t d|fd||f¡t |¡dt ¡ v s't |¡r,t |¡nddœ }dd|i }tt |¡ƒ‚d  }}d	}||v }|szt d|fd||f¡t |¡dt ¡ v sct |¡rht |¡nddœ }dd|i }tt |¡ƒ‚d  }}|d d
+ }d}||k}|s¯t d|fd
+||f¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  } }}|d d }	d}|	| }
+t	|
+ƒ}d}||k }
+|
+s
+t d|
+fd||f¡dt ¡ v sãt t	¡rèt t	¡ndt |	¡t |¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }	 } }
+ } }
+}|d d }	d}|	| }
+t	|
+ƒ}d}||k }
+|
+smt d|
+fd||f¡dt ¡ v sFt t	¡rKt t	¡ndt |	¡t |¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  }	 } }
+ } }
+}d S )Na  
+    Unit
+    Tier
+    Avg Place
+    Win Rate
+    Frequency
+    Popular Items
+    Unlockable UnitAlpha
+    S
+    3.50
+    12.0%
+    100,000 5.0%
+    Infinity Edge
+    Hand Of Justice
+    Unlockable UnitBeta
+    A
+    4.10
+    9.0%
+    50,000 2.5%
+    Guinsoo's Rageblade
+    ÚAlpha)Úin)z%(py1)s in %(py3)sÚraw)Úpy1Úpy3zassert %(py5)sÚpy5ÚBetaÚavgg      @)ú==)z%(py1)s == %(py4)s)r   Úpy4zassert %(py6)sÚpy6Úwing¸…ëQ¸¾?g•Ö&è.>)ú<)z<%(py7)s
+{%(py7)s = %(py0)s((%(py2)s - %(py4)s))
+} < %(py10)sÚabs)Úpy0Úpy2r   Úpy7Úpy10zassert %(py12)sÚpy12Úfreqgš™™™™™©?)
+r   Ú
+@pytest_arÚ_call_reprcompareÚ	_safereprÚ@py_builtinsÚlocalsÚ_should_repr_global_nameÚAssertionErrorÚ_format_explanationr   )Útextr   Ú@py_assert0Ú@py_assert2Ú@py_format4Ú@py_format6Ú@py_assert3Ú@py_format5Ú@py_format7Ú@py_assert1Ú@py_assert5Ú@py_assert6Ú@py_assert9Ú@py_assert8Ú@py_format11Ú@py_format13© r.   úXC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_metatft_parsing_realistic.pyÚ=test_parse_metatft_units_ignores_items_and_still_parses_units   s   xxnÂÊr0   )	Úbuiltinsr   Ú_pytest.assertion.rewriteÚ	assertionÚrewriter   Úbronze_for_lifer   r0   r.   r.   r.   r/   Ú<module>   s   & 
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\test_name_mapping.cpython-310-pytest-8.0.2.pyc =====
+o
+
+    üö>iÌ  ã                   @   s6   d dl Zd dlm  mZ d dlmZmZ dd„ Z	dS )é    N)Úbuild_name_to_api_mapÚnormalize_namec                  C   s|  dddddœddddœddddœgi} t | ƒ}|tdƒ }d}||k}|sHt d	|fd
+||f¡t |¡t |¡dœ }dd
+|i }tt |¡ƒ‚d  } }}|tdƒ }d}||k}|st d	|fd
+||f¡t |¡t |¡dœ }dd
+|i }tt |¡ƒ‚d  } }}|tdƒ }d}||k}|s¶t d	|fd
+||f¡t |¡t |¡dœ }dd
+|i }tt |¡ƒ‚d  } }}d S )NÚ	championsZ
+TFT16_ChoGathzCho'Gath)ÚapiNameÚnameÚ
+characterNameZ
+TFT16_THexzT-HexZTFT16_LucianSennazLucian & Senna)ú==)z%(py1)s == %(py4)s)Úpy1Úpy4zassert %(py6)sÚpy6)r   r   Ú
+@pytest_arÚ_call_reprcompareÚ	_safereprÚAssertionErrorÚ_format_explanation)Úset_dataÚmÚ@py_assert0Ú@py_assert3Ú@py_assert2Ú@py_format5Ú@py_format7© r   úKC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_name_mapping.pyÚ?test_build_name_to_api_map_handles_apiname_tail_and_punctuation   s   
+
+
+ýÿnnrr   )
+ÚbuiltinsÚ@py_builtinsÚ_pytest.assertion.rewriteÚ	assertionÚrewriter   Úbronze_for_lifer   r   r   r   r   r   r   Ú<module>   s   * 
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\test_traits.cpython-310-pytest-8.0.2.pyc =====
+o
+
+    4ö>i!  ã                   @   s:   d dl Zd dlm  mZ d dlmZ dd„ Zdd„ Z	dS )é    N)Úclassify_traitsc                 C   s(  dd„ | d D ƒ}dd„ | d D ƒ}h d£}ddg}t ||||i d	\}}}}}	|d
+ }
+d}|
+|k}|sWt d|fd
+|
+|f¡t |
+¡t |¡dœ }
+dd|
+i }tt |¡ƒ‚d  }
+ }}d
+}
+|
+|v }|s•t d|fd|
+|f¡t |
+¡dt ¡ v s~t |¡rƒt |¡nddœ }dd|i }tt |¡ƒ‚d  }
+}d
+}
+|
+|v }|sÑt d|fd|
+|f¡t |
+¡dt ¡ v sºt |¡r¿t |¡nddœ }dd|i }tt |¡ƒ‚d  }
+}d
+}
+|
+|v}|st d|fd|
+|f¡t |
+¡dt ¡ v s÷t |¡rüt |¡nddœ }dd|i }tt |¡ƒ‚d  }
+}d S )Nc                 S   ó   i | ]	}|d  |d “qS ©ÚapiNameÚtraits© ©Ú.0Úcr   r   úEC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_traits.pyÚ
+<dictcomp>   ó    z;test_classify_traits_bronze_vs_upgraded.<locals>.<dictcomp>Ú	championsc                 S   ó(   i | ]}|d  t dd„ |d D ƒƒ“qS )Únamec                 s   ó    | ]}|d  V  qdS ©ÚminUnitsNr   ©r	   Úer   r   r   Ú	<genexpr>   ó   € zEtest_classify_traits_bronze_vs_upgraded.<locals>.<dictcomp>.<genexpr>Úeffects©Úsorted©r	   Útr   r   r   r      ó   ( r   ¾   ÚYÚXÚZÚTFT16_AlphaÚ
+TFT16_Beta©Ú
+emblem_countsr    é   ©ú==©z%(py1)s == %(py4)s©Úpy1Úpy4úassert %(py6)sÚpy6©Úin©z%(py1)s in %(py3)sÚbronze©r+   Úpy3úassert %(py5)sÚpy5Ú
+active_any)únot in)z%(py1)s not in %(py3)sÚupgraded©	r   Ú
+@pytest_arÚ_call_reprcompareÚ	_safereprÚAssertionErrorÚ_format_explanationÚ@py_builtinsÚlocalsÚ_should_repr_global_name©Útoy_set_dataÚchamp_traitsÚ	trait_bpsÚeligibleÚteamÚcountsr2   r7   r9   ÚusedÚ@py_assert0Ú@py_assert3Ú@py_assert2Ú@py_format5Ú@py_format7Ú@py_format4Ú@py_format6r   r   r   Ú'test_classify_traits_bronze_vs_upgraded   s   
+ÿjxx~rR   c                 C   s°  dd„ | d D ƒ}dd„ | d D ƒ}h d£}dg}t ||||dd	id
+\}}}}}	|d }
+d}|
+|k}|sXt d|fd
+|
+|f¡t |
+¡t |¡dœ }
+dd|
+i }tt |¡ƒ‚d  }
+ }}d}
+|
+|v }|s–t d|fd|
+|f¡t |
+¡dt ¡ v st |¡r„t |¡nddœ }dd|i }tt |¡ƒ‚d  }
+}d}
+|
+|v }|sÒt d|fd|
+|f¡t |
+¡dt ¡ v s»t |¡rÀt |¡nddœ }dd|i }tt |¡ƒ‚d  }
+}d S )Nc                 S   r   r   r   r   r   r   r   r      r
+   z:test_classify_traits_with_emblem_start.<locals>.<dictcomp>r   c                 S   r   )r   c                 s   r   r   r   r   r   r   r   r      r   zDtest_classify_traits_with_emblem_start.<locals>.<dictcomp>.<genexpr>r   r   r   r   r   r   r      r   r   r   r"   r    é   r$   r&   r'   r)   r*   r-   r.   r/   r1   r2   r3   r5   r6   r7   r:   rC   r   r   r   Ú&test_classify_traits_with_emblem_start   s   ÿjx|rT   )
+Úbuiltinsr@   Ú_pytest.assertion.rewriteÚ	assertionÚrewriter;   Úbronze_for_lifer   rR   rT   r   r   r   r   Ú<module>   s   & 
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\test_traits.cpython-39-pytest-8.4.2.pyc =====
+a
+
+    )õ>iÙ  ã                   @   s:   d dl Zd dlm  mZ d dlmZ dd„ Zdd„ Z	dS )é    N)Úclassify_traitsc                 C   s8  dd„ | d D ƒ}dd„ | d D ƒ}h d£}ddg}t ||||i d	\}}}}}	|d
+ }
+d}|
+|k}|s®t d|fd
+|
+|f¡t |
+¡t |¡dœ }
+dd|
+i }tt |¡ƒ‚d  }
+ }}d
+}
+|
+|v }|s0t d|fd|
+|f¡t |
+¡dt ¡ v st |¡rt |¡nddœ }dd|i }tt |¡ƒ‚d  }
+}d
+}
+|
+|v }|s®t d|fd|
+|f¡t |
+¡dt ¡ v s€t |¡rŠt |¡nddœ }dd|i }tt |¡ƒ‚d  }
+}d
+}
+|
+|v}|s,t d|fd|
+|f¡t |
+¡dt ¡ v sþt |¡rt |¡nddœ }dd|i }tt |¡ƒ‚d  }
+}d S )Nc                 S   s   i | ]}|d  |d “qS ©ÚapiNameÚtraits© ©Ú.0Úcr   r   úEC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_traits.pyÚ
+<dictcomp>   ó    z;test_classify_traits_bronze_vs_upgraded.<locals>.<dictcomp>Ú	championsc                 S   s(   i | ] }|d  t dd„ |d D ƒƒ“qS )Únamec                 s   s   | ]}|d  V  qdS ©ÚminUnitsNr   ©r   Úer   r   r
+   Ú	<genexpr>   r   zEtest_classify_traits_bronze_vs_upgraded.<locals>.<dictcomp>.<genexpr>Úeffects©Úsorted©r   Útr   r   r
+   r      r   r   ¾   ÚXÚYÚZÚTFT16_AÚTFT16_B©Ú
+emblem_countsr   é   ©ú==©z%(py1)s == %(py4)s©Úpy1Úpy4úassert %(py6)sÚpy6©Úin©z%(py1)s in %(py3)sÚ
+active_any©r&   Úpy3úassert %(py5)sÚpy5Úbronze)únot in)z%(py1)s not in %(py3)sÚupgraded©	r   Ú
+@pytest_arÚ_call_reprcompareÚ	_safereprÚAssertionErrorÚ_format_explanationÚ@py_builtinsÚlocalsÚ_should_repr_global_name©Útoy_set_dataÚchamp_traitsÚ	trait_bpsÚeligibleÚteamÚcountsr2   r-   r4   ÚusedÚ@py_assert0Ú@py_assert3Ú@py_assert2Ú@py_format5Ú@py_format7Ú@py_format4Ú@py_format6r   r   r
+   Ú'test_classify_traits_bronze_vs_upgraded   s    
+ÿj~~rM   c                 C   s>  dd„ | d D ƒ}dd„ | d D ƒ}h d£}dg}t ||||dd	id
+\}}}}}	|d }
+d}|
+|k}|s°t d|fd
+|
+|f¡t |
+¡t |¡dœ }
+dd|
+i }tt |¡ƒ‚d  }
+ }}d}
+|
+|v }|s2t d|fd|
+|f¡t |
+¡dt ¡ v st |¡rt |¡nddœ }dd|i }tt |¡ƒ‚d  }
+}d S )Nc                 S   s   i | ]}|d  |d “qS r   r   r   r   r   r
+   r      r   z:test_classify_traits_with_emblem_start.<locals>.<dictcomp>r
+   c                 S   s(   i | ] }|d  t dd„ |d D ƒƒ“qS )r   c                 s   s   | ]}|d  V  qdS r   r   r   r   r   r
+   r      r   zDtest_classify_traits_with_emblem_start.<locals>.<dictcomp>.<genexpr>r   r   r   r   r   r
+   r      r   r   r   r   r   é   r   r!   r"   r$   r%   r(   r)   r*   r,   r2   r.   r0   r1   r5   r>   r   r   r
+   Ú&test_classify_traits_with_emblem_start   s    ÿjrO   )
+Úbuiltinsr;   Ú_pytest.assertion.rewriteÚ	assertionÚrewriter6   Úbronze_for_lifer   rM   rO   r   r   r   r
+   Ú<module>   s   &
+
+===== C:\Users\MOBS_\Desktop\python practise\tft calcs\tests\__pycache__\test_traits_dynamic.cpython-310-pytest-8.0.2.pyc =====
+o
+
+    Ôö>iß  ã                   @   s2   d dl Zd dlm  mZ d dlmZ dd„ ZdS )é    N)Úclassify_traitsc                 C   s^  dd„ | d D ƒ}dd„ | d D ƒ}h d£}t dd„ | d D ƒƒ}t d	d„ | d D ƒƒ}t||g|||i d
+\}}}}	}
+|d }d}||k}
+|
+skt d
+|
+fd||f¡t |¡t |¡dœ }dd|i }tt |¡ƒ‚d  } }
+}d}||v }
+|
+s©t d|
+fd||f¡t |¡dt ¡ v s’t 	|¡r—t |¡nddœ }dd|i }tt |¡ƒ‚d  }}
+d S )Nc                 S   s   i | ]	}|d  |d “qS )ÚapiNameÚtraits© ©Ú.0Úcr   r   úMC:\Users\MOBS_\Desktop\python practise\tft calcs\tests\test_traits_dynamic.pyÚ
+<dictcomp>   s    zItest_classify_traits_uses_fixture_names_not_hardcoded.<locals>.<dictcomp>Ú	championsc                 S   s(   i | ]}|d  t dd„ |d D ƒƒ“qS )Únamec                 s   s    | ]}|d  V  qdS )ÚminUnitsNr   )r   Úer   r   r	   Ú	<genexpr>   s   € zStest_classify_traits_uses_fixture_names_not_hardcoded.<locals>.<dictcomp>.<genexpr>Úeffects)Úsorted)r   Útr   r   r	   r
+      s   ( r   >   ÚYÚZÚXc                 s   ó$    | ]
+}|d  dkr|d V  qdS )r   ÚAlphar   Nr   r   r   r   r	   r   	   ó   €" zHtest_classify_traits_uses_fixture_names_not_hardcoded.<locals>.<genexpr>c                 s   r   )r   ÚBetar   Nr   r   r   r   r	   r   
+   r   )Ú
+emblem_countsr   é   )ú==)z%(py1)s == %(py4)s)Úpy1Úpy4zassert %(py6)sÚpy6)Úin)z%(py1)s in %(py3)sÚbronze)r   Úpy3zassert %(py5)sÚpy5)
+Únextr   Ú
+@pytest_arÚ_call_reprcompareÚ	_safereprÚAssertionErrorÚ_format_explanationÚ@py_builtinsÚlocalsÚ_should_repr_global_name)Útoy_set_dataÚchamp_traitsÚ	trait_bpsÚeligibleÚalphaÚbetaÚcountsr!   Ú
+active_anyÚupgradedÚusedÚ@py_assert0Ú@py_assert3Ú@py_assert2Ú@py_format5Ú@py_format7Ú@py_format4Ú@py_format6r   r   r	   Ú5test_classify_traits_uses_fixture_names_not_hardcoded   s   ÿj|r>   )	Úbuiltinsr*   Ú_pytest.assertion.rewriteÚ	assertionÚrewriter%   Úbronze_for_lifer   r>   r   r   r   r	   Ú<module>   s   & 
+
