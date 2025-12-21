@@ -1,12 +1,21 @@
-def solve_beam_search_bronze_with_emblems(champs: List[str],
-                                          champ_traits: Dict[str, List[str]],
-                                          trait_bps: Dict[str, List[int]],
-                                          eligible_traits: Set[str],
-                                          team_size: int,
-                                          beam_width: int,
-                                          hard_emblems: Dict[str, int],
-                                          max_emblems_total: int,
-                                          power_map: Dict[str, float]):
+from collections import defaultdict
+from typing import Dict, List, Set, Tuple, Optional, Iterable
+
+from bfl.traits import apply_emblem_starts, classify_traits
+
+
+def solve_beam_search_bronze_with_emblems(
+    champs: List[str],
+    champ_traits: Dict[str, List[str]],
+    trait_bps: Dict[str, List[int]],
+    eligible_traits: Set[str],
+    team_size: int,
+    beam_width: int,
+    hard_emblems: Dict[str, int],
+    max_emblems_total: int,
+    power_map: Dict[str, float],
+    forced_units: Optional[Iterable[str]] = None,   # <-- NEW
+):
     """
     Beam search for max bronze-active traits, with emblems.
     Tie-breakers (in this order):
@@ -14,8 +23,55 @@ def solve_beam_search_bronze_with_emblems(champs: List[str],
       2) active eligible traits (any tier)
       3) fewer upgraded (tier2+)
       4) higher team power (from MetaTFT)
+
+    forced_units:
+      Optional iterable of champion apiNames that MUST be included in the final team.
+      Example: ["TFT16_Alpha", "TFT16_Beta"]
     """
 
+    # ----------------------------
+    # Validate and normalize forced units
+    # ----------------------------
+    forced_list: List[str] = []
+    if forced_units:
+        forced_list = list(forced_units)
+
+    # Remove duplicates while preserving order
+    seen = set()
+    forced_list_unique = []
+    for u in forced_list:
+        if u not in seen:
+            seen.add(u)
+            forced_list_unique.append(u)
+    forced_list = forced_list_unique
+
+    if len(forced_list) > team_size:
+        raise ValueError(
+            f"forced_units has {len(forced_list)} units but team_size={team_size}. "
+            f"Forced units must be <= team size."
+        )
+
+    champs_set = set(champs)
+    missing = [u for u in forced_list if u not in champs_set]
+    if missing:
+        raise ValueError(
+            f"Some forced_units are not in champs (filtered playable list): {missing}. "
+            f"Either they were filtered out (cost/traits) or the apiName is wrong."
+        )
+
+    # Build initial partial team + counts from forced units
+    base_counts0 = defaultdict(int)
+    team_power0 = 0.0
+    for c in forced_list:
+        for t in champ_traits[c]:
+            base_counts0[t] += 1
+        team_power0 += power_map.get(c, 0.0)
+
+    start_team = list(forced_list)
+
+    # ----------------------------
+    # Emblem helpers (unchanged)
+    # ----------------------------
     auto_candidates = sorted([t for t in eligible_traits if t not in hard_emblems])
 
     def choose_best_emblems(base_counts: Dict[str, int]) -> Dict[str, int]:
@@ -96,14 +152,20 @@ def solve_beam_search_bronze_with_emblems(champs: List[str],
 
         return bronze, active, upgraded, emblem_counts
 
+    # ----------------------------
+    # Beam search starting from forced team
+    # ----------------------------
     # Beam state: (team, base_counts, team_power, sort_key)
+    bronze0, active0, upgraded0, _ = score_state(base_counts0)
     beam: List[Tuple[List[str], Dict[str, int], float, Tuple[int, int, int, float]]] = [
-        ([], defaultdict(int), 0.0, (0, 0, 0, 0.0))
+        (start_team, base_counts0, team_power0, (bronze0, active0, -upgraded0, team_power0))
     ]
 
-    for _ in range(team_size):
+    remaining_slots = team_size - len(start_team)
+
+    for _ in range(remaining_slots):
         candidates = []
-        for team, base_counts, team_power, _ in beam:
+        for team, base_counts, team_power, _key in beam:
             team_set = set(team)
             for c in champs:
                 if c in team_set:
@@ -129,7 +191,7 @@ def solve_beam_search_bronze_with_emblems(champs: List[str],
     if not beam:
         raise RuntimeError("Beam search produced no candidates. Check filtering logic.")
 
-    best_team, best_base_counts, best_power, best_key = max(beam, key=lambda x: x[3])
+    best_team, best_base_counts, best_power, _best_key = max(beam, key=lambda x: x[3])
 
     emblem_counts = choose_best_emblems(best_base_counts)
 
@@ -137,5 +199,14 @@ def solve_beam_search_bronze_with_emblems(champs: List[str],
         best_team, champ_traits, trait_bps, eligible_traits, emblem_counts
     )
 
-    return best_team, emblem_counts, best_power, len(
-        bronze_traits), counts, bronze_traits, active_traits, upgraded_traits, used_traits
+    return (
+        best_team,
+        emblem_counts,
+        best_power,
+        len(bronze_traits),
+        counts,
+        bronze_traits,
+        active_traits,
+        upgraded_traits,
+        used_traits,
+    )

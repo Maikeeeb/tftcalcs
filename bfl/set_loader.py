@@ -1,3 +1,7 @@
+from bfl.config import BLACKLIST_TRAITS_BY_NAME
+
+
+
 def load_set_data(path: str, set_id: str):
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)

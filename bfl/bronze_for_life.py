@@ -1,32 +1,18 @@
-import json
-import re
-from collections import defaultdict
-from typing import Dict, List, Set, Tuple
+from bfl.set_loader import load_set_data
+from bfl.metatft import load_metatft_txt, metatft_to_unit_stats, unit_power
+from bfl.solver import solve_beam_search_bronze_with_emblems
+from bfl.config import (
+    BLACKLIST_TRAITS_BY_NAME,
+    EMBLEM_START_COUNTS,
+    MAX_EMBLEMS_TOTAL,
+    TEAM_SIZE,
+    BEAM_WIDTH,
+    JSON_PATH,
+    SET_ID,
+    METATFT_TXT_PATH,
+)
 
-JSON_PATH = "en_us.json"
-SET_ID = "16"
-METATFT_TXT_PATH = "metatft_units.txt"
 
-TEAM_SIZE = 9
-BEAM_WIDTH = 700  # bigger = better results, slower
-
-# Traits that should NEVER count for Bronze for Life even if active.
-BLACKLIST_TRAITS_BY_NAME: Set[str] = {
-    "Targon",
-}
-
-# --- Emblem modeling (simple) ---
-# If a trait is in EMBLEM_START_COUNTS, it starts at that many units (e.g., 1 emblem => +1).
-EMBLEM_START_COUNTS: Dict[str, int] = {
-    "Zaun": 1,
-    "Ixtal": 1,
-    "Freljord": 1,
-    "Bilgewater": 1,
-}
-
-# If > 0, the optimizer will choose up to this many traits to receive +1 starting count (emblem),
-# unless you hard-code EMBLEM_START_COUNTS above (hard-coded counts are always applied).
-MAX_EMBLEMS_TOTAL = 0  # set 0 to disable automatic emblem selection
 
 # Weights for unit strength tie-breaker.
 # Higher = optimizer prefers "stronger" units among equally good bronze solutions.

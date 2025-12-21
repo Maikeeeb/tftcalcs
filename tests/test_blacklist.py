@@ -1,4 +1,4 @@
-from bronze_for_life import load_set_data
+from bfl.bronze_for_life import load_set_data
 
 
 def test_blacklisted_trait_not_in_eligible(toy_set_data, monkeypatch, tmp_path):
@@ -9,7 +9,7 @@ def test_blacklisted_trait_not_in_eligible(toy_set_data, monkeypatch, tmp_path):
 
     # Monkeypatch blacklist to include Targon (like real code)
     # If your blacklist is module-level constant, import module and patch it.
-    import bronze_for_life as bfl
+    from bfl import bronze_for_life as bfl
     bfl.BLACKLIST_TRAITS_BY_NAME = {"Targon"}
 
     set_data, champs, champ_traits, trait_bps, champ_cost, eligible, freq = load_set_data(str(p), "16")

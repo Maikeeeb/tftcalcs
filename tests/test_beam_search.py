@@ -1,4 +1,4 @@
-from bronze_for_life import solve_beam_search_bronze_with_emblems
+from bfl.bronze_for_life import solve_beam_search_bronze_with_emblems
 
 
 def test_beam_search_returns_valid_team(toy_set_data):

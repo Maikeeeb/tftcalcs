@@ -1,4 +1,4 @@
-from bronze_for_life import apply_emblem_starts
+from bfl.bronze_for_life import apply_emblem_starts
 
 def test_apply_emblem_starts_adds_to_existing_counts():
     base = {"X": 1, "Y": 2}

@@ -1,4 +1,4 @@
-from bronze_for_life import classify_traits
+from bfl.bronze_for_life import classify_traits
 
 
 def test_classify_traits_uses_fixture_names_not_hardcoded(toy_set_data):

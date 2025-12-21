@@ -1,4 +1,4 @@
-from bronze_for_life import parse_metatft_units
+from bfl.bronze_for_life import parse_metatft_units
 
 def test_parse_metatft_units_ignores_items_and_still_parses_units():
     text = """

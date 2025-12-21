@@ -1,4 +1,4 @@
-from bronze_for_life import build_name_to_api_map, normalize_name
+from bfl.bronze_for_life import build_name_to_api_map, normalize_name
 
 
 def test_build_name_to_api_map_handles_apiname_tail_and_punctuation():

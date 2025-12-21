@@ -1,4 +1,4 @@
-from bronze_for_life import normalize_name, apply_emblem_starts, unit_power
+from bfl.bronze_for_life import normalize_name, apply_emblem_starts, unit_power
 
 def test_normalize_name():
     assert normalize_name("Lucian & Senna") == "luciansenna"

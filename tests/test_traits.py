@@ -1,4 +1,4 @@
-from bronze_for_life import classify_traits
+from bfl.bronze_for_life import classify_traits
 
 def test_classify_traits_bronze_vs_upgraded(toy_set_data):
     champ_traits = {c["apiName"]: c["traits"] for c in toy_set_data["champions"]}
