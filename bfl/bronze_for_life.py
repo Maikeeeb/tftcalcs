@@ -1,52 +1,49 @@
-from bfl.set_loader import load_set_data
-from bfl.metatft import load_metatft_txt, metatft_to_unit_stats, unit_power
-from bfl.solver import solve_beam_search_bronze_with_emblems
 from bfl.config import (
+    BEAM_WIDTH,
     BLACKLIST_TRAITS_BY_NAME,
     EMBLEM_START_COUNTS,
-    MAX_EMBLEMS_TOTAL,
-    TEAM_SIZE,
-    BEAM_WIDTH,
     JSON_PATH,
-    SET_ID,
+    MAX_EMBLEMS_TOTAL,
     METATFT_TXT_PATH,
+    SET_ID,
+    TEAM_SIZE,
+    W_AVG,
+    W_FREQ,
+    W_WIN,
 )
+from bfl.metatft import (
+    build_name_to_api_map,
+    load_metatft_txt,
+    metatft_to_unit_stats,
+    normalize_name,
+    parse_metatft_units,
+    unit_power,
+)
+from bfl.set_loader import load_set_data
+from bfl.solver import solve_beam_search_bronze_with_emblems
+from bfl.traits import apply_emblem_starts, classify_traits
 
-
-
-# Weights for unit strength tie-breaker.
-# Higher = optimizer prefers "stronger" units among equally good bronze solutions.
-W_WIN = 2.0  # win rate (0..1)
-W_AVG = 1.0  # avg placement (lower is better)
-W_FREQ = 0.1  # optional: popularity stability (0..1). keep small.
-
-
-def load_metatft_txt(path: str) -> str:
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read()
-    except FileNotFoundError:
-        print(f"MetaTFT file not found: {path}")
-        return ""
-
-
-
-
-
-
-
-
-
-
-
+__all__ = [
+    "apply_emblem_starts",
+    "build_name_to_api_map",
+    "classify_traits",
+    "load_set_data",
+    "load_metatft_txt",
+    "metatft_to_unit_stats",
+    "normalize_name",
+    "parse_metatft_units",
+    "solve_beam_search_bronze_with_emblems",
+    "unit_power",
+]
 
 
 def main():
-    set_data, champs, champ_traits, trait_bps, champ_cost, eligible_traits, trait_freq = load_set_data(JSON_PATH,
-                                                                                                       SET_ID)
+    set_data, champs, champ_traits, trait_bps, champ_cost, eligible_traits, trait_freq = load_set_data(
+        JSON_PATH, SET_ID
+    )
 
     # Load MetaTFT stats (optional)
-    metatft_text = load_metatft_txt(METATFT_TXT_PATH)
+    metatft_text = load_metatft_txt(str(METATFT_TXT_PATH))
     unit_stats = metatft_to_unit_stats(metatft_text, set_data)
 
     # Precompute unit power for beam search
@@ -68,13 +65,26 @@ def main():
     if len(champs) < TEAM_SIZE:
         raise RuntimeError(f"Not enough playable units after filtering: {len(champs)} (need {TEAM_SIZE}).")
 
-    team, emblem_counts, team_power, bronze_count, counts, bronze_traits, active_traits, upgraded_traits, used_traits = (
-        solve_beam_search_bronze_with_emblems(
-            champs, champ_traits, trait_bps, eligible_traits,
-            TEAM_SIZE, BEAM_WIDTH,
-            EMBLEM_START_COUNTS, MAX_EMBLEMS_TOTAL,
-            power_map
-        )
+    (
+        team,
+        emblem_counts,
+        team_power,
+        bronze_count,
+        counts,
+        bronze_traits,
+        active_traits,
+        upgraded_traits,
+        used_traits,
+    ) = solve_beam_search_bronze_with_emblems(
+        champs,
+        champ_traits,
+        trait_bps,
+        eligible_traits,
+        TEAM_SIZE,
+        BEAM_WIDTH,
+        EMBLEM_START_COUNTS,
+        MAX_EMBLEMS_TOTAL,
+        power_map,
     )
 
     print("=== Result (Bronze for Life + Emblems + Unit Strength) ===")

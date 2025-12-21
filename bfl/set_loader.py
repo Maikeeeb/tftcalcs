@@ -1,10 +1,28 @@
+from collections import defaultdict
+import json
+from pathlib import Path
+from typing import Dict, List, Optional, Set, Tuple
+
 from bfl.config import BLACKLIST_TRAITS_BY_NAME
 
 
-
-def load_set_data(path: str, set_id: str):
+def load_set_data(
+    path: str | Path,
+    set_id: str,
+    blacklist_traits: Optional[Set[str]] = None,
+) -> Tuple[
+    Dict,
+    List[str],
+    Dict[str, List[str]],
+    Dict[str, List[int]],
+    Dict[str, int],
+    Set[str],
+    Dict[str, int],
+]:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
+
+    blacklist = set(blacklist_traits) if blacklist_traits is not None else set(BLACKLIST_TRAITS_BY_NAME)
 
     set_data = data["sets"][set_id]
 
@@ -72,7 +90,7 @@ def load_set_data(path: str, set_id: str):
     # - not blacklisted
     eligible_traits: Set[str] = {
         t for t, f in trait_freq.items()
-        if f >= 2 and t in trait_bps and t not in BLACKLIST_TRAITS_BY_NAME
+        if f >= 2 and t in trait_bps and t not in blacklist
     }
 
     return set_data, champs, champ_traits, trait_bps, champ_cost, eligible_traits, dict(trait_freq)

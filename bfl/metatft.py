@@ -1,3 +1,9 @@
+import re
+from typing import Dict, List
+
+from bfl.config import W_AVG, W_FREQ, W_WIN
+
+
 def normalize_name(s: str) -> str:
     # Lowercase, remove spaces/punctuation for matching
     return re.sub(r"[^a-z0-9]+", "", s.lower())
@@ -146,3 +152,12 @@ def unit_power(api: str, unit_stats: Dict[str, Dict[str, float]]) -> float:
     avg = float(s.get("avg", 4.5))  # ~2..8 (lower better)
     freq = float(s.get("freq", 0.0))  # 0..1
     return (W_WIN * win) - (W_AVG * avg) + (W_FREQ * freq)
+
+
+def load_metatft_txt(path: str) -> str:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        print(f"MetaTFT file not found: {path}")
+        return ""

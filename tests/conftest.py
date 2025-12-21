@@ -7,6 +7,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from bfl.bronze_for_life import solve_beam_search_bronze_with_emblems
+
 
 @pytest.fixture
 def toy_set_data():
@@ -26,3 +28,24 @@ def toy_set_data():
         ],
     }
 
+
+@pytest.fixture
+def result_from_beam_search(toy_set_data):
+    champs = [c["apiName"] for c in toy_set_data["champions"]]
+    champ_traits = {c["apiName"]: c["traits"] for c in toy_set_data["champions"]}
+    trait_bps = {t["name"]: sorted(e["minUnits"] for e in t["effects"]) for t in toy_set_data["traits"]}
+    eligible = {"X", "Y", "Z"}
+    power_map = {c: 0.0 for c in champs}
+
+    team, *_ = solve_beam_search_bronze_with_emblems(
+        champs=champs,
+        champ_traits=champ_traits,
+        trait_bps=trait_bps,
+        eligible_traits=eligible,
+        team_size=2,
+        beam_width=50,
+        hard_emblems={},
+        max_emblems_total=0,
+        power_map=power_map,
+    )
+    return team

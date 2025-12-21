@@ -1,14 +1,21 @@
+from collections import defaultdict
+from typing import Dict, List, Set, Tuple
+
+
 def apply_emblem_starts(counts: Dict[str, int], emblem_counts: Dict[str, int]) -> Dict[str, int]:
     out = defaultdict(int, counts)
     for t, v in emblem_counts.items():
         out[t] += v
     return dict(out)
 
-def classify_traits(team: List[str],
-                    champ_traits: Dict[str, List[str]],
-                    trait_bps: Dict[str, List[int]],
-                    eligible_traits: Set[str],
-                    emblem_counts: Dict[str, int]):
+
+def classify_traits(
+    team: List[str],
+    champ_traits: Dict[str, List[str]],
+    trait_bps: Dict[str, List[int]],
+    eligible_traits: Set[str],
+    emblem_counts: Dict[str, int],
+) -> Tuple[Dict[str, int], List[str], List[str], List[str], List[str]]:
     # base counts from team
     cnt = defaultdict(int)
     for c in team:
