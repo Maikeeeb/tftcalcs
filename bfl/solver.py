@@ -1,7 +1,82 @@
 from collections import defaultdict
-from typing import Dict, List, Set, Tuple, Optional, Iterable
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from bfl.traits import apply_emblem_starts, classify_traits
+
+
+def compute_effective_counts(base_counts: Dict[str, int], emblem_counts: Dict[str, int]) -> Dict[str, int]:
+    """Return counts after applying emblem starts."""
+
+    return apply_emblem_starts(base_counts, emblem_counts)
+
+
+def build_required_team(
+    champs: List[str],
+    champ_traits: Dict[str, List[str]],
+    power_map: Dict[str, float],
+    required_champions: Optional[Dict[str, int]],
+    forced_units: Optional[Iterable[str]] = None,
+    team_size: Optional[int] = None,
+) -> Tuple[List[str], Dict[str, int], float]:
+    """Assemble the starting team from forced and required champions."""
+
+    required_map = required_champions or {}
+    champs_set = set(champs)
+
+    start_team: List[str] = []
+
+    def _add_candidate(candidate: str):
+        if candidate not in champs_set:
+            raise RuntimeError(
+                f"Required champion '{candidate}' is not in the playable pool; check name or filtering."
+            )
+        if candidate not in start_team:
+            start_team.append(candidate)
+
+    for c, flag in required_map.items():
+        if flag not in (0, 1):
+            raise RuntimeError(f"Required champion '{c}' must be 0 or 1, got {flag}.")
+        if flag:
+            _add_candidate(c)
+
+    if forced_units:
+        for c in forced_units:
+            _add_candidate(c)
+
+    if team_size is not None and len(start_team) > team_size:
+        raise RuntimeError(
+            f"Required champions count ({len(start_team)}) exceeds TEAM_SIZE={team_size}."
+        )
+
+    base_counts = defaultdict(int)
+    team_power = 0.0
+    for c in start_team:
+        for t in champ_traits[c]:
+            base_counts[t] += 1
+        team_power += power_map.get(c, 0.0)
+
+    return start_team, base_counts, team_power
+
+
+def feasibility_check(
+    base_counts: Dict[str, int],
+    choose_best_emblems,
+    required_traits_min: Dict[str, int],
+    remaining_slots: int,
+) -> bool:
+    if not required_traits_min:
+        return True
+
+    emblem_counts = choose_best_emblems(base_counts)
+    effective = compute_effective_counts(base_counts, emblem_counts)
+
+    for t, need_min in required_traits_min.items():
+        if need_min <= 0:
+            continue
+        need = need_min - effective.get(t, 0)
+        if need > remaining_slots:
+            return False
+    return True
 
 
 def solve_beam_search_bronze_with_emblems(
@@ -14,7 +89,9 @@ def solve_beam_search_bronze_with_emblems(
     hard_emblems: Dict[str, int],
     max_emblems_total: int,
     power_map: Dict[str, float],
-    forced_units: Optional[Iterable[str]] = None,   # <-- NEW
+    required_champions: Optional[Dict[str, int]] = None,
+    required_traits_min: Optional[Dict[str, int]] = None,
+    forced_units: Optional[Iterable[str]] = None,
 ):
     """
     Beam search for max bronze-active traits, with emblems.
@@ -29,45 +106,20 @@ def solve_beam_search_bronze_with_emblems(
       Example: ["TFT16_Alpha", "TFT16_Beta"]
     """
 
-    # ----------------------------
-    # Validate and normalize forced units
-    # ----------------------------
-    forced_list: List[str] = []
-    if forced_units:
-        forced_list = list(forced_units)
+    required_traits_min = required_traits_min or {}
 
-    # Remove duplicates while preserving order
-    seen = set()
-    forced_list_unique = []
-    for u in forced_list:
-        if u not in seen:
-            seen.add(u)
-            forced_list_unique.append(u)
-    forced_list = forced_list_unique
+    # Validate required traits
+    for t, min_count in required_traits_min.items():
+        if min_count < 0:
+            raise RuntimeError(f"Required trait '{t}' minimum cannot be negative (got {min_count}).")
+        if min_count > 0 and t not in trait_bps:
+            raise RuntimeError(
+                f"Required trait '{t}' is not in the trait list (trait_bps). Check spelling or set data."
+            )
 
-    if len(forced_list) > team_size:
-        raise ValueError(
-            f"forced_units has {len(forced_list)} units but team_size={team_size}. "
-            f"Forced units must be <= team size."
-        )
-
-    champs_set = set(champs)
-    missing = [u for u in forced_list if u not in champs_set]
-    if missing:
-        raise ValueError(
-            f"Some forced_units are not in champs (filtered playable list): {missing}. "
-            f"Either they were filtered out (cost/traits) or the apiName is wrong."
-        )
-
-    # Build initial partial team + counts from forced units
-    base_counts0 = defaultdict(int)
-    team_power0 = 0.0
-    for c in forced_list:
-        for t in champ_traits[c]:
-            base_counts0[t] += 1
-        team_power0 += power_map.get(c, 0.0)
-
-    start_team = list(forced_list)
+    start_team, base_counts0, team_power0 = build_required_team(
+        champs, champ_traits, power_map, required_champions, forced_units, team_size
+    )
 
     # ----------------------------
     # Emblem helpers (unchanged)
@@ -153,17 +205,17 @@ def solve_beam_search_bronze_with_emblems(
         return bronze, active, upgraded, emblem_counts
 
     # ----------------------------
-    # Beam search starting from forced team
+    # Beam search starting from forced/required team
     # ----------------------------
     # Beam state: (team, base_counts, team_power, sort_key)
     bronze0, active0, upgraded0, _ = score_state(base_counts0)
-    beam: List[Tuple[List[str], Dict[str, int], float, Tuple[int, int, int, float]]] = [
-        (start_team, base_counts0, team_power0, (bronze0, active0, -upgraded0, team_power0))
-    ]
+    beam: List[Tuple[List[str], Dict[str, int], float, Tuple[int, int, int, float]]] = []
 
-    remaining_slots = team_size - len(start_team)
+    remaining_slots0 = team_size - len(start_team)
+    if feasibility_check(base_counts0, choose_best_emblems, required_traits_min, remaining_slots0):
+        beam.append((start_team, base_counts0, team_power0, (bronze0, active0, -upgraded0, team_power0)))
 
-    for _ in range(remaining_slots):
+    for _ in range(remaining_slots0):
         candidates = []
         for team, base_counts, team_power, _key in beam:
             team_set = set(team)
@@ -176,8 +228,15 @@ def solve_beam_search_bronze_with_emblems(
                 for t in champ_traits[c]:
                     new_counts[t] += 1
 
-                bronze, active, upgraded, _ = score_state(new_counts)
                 new_power = team_power + power_map.get(c, 0.0)
+                new_remaining_slots = team_size - len(new_team)
+
+                if not feasibility_check(
+                    new_counts, choose_best_emblems, required_traits_min, new_remaining_slots
+                ):
+                    continue
+
+                bronze, active, upgraded, _ = score_state(new_counts)
 
                 key = (bronze, active, -upgraded, new_power)
                 candidates.append((new_team, new_counts, new_power, key))
@@ -189,7 +248,9 @@ def solve_beam_search_bronze_with_emblems(
             break
 
     if not beam:
-        raise RuntimeError("Beam search produced no candidates. Check filtering logic.")
+        raise RuntimeError(
+            "Beam search produced no candidates under the given constraints. Check filtering/requirements."
+        )
 
     best_team, best_base_counts, best_power, _best_key = max(beam, key=lambda x: x[3])
 
@@ -198,6 +259,14 @@ def solve_beam_search_bronze_with_emblems(
     counts, bronze_traits, active_traits, upgraded_traits, used_traits = classify_traits(
         best_team, champ_traits, trait_bps, eligible_traits, emblem_counts
     )
+
+    for t, min_count in required_traits_min.items():
+        if min_count <= 0:
+            continue
+        if counts.get(t, 0) < min_count:
+            raise RuntimeError(
+                f"No team satisfies required trait minimums; '{t}' needed {min_count}, got {counts.get(t, 0)}."
+            )
 
     return (
         best_team,

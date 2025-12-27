@@ -47,5 +47,7 @@ def result_from_beam_search(toy_set_data):
         hard_emblems={},
         max_emblems_total=0,
         power_map=power_map,
+        required_champions=None,
+        required_traits_min=None,
     )
     return team
