@@ -73,6 +73,10 @@ The repository now ships with a lightweight FastAPI backend and a Vite + React +
    ```bash
    uvicorn ui_api.main:app --reload --port 8000
    ```
+   On Windows, if `uvicorn` is not found in your `PATH`, run the module directly instead:
+   ```bash
+   python -m uvicorn ui_api.main:app --reload --port 8000
+   ```
    Leave this terminal window running so the API stays available.
 5. **Start the React dev server.** Open a second terminal, return to the repository root, and run:
    ```bash
