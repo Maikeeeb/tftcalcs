@@ -21,10 +21,12 @@ from bfl.bronze_for_life import (
     solve_beam_search_bronze_with_emblems,
     unit_power,
 )
-from bfl.config import BEAM_WIDTH, JSON_PATH, METATFT_TXT_PATH, SET_ID, TEAM_SIZE
+from bfl.config_loader import load_config
+
+CONFIG = load_config(None)
 
 # Keep tutorial runs snappy even if the config beam is large.
-BEAM_WIDTH_EXAMPLE = min(BEAM_WIDTH, 100)
+BEAM_WIDTH_EXAMPLE = min(CONFIG.beam_width, 100)
 
 
 def prepare_context():
@@ -37,11 +39,11 @@ def prepare_context():
         champ_cost,
         eligible_traits,
         _trait_freq,
-    ) = load_set_data(JSON_PATH, SET_ID)
+    ) = load_set_data(CONFIG.json_path, CONFIG.set_id, CONFIG.blacklist_traits_by_name)
 
-    metatft_text = load_metatft_txt(str(METATFT_TXT_PATH))
+    metatft_text = load_metatft_txt(str(CONFIG.metatft_txt_path))
     unit_stats = metatft_to_unit_stats(metatft_text, set_data)
-    power_map = {c: unit_power(c, unit_stats) for c in champs}
+    power_map = {c: unit_power(c, unit_stats, CONFIG.w_win, CONFIG.w_avg, CONFIG.w_freq) for c in champs}
 
     return {
         "champs": champs,
@@ -59,7 +61,7 @@ def run_case(title, hard_emblems, max_auto_emblems, ctx, forced_units=None):
         ctx["champ_traits"],
         ctx["trait_bps"],
         ctx["eligible_traits"],
-        TEAM_SIZE,
+        CONFIG.team_size,
         BEAM_WIDTH_EXAMPLE,
         hard_emblems,
         max_auto_emblems,
@@ -82,8 +84,8 @@ def run_case(title, hard_emblems, max_auto_emblems, ctx, forced_units=None):
     print(f"\n=== {title} ===")
     print(f"Bronze-eligible traits at tier 1: {bronze_count}")
     print(f"Active eligible traits (any tier): {len(active_traits)}")
-    if BEAM_WIDTH_EXAMPLE != BEAM_WIDTH:
-        print(f"Beam width (example override): {BEAM_WIDTH_EXAMPLE} (config={BEAM_WIDTH})")
+    if BEAM_WIDTH_EXAMPLE != CONFIG.beam_width:
+        print(f"Beam width (example override): {BEAM_WIDTH_EXAMPLE} (config={CONFIG.beam_width})")
     if emblem_counts:
         print(f"Emblems applied: {emblem_counts}")
     if team_power:

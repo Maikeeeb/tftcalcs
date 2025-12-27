@@ -1,8 +1,6 @@
 import re
 from typing import Dict, List
 
-from bfl.config import W_AVG, W_FREQ, W_WIN
-
 
 def normalize_name(s: str) -> str:
     # Lowercase, remove spaces/punctuation for matching
@@ -141,7 +139,13 @@ def metatft_to_unit_stats(paste: str, set_data) -> Dict[str, Dict[str, float]]:
     return unit_stats
 
 
-def unit_power(api: str, unit_stats: Dict[str, Dict[str, float]]) -> float:
+def unit_power(
+    api: str,
+    unit_stats: Dict[str, Dict[str, float]],
+    w_win: float = 2.0,
+    w_avg: float = 1.0,
+    w_freq: float = 0.1,
+) -> float:
     """
     Bigger is better.
     """
@@ -151,7 +155,7 @@ def unit_power(api: str, unit_stats: Dict[str, Dict[str, float]]) -> float:
     win = float(s.get("win", 0.0))  # 0..1
     avg = float(s.get("avg", 4.5))  # ~2..8 (lower better)
     freq = float(s.get("freq", 0.0))  # 0..1
-    return (W_WIN * win) - (W_AVG * avg) + (W_FREQ * freq)
+    return (w_win * win) - (w_avg * avg) + (w_freq * freq)
 
 
 def load_metatft_txt(path: str) -> str:

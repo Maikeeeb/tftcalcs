@@ -2,7 +2,7 @@ import pytest
 
 from bfl.bronze_for_life import solve_beam_search_bronze_with_emblems
 from bfl.set_loader import load_set_data
-from bfl.config import JSON_PATH, SET_ID
+from bfl.config import default_config
 
 
 def _build_inputs(toy_set_data):
@@ -86,8 +86,9 @@ def test_impossible_required_trait_raises(toy_set_data):
 
 
 def test_realistic_strict_requirements_have_unique_team():
+    cfg = default_config()
     _, champs, champ_traits, trait_bps, _champ_cost, eligible_traits, _trait_freq = load_set_data(
-        JSON_PATH, SET_ID
+        cfg.json_path, cfg.set_id
     )
 
     required_team = [

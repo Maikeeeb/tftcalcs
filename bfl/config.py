@@ -1,24 +1,21 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Set
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = PACKAGE_ROOT.parent
 
-JSON_PATH = REPO_ROOT / "en_us.json"
-SET_ID = "16"
-METATFT_TXT_PATH = REPO_ROOT / "metatft_units.txt"
-
-TEAM_SIZE = 9
-BEAM_WIDTH = 700  # bigger = better results, slower
 
 # Traits that should NEVER count for Bronze for Life even if active.
-BLACKLIST_TRAITS_BY_NAME: Set[str] = {
+DEFAULT_BLACKLIST_TRAITS_BY_NAME: Set[str] = {
     "Targon",
 }
 
 # --- Emblem modeling (simple) ---
 # If a trait is in EMBLEM_START_COUNTS, it starts at that many units (e.g., 1 emblem => +1).
-EMBLEM_START_COUNTS: Dict[str, int] = {
+DEFAULT_EMBLEM_START_COUNTS: Dict[str, int] = {
     # Only traits that appear on multiple champions
     "Arcanist": 0,
     "Bilgewater": 0,
@@ -47,16 +44,7 @@ EMBLEM_START_COUNTS: Dict[str, int] = {
     "Zaun": 0,
 }
 
-# Add/remove based on what your JSON actually allows
-
-
-# If > 0, the optimizer will choose up to this many traits to receive +1 starting count (emblem),
-# unless you hard-code EMBLEM_START_COUNTS above (hard-coded counts are always applied).
-MAX_EMBLEMS_TOTAL = 0  # set 0 to disable automatic emblem selection
-
-# Required constraints (complete templates generated at runtime if left empty)
-# Set value to 1 to force a champion into the team, -1 to prevent them from appearing.
-REQUIRED_CHAMPIONS: Dict[str, int] = {
+DEFAULT_REQUIRED_CHAMPIONS: Dict[str, int] = {
     "TFT16_Tristana": 0,
     "TFT16_Lulu": 0,
     "TFT16_Teemo": 0,
@@ -160,7 +148,7 @@ REQUIRED_CHAMPIONS: Dict[str, int] = {
 }
 
 # Set value to N (>=1) to enforce a minimum final trait count (after emblems).
-REQUIRED_TRAITS_MIN: Dict[str, int] = {
+DEFAULT_REQUIRED_TRAITS_MIN: Dict[str, int] = {
     # Only traits that appear on multiple champions
     "Arcanist": 0,
     "Bilgewater": 0,
@@ -190,8 +178,54 @@ REQUIRED_TRAITS_MIN: Dict[str, int] = {
     "Zaun": 0,
 }
 
-# Weights for unit strength tie-breaker. Higher = optimizer prefers "stronger" units among equally
-# good bronze solutions.
-W_WIN = 2.0  # win rate (0..1)
-W_AVG = 1.0  # avg placement (lower is better)
-W_FREQ = 0.1  # optional: popularity stability (0..1). keep small.
+
+@dataclass
+class Config:
+    json_path: Path
+    set_id: str
+    metatft_txt_path: Path
+    team_size: int
+    beam_width: int
+    blacklist_traits_by_name: Set[str] = field(default_factory=set)
+    emblem_start_counts: Dict[str, int] = field(default_factory=dict)
+    max_emblems_total: int = 0
+    required_champions: Dict[str, int] = field(default_factory=dict)
+    required_traits_min: Dict[str, int] = field(default_factory=dict)
+    w_win: float = 2.0
+    w_avg: float = 1.0
+    w_freq: float = 0.1
+
+    def to_dict(self) -> Dict:
+        return {
+            "json_path": str(self.json_path),
+            "set_id": self.set_id,
+            "metatft_txt_path": str(self.metatft_txt_path),
+            "team_size": self.team_size,
+            "beam_width": self.beam_width,
+            "blacklist_traits_by_name": sorted(self.blacklist_traits_by_name),
+            "emblem_start_counts": dict(self.emblem_start_counts),
+            "max_emblems_total": self.max_emblems_total,
+            "required_champions": dict(self.required_champions),
+            "required_traits_min": dict(self.required_traits_min),
+            "w_win": self.w_win,
+            "w_avg": self.w_avg,
+            "w_freq": self.w_freq,
+        }
+
+
+def default_config() -> Config:
+    return Config(
+        json_path=REPO_ROOT / "en_us.json",
+        set_id="16",
+        metatft_txt_path=REPO_ROOT / "metatft_units.txt",
+        team_size=9,
+        beam_width=700,
+        blacklist_traits_by_name=set(DEFAULT_BLACKLIST_TRAITS_BY_NAME),
+        emblem_start_counts=dict(DEFAULT_EMBLEM_START_COUNTS),
+        max_emblems_total=0,
+        required_champions=dict(DEFAULT_REQUIRED_CHAMPIONS),
+        required_traits_min=dict(DEFAULT_REQUIRED_TRAITS_MIN),
+        w_win=2.0,
+        w_avg=1.0,
+        w_freq=0.1,
+    )
