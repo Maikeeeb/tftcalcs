@@ -1,22 +1,18 @@
-from pathlib import Path
-
-from bfl.config import Config, REPO_ROOT
-from bfl.config_loader import (
-    DEFAULT_CONFIG_FILENAME,
-    load_config,
-    validate_config_against_data,
-)
-from bfl.metatft import (
+from bfl.config import Config
+from bfl.solver_api import (
+    apply_emblem_starts,
     build_name_to_api_map,
+    classify_traits,
     load_metatft_txt,
+    load_set_data,
     metatft_to_unit_stats,
     normalize_name,
     parse_metatft_units,
+    run_bfl,
+    solve_beam_search_bronze_with_emblems,
     unit_power,
+    _resolve_config,
 )
-from bfl.set_loader import load_set_data
-from bfl.solver import solve_beam_search_bronze_with_emblems
-from bfl.traits import apply_emblem_starts, classify_traits
 
 __all__ = [
     "apply_emblem_starts",
@@ -32,40 +28,26 @@ __all__ = [
 ]
 
 
-def _resolve_config(config: Config | None, config_path: str | None) -> Config:
-    if config is not None:
-        return config
-
-    default_path = Path(config_path) if config_path else REPO_ROOT / DEFAULT_CONFIG_FILENAME
-    if config_path or default_path.exists():
-        return load_config(str(default_path))
-
-    return load_config(None)
-
-
 def main(config: Config | None = None, config_path: str | None = None):
     cfg = _resolve_config(config, config_path)
+    result = run_bfl(cfg)
 
-    set_data, champs, champ_traits, trait_bps, champ_cost, eligible_traits, trait_freq = load_set_data(
-        cfg.json_path, cfg.set_id, cfg.blacklist_traits_by_name
-    )
+    context = result["context"]
+    meta = result["meta"]
+    solution = result["solution"]
+    units = result["units"]
 
-    validate_config_against_data(cfg, champs, trait_bps)
+    trait_bps = context["trait_breakpoints"]
+    trait_freq = context["trait_frequency"]
+    eligible_traits = set(context["eligible_traits"])
 
-    # Load MetaTFT stats (optional)
-    metatft_text = load_metatft_txt(str(cfg.metatft_txt_path))
-    unit_stats = metatft_to_unit_stats(metatft_text, set_data)
-
-    # Precompute unit power for beam search
-    power_map = {c: unit_power(c, unit_stats, cfg.w_win, cfg.w_avg, cfg.w_freq) for c in champs}
-
-    print(f"Loaded set {cfg.set_id}: {len(champs)} real units after filtering")
-    print(f"Traits with breakpoints: {len(trait_bps)}")
-    print(f"Blacklisted traits (never count): {sorted(cfg.blacklist_traits_by_name)}")
-    print(f"Eligible traits for Bronze for Life: {len(eligible_traits)}")
-    print(f"TEAM_SIZE={cfg.team_size}")
-    print(f"Hard emblems: {cfg.emblem_start_counts}")
-    print(f"Auto-emblems allowed (total): {cfg.max_emblems_total}")
+    print(f"Loaded set {context['set_id']}: {context['champion_count']} real units after filtering")
+    print(f"Traits with breakpoints: {context['trait_breakpoint_count']}")
+    print(f"Blacklisted traits (never count): {context['blacklist_traits']}")
+    print(f"Eligible traits for Bronze for Life: {len(context['eligible_traits'])}")
+    print(f"TEAM_SIZE={context['team_size']}")
+    print(f"Hard emblems: {context['emblem_start_counts']}")
+    print(f"Auto-emblems allowed (total): {context['max_emblems_total']}")
 
     enabled_champs = [c for c, v in cfg.required_champions.items() if v > 0]
     disabled_champs = [c for c, v in cfg.required_champions.items() if v < 0]
@@ -78,54 +60,38 @@ def main(config: Config | None = None, config_path: str | None = None):
             print(f" - Banned champions: {disabled_champs}")
         if enabled_traits:
             print(f" - Required trait minimums: {enabled_traits}")
-    if unit_stats:
-        print(f"MetaTFT weighting enabled: W_WIN={cfg.w_win}, W_AVG={cfg.w_avg}, W_FREQ={cfg.w_freq}")
+    if meta["enabled"]:
+        print(
+            f"MetaTFT weighting enabled: W_WIN={cfg.w_win}, W_AVG={cfg.w_avg}, W_FREQ={cfg.w_freq}"
+        )
     else:
         print("MetaTFT weighting disabled (METATFT_PASTE is empty).")
     print("Optimizing for MAX bronze-active eligible traits...\n")
 
-    if len(champs) < cfg.team_size:
-        raise RuntimeError(f"Not enough playable units after filtering: {len(champs)} (need {cfg.team_size}).")
-
-    (
-        team,
-        emblem_counts,
-        team_power,
-        bronze_count,
-        counts,
-        bronze_traits,
-        active_traits,
-        upgraded_traits,
-        used_traits,
-    ) = solve_beam_search_bronze_with_emblems(
-        champs,
-        champ_traits,
-        trait_bps,
-        eligible_traits,
-        cfg.team_size,
-        cfg.beam_width,
-        cfg.emblem_start_counts,
-        cfg.max_emblems_total,
-        power_map,
-        required_champions={k: v for k, v in cfg.required_champions.items() if v != 0},
-        required_traits_min=cfg.required_traits_min,
-    )
+    team = solution["team"]
+    emblem_counts = solution["emblems"]
+    counts = solution["trait_counts"]
+    bronze_traits = solution["bronze_traits"]
+    upgraded_traits = solution["upgraded_traits"]
+    used_traits = solution["used_traits"]
 
     print("=== Result (Bronze for Life + Emblems + Unit Strength) ===")
-    print(f"Bronze-active eligible trait count: {bronze_count}")
+    print(f"Bronze-active eligible trait count: {solution['bronze_count']}")
     if emblem_counts:
         print(f"Emblem starting counts used: {emblem_counts}")
-    if unit_stats:
-        print(f"Team power (MetaTFT tie-break): {team_power:.4f}")
+    if meta["enabled"]:
+        print(f"Team power (MetaTFT tie-break): {solution['team_power']:.4f}")
     print()
 
     print("Team (unit -> traits):")
     for c in sorted(team):
         extra = ""
-        if unit_stats and c in unit_stats:
-            s = unit_stats[c]
-            extra = f" | avg={s['avg']:.2f} win={s['win'] * 100:.1f}% freq={s['freq'] * 100:.1f}%"
-        print(f" - {c} (cost={champ_cost.get(c)}) -> {champ_traits[c]}{extra}")
+        stats = units.get(c, {}).get("metatft") if meta["enabled"] else None
+        if stats:
+            extra = f" | avg={stats['avg']:.2f} win={stats['win'] * 100:.1f}% freq={stats['freq'] * 100:.1f}%"
+        traits = units.get(c, {}).get("traits")
+        cost = units.get(c, {}).get("cost")
+        print(f" - {c} (cost={cost}) -> {traits}{extra}")
 
     print("\nBronze-active eligible traits (tier 1 only, after emblems):")
     for t in bronze_traits:
