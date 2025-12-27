@@ -49,7 +49,7 @@ def main():
         if not provided:
             return template
 
-        invalid = [k for k, v in provided.items() if v > 0 and k not in template]
+        invalid = [k for k, v in provided.items() if v != 0 and k not in template]
         if invalid:
             raise RuntimeError(
                 f"Invalid required keys (not in data): {sorted(invalid)}. Update config or set to 0."
@@ -77,11 +77,14 @@ def main():
     print(f"Hard emblems: {EMBLEM_START_COUNTS}")
     print(f"Auto-emblems allowed (total): {MAX_EMBLEMS_TOTAL}")
     enabled_champs = [c for c, v in required_champions.items() if v > 0]
+    disabled_champs = [c for c, v in required_champions.items() if v < 0]
     enabled_traits = {t: v for t, v in required_traits_min.items() if v > 0}
     if enabled_champs or enabled_traits:
         print("Constraints enabled:")
         if enabled_champs:
             print(f" - Required champions: {enabled_champs}")
+        if disabled_champs:
+            print(f" - Banned champions: {disabled_champs}")
         if enabled_traits:
             print(f" - Required trait minimums: {enabled_traits}")
     if unit_stats:

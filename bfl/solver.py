@@ -25,17 +25,23 @@ def build_required_team(
 
     start_team: List[str] = []
 
-    def _add_candidate(candidate: str):
+    def _validate_candidate(candidate: str):
         if candidate not in champs_set:
             raise RuntimeError(
                 f"Required champion '{candidate}' is not in the playable pool; check name or filtering."
             )
+
+    def _add_candidate(candidate: str):
+        _validate_candidate(candidate)
         if candidate not in start_team:
             start_team.append(candidate)
 
     for c, flag in required_map.items():
-        if flag not in (0, 1):
-            raise RuntimeError(f"Required champion '{c}' must be 0 or 1, got {flag}.")
+        if flag not in (-1, 0, 1):
+            raise RuntimeError(f"Required champion '{c}' must be -1, 0 or 1, got {flag}.")
+        _validate_candidate(c)
+        if flag < 0:
+            continue
         if flag:
             _add_candidate(c)
 
@@ -107,6 +113,29 @@ def solve_beam_search_bronze_with_emblems(
     """
 
     required_traits_min = required_traits_min or {}
+    required_map = required_champions or {}
+    banned_champs = {c for c, flag in required_map.items() if flag < 0}
+    champs_set = set(champs)
+
+    missing_banned = banned_champs - champs_set
+    if missing_banned:
+        raise RuntimeError(
+            f"Banned champions not in playable pool: {sorted(missing_banned)}. Check spelling or filtering."
+        )
+
+    if forced_units:
+        forced_units = list(forced_units)
+        banned_forced = [c for c in forced_units if c in banned_champs]
+        if banned_forced:
+            raise RuntimeError(
+                f"Forced champions cannot be banned: {banned_forced}. Update required_champions or forced_units."
+            )
+        missing_forced = [c for c in forced_units if c not in champs_set]
+        if missing_forced:
+            raise RuntimeError(
+                f"Forced champions not in playable pool: {missing_forced}. Check name or filtering."
+            )
+    playable_champs = [c for c in champs if c not in banned_champs]
 
     # Validate required traits
     for t, min_count in required_traits_min.items():
@@ -116,6 +145,11 @@ def solve_beam_search_bronze_with_emblems(
             raise RuntimeError(
                 f"Required trait '{t}' is not in the trait list (trait_bps). Check spelling or set data."
             )
+
+    if team_size is not None and len(playable_champs) < team_size:
+        raise RuntimeError(
+            f"Not enough playable units after banning champions: {len(playable_champs)} (need {team_size})."
+        )
 
     start_team, base_counts0, team_power0 = build_required_team(
         champs, champ_traits, power_map, required_champions, forced_units, team_size
@@ -219,7 +253,7 @@ def solve_beam_search_bronze_with_emblems(
         candidates = []
         for team, base_counts, team_power, _key in beam:
             team_set = set(team)
-            for c in champs:
+            for c in playable_champs:
                 if c in team_set:
                     continue
 

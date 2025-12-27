@@ -55,7 +55,7 @@ EMBLEM_START_COUNTS: Dict[str, int] = {
 MAX_EMBLEMS_TOTAL = 0  # set 0 to disable automatic emblem selection
 
 # Required constraints (complete templates generated at runtime if left empty)
-# Set value to 1 to force a champion into the team.
+# Set value to 1 to force a champion into the team, -1 to prevent them from appearing.
 REQUIRED_CHAMPIONS: Dict[str, int] = {
     "TFT16_Tristana": 0,
     "TFT16_Lulu": 0,
