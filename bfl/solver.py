@@ -10,6 +10,15 @@ def compute_effective_counts(base_counts: Dict[str, int], emblem_counts: Dict[st
     return apply_emblem_starts(base_counts, emblem_counts)
 
 
+def requirement_gap(required_traits_min: Dict[str, int], counts: Dict[str, int]) -> int:
+    """How many total trait stacks are still missing to satisfy requirements."""
+
+    if not required_traits_min:
+        return 0
+
+    return sum(max(0, need - counts.get(t, 0)) for t, need in required_traits_min.items() if need > 0)
+
+
 def build_required_team(
     champs: List[str],
     champ_traits: Dict[str, List[str]],
@@ -180,7 +189,7 @@ def solve_beam_search_bronze_with_emblems(
 
         return chosen
 
-    def score_state(base_counts: Dict[str, int]) -> Tuple[int, int, int, Dict[str, int]]:
+    def score_state(base_counts: Dict[str, int]) -> Tuple[int, int, int, int, Dict[str, int]]:
         emblem_counts = choose_best_emblems(base_counts)
         cnt2 = apply_emblem_starts(base_counts, emblem_counts)
 
@@ -202,18 +211,27 @@ def solve_beam_search_bronze_with_emblems(
                 else:
                     upgraded += 1
 
-        return bronze, active, upgraded, emblem_counts
+        missing_requirements = requirement_gap(required_traits_min, cnt2)
+
+        return bronze, active, upgraded, missing_requirements, emblem_counts
 
     # ----------------------------
     # Beam search starting from forced/required team
     # ----------------------------
     # Beam state: (team, base_counts, team_power, sort_key)
-    bronze0, active0, upgraded0, _ = score_state(base_counts0)
-    beam: List[Tuple[List[str], Dict[str, int], float, Tuple[int, int, int, float]]] = []
+    bronze0, active0, upgraded0, missing0, _ = score_state(base_counts0)
+    beam: List[Tuple[List[str], Dict[str, int], float, Tuple[int, int, int, int, float]]] = []
 
     remaining_slots0 = team_size - len(start_team)
     if feasibility_check(base_counts0, choose_best_emblems, required_traits_min, remaining_slots0):
-        beam.append((start_team, base_counts0, team_power0, (bronze0, active0, -upgraded0, team_power0)))
+        beam.append(
+            (
+                start_team,
+                base_counts0,
+                team_power0,
+                (-missing0, bronze0, active0, -upgraded0, team_power0),
+            )
+        )
 
     for _ in range(remaining_slots0):
         candidates = []
@@ -236,9 +254,9 @@ def solve_beam_search_bronze_with_emblems(
                 ):
                     continue
 
-                bronze, active, upgraded, _ = score_state(new_counts)
+                bronze, active, upgraded, missing, _ = score_state(new_counts)
 
-                key = (bronze, active, -upgraded, new_power)
+                key = (-missing, bronze, active, -upgraded, new_power)
                 candidates.append((new_team, new_counts, new_power, key))
 
         candidates.sort(key=lambda x: x[3], reverse=True)

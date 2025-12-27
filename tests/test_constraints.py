@@ -1,6 +1,8 @@
 import pytest
 
 from bfl.bronze_for_life import solve_beam_search_bronze_with_emblems
+from bfl.set_loader import load_set_data
+from bfl.config import JSON_PATH, SET_ID
 
 
 def _build_inputs(toy_set_data):
@@ -81,3 +83,44 @@ def test_impossible_required_trait_raises(toy_set_data):
         )
 
     assert "constraints" in str(excinfo.value) or "Required trait" in str(excinfo.value)
+
+
+def test_realistic_strict_requirements_have_unique_team():
+    _, champs, champ_traits, trait_bps, _champ_cost, eligible_traits, _trait_freq = load_set_data(
+        JSON_PATH, SET_ID
+    )
+
+    required_team = [
+        "TFT16_Ashe",
+        "TFT16_Kennen",
+        "TFT16_Kobuko",
+        "TFT16_Sejuani",
+        "TFT16_Lissandra",
+        "TFT16_Taric",
+        "TFT16_Wukong",
+        "TFT16_Yunara",
+        "TFT16_Ryze",
+    ]
+
+    champs_pool = required_team
+    champ_traits_pool = {c: champ_traits[c] for c in champs_pool}
+    power_map = {c: 0.0 for c in champs_pool}
+
+    req_champs = {"TFT16_Ryze": 1, "TFT16_Yunara": 1}
+    req_traits = {"Yordle": 2, "Targon": 1, "Freljord": 3, "Ionia": 3}
+
+    team, *_ = solve_beam_search_bronze_with_emblems(
+        champs=champs_pool,
+        champ_traits=champ_traits_pool,
+        trait_bps=trait_bps,
+        eligible_traits=eligible_traits,
+        team_size=9,
+        beam_width=50,
+        hard_emblems={},
+        max_emblems_total=0,
+        power_map=power_map,
+        required_champions=req_champs,
+        required_traits_min=req_traits,
+    )
+
+    assert set(team) == set(required_team)
