@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -18,10 +18,11 @@ import {
   TableRow,
   Typography,
   Button,
+  MenuItem,
 } from '@mui/material';
 import Form from '@rjsf/mui';
 import validator from '@rjsf/validator-ajv8';
-import { TemplatesType } from '@rjsf/utils';
+import { FieldProps, FormRef, TemplatesType } from '@rjsf/utils';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 type ConfigData = Record<string, unknown>;
@@ -72,6 +73,66 @@ const fetchJson = async <T,>(path: string): Promise<T> => {
   }
   return (await res.json()) as T;
 };
+
+type MappingFieldOptions = {
+  enumOptions?: { value: number; label: string }[];
+  min?: number;
+};
+
+function MappingField(props: FieldProps<Record<string, number>>) {
+  const options = (props.uiSchema?.['ui:options'] as MappingFieldOptions | undefined) ?? {};
+  const entries = Object.entries(props.formData ?? {});
+
+  const handleChange = (key: string, value: number | undefined) => {
+    props.onChange({
+      ...(props.formData ?? {}),
+      [key]: value,
+    });
+  };
+
+  if (entries.length === 0) {
+    return <Typography color="text.secondary">No entries available to edit.</Typography>;
+  }
+
+  return (
+    <Stack spacing={2} mt={1}>
+      {entries.map(([key, value]) => (
+        <Stack key={key} direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
+          <Typography sx={{ minWidth: { sm: 200 }, fontWeight: 600 }}>{key}</Typography>
+          {options.enumOptions ? (
+            <TextField
+              select
+              size="small"
+              label="Value"
+              value={value ?? ''}
+              onChange={(event) => handleChange(key, Number(event.target.value))}
+              sx={{ minWidth: 200 }}
+            >
+              {options.enumOptions.map((choice) => (
+                <MenuItem key={choice.value} value={choice.value}>
+                  {choice.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          ) : (
+            <TextField
+              type="number"
+              size="small"
+              label="Value"
+              value={value ?? ''}
+              inputProps={{ min: options.min }}
+              onChange={(event) => {
+                const newValue = event.target.value === '' ? undefined : Number(event.target.value);
+                handleChange(key, Number.isNaN(newValue) ? undefined : newValue);
+              }}
+              sx={{ minWidth: 200 }}
+            />
+          )}
+        </Stack>
+      ))}
+    </Stack>
+  );
+}
 
 function TraitsPanel({
   title,
@@ -323,6 +384,7 @@ function Loader() {
 
 function App() {
   const [formData, setFormData] = useState<ConfigData | undefined>();
+  const formRef = useRef<FormRef>(null);
 
   const schemaQuery = useQuery({ queryKey: ['schema'], queryFn: () => fetchJson<Record<string, unknown>>('/schema') });
   const configQuery = useQuery({ queryKey: ['config'], queryFn: () => fetchJson<ConfigData>('/config') });
@@ -368,6 +430,41 @@ function App() {
     [runMutation.isPending]
   );
 
+  const fields = useMemo(
+    () => ({
+      mapping: MappingField,
+    }),
+    [],
+  );
+
+  const uiSchema = useMemo(
+    () => ({
+      emblem_start_counts: {
+        'ui:field': 'mapping',
+        'ui:options': { min: 0 },
+      },
+      required_traits_min: {
+        'ui:field': 'mapping',
+        'ui:options': { min: 0 },
+      },
+      required_champions: {
+        'ui:field': 'mapping',
+        'ui:options': {
+          enumOptions: [
+            { value: -1, label: 'Ban (-1)' },
+            { value: 0, label: 'Ignore (0)' },
+            { value: 1, label: 'Require (1)' },
+          ],
+        },
+      },
+    }),
+    [],
+  );
+
+  const handleRunClick = () => {
+    formRef.current?.submit();
+  };
+
   const isLoading = schemaQuery.isLoading || configQuery.isLoading;
   const hasError = schemaQuery.error || configQuery.error;
 
@@ -392,12 +489,15 @@ function App() {
             )}
             {!isLoading && !hasError && schemaQuery.data && formData ? (
               <Form
+                ref={formRef}
                 schema={schemaQuery.data}
                 formData={formData}
                 onChange={(event) => setFormData(event.formData)}
                 onSubmit={(event) => runMutation.mutate(event.formData)}
                 validator={validator}
                 templates={templates}
+                fields={fields}
+                uiSchema={uiSchema}
                 liveValidate
               >
                 <></>
@@ -408,6 +508,16 @@ function App() {
                 {(runMutation.error as Error).message}
               </Alert>
             ) : null}
+            <Box mt={3} display="flex" justifyContent="flex-end">
+              <Button
+                variant="contained"
+                onClick={handleRunClick}
+                disabled={!formData || runMutation.isPending}
+                endIcon={runMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+              >
+                {runMutation.isPending ? 'Running…' : 'Run solver'}
+              </Button>
+            </Box>
           </CardContent>
         </Card>
 
