@@ -5,6 +5,8 @@ from bfl.config import (
     JSON_PATH,
     MAX_EMBLEMS_TOTAL,
     METATFT_TXT_PATH,
+    REQUIRED_CHAMPIONS,
+    REQUIRED_TRAITS_MIN,
     SET_ID,
     TEAM_SIZE,
     W_AVG,
@@ -42,6 +44,23 @@ def main():
         JSON_PATH, SET_ID
     )
 
+    def build_template(keys, provided):
+        template = {k: 0 for k in keys}
+        if not provided:
+            return template
+
+        invalid = [k for k, v in provided.items() if v > 0 and k not in template]
+        if invalid:
+            raise RuntimeError(
+                f"Invalid required keys (not in data): {sorted(invalid)}. Update config or set to 0."
+            )
+
+        template.update({k: provided[k] for k in provided if k in template})
+        return template
+
+    required_champions = build_template(champs, REQUIRED_CHAMPIONS)
+    required_traits_min = build_template(trait_bps, REQUIRED_TRAITS_MIN)
+
     # Load MetaTFT stats (optional)
     metatft_text = load_metatft_txt(str(METATFT_TXT_PATH))
     unit_stats = metatft_to_unit_stats(metatft_text, set_data)
@@ -56,6 +75,14 @@ def main():
     print(f"TEAM_SIZE={TEAM_SIZE}")
     print(f"Hard emblems: {EMBLEM_START_COUNTS}")
     print(f"Auto-emblems allowed (total): {MAX_EMBLEMS_TOTAL}")
+    enabled_champs = [c for c, v in required_champions.items() if v > 0]
+    enabled_traits = {t: v for t, v in required_traits_min.items() if v > 0}
+    if enabled_champs or enabled_traits:
+        print("Constraints enabled:")
+        if enabled_champs:
+            print(f" - Required champions: {enabled_champs}")
+        if enabled_traits:
+            print(f" - Required trait minimums: {enabled_traits}")
     if unit_stats:
         print(f"MetaTFT weighting enabled: W_WIN={W_WIN}, W_AVG={W_AVG}, W_FREQ={W_FREQ}")
     else:
@@ -85,6 +112,8 @@ def main():
         EMBLEM_START_COUNTS,
         MAX_EMBLEMS_TOTAL,
         power_map,
+        required_champions=required_champions,
+        required_traits_min=required_traits_min,
     )
 
     print("=== Result (Bronze for Life + Emblems + Unit Strength) ===")

@@ -47,6 +47,13 @@ EMBLEM_START_COUNTS: Dict[str, int] = {
 # unless you hard-code EMBLEM_START_COUNTS above (hard-coded counts are always applied).
 MAX_EMBLEMS_TOTAL = 0  # set 0 to disable automatic emblem selection
 
+# Required constraints (complete templates generated at runtime if left empty)
+# Set value to 1 to force a champion into the team.
+REQUIRED_CHAMPIONS: Dict[str, int] = {}
+
+# Set value to N (>=1) to enforce a minimum final trait count (after emblems).
+REQUIRED_TRAITS_MIN: Dict[str, int] = {}
+
 # Weights for unit strength tie-breaker. Higher = optimizer prefers "stronger" units among equally
 # good bronze solutions.
 W_WIN = 2.0  # win rate (0..1)
