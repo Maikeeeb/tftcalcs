@@ -53,3 +53,31 @@ Edit `config.json` (or save a new file via `save_config`) then re-run `python -m
 
 ### How a UI could integrate
 A UI only needs to read and write `config.json` (or another path of its choosing) using the helpers in `bfl/config_loader.py`. Load the current settings with `load_config(path)`, surface the fields in your UI, then persist any changes with `save_config(config, path)`. To validate user input client-side, point your UI at `config_schema.json` for the expected shapes and types. The solver entry points will keep honoring defaults when the file is absent, so a UI can safely omit fields it does not expose.
+
+## Running the Bronze for Life UI
+The repository now ships with a lightweight FastAPI backend and a Vite + React + TypeScript frontend. Follow these steps even if you have never used JavaScript or React before:
+
+1. **Install prerequisites.** Make sure you have recent versions of Python (for FastAPI) and Node.js + npm (for Vite). On most systems you can download Node.js from [nodejs.org](https://nodejs.org/) and Python from [python.org](https://www.python.org/downloads/).
+2. **Create and activate a Python environment.** From the repository root run:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows use: .venv\\Scripts\\activate
+   pip install fastapi uvicorn jsonschema
+   ```
+3. **Install frontend packages.** Still in the repository root, move into the UI folder and install dependencies:
+   ```bash
+   cd frontend
+   npm install
+   ```
+4. **Start the API server.** From the repository root (activate your Python environment first if needed):
+   ```bash
+   uvicorn ui_api.main:app --reload --port 8000
+   ```
+   Leave this terminal window running so the API stays available.
+5. **Start the React dev server.** Open a second terminal, return to the repository root, and run:
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+   The Vite server prints a local URL—by default `http://localhost:5173`.
+6. **Open the UI.** Visit `http://localhost:5173` in your browser. The page will load the JSON schema and default solver config from the API, let you edit every field via a form, and offer a **Run solver** button. Keep both the API and Vite servers running while you experiment.
