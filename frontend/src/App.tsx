@@ -78,11 +78,20 @@ const fetchJson = async <T,>(path: string): Promise<T> => {
 type MappingFieldOptions = {
   enumOptions?: { value: number; label: string }[];
   min?: number;
+  heading?: string;
+  searchPlaceholder?: string;
 };
 
 function MappingField(props: FieldProps<Record<string, number>>) {
   const options = (props.uiSchema?.['ui:options'] as MappingFieldOptions | undefined) ?? {};
   const entries = Object.entries(props.formData ?? {});
+  const [search, setSearch] = useState('');
+
+  const filteredEntries = entries.filter(([key]) =>
+    key.toLowerCase().includes(search.toLowerCase().trim()),
+  );
+
+  const heading = options.heading ?? props.name;
 
   const handleChange = (key: string, value: number | undefined) => {
     props.onChange({
@@ -91,46 +100,68 @@ function MappingField(props: FieldProps<Record<string, number>>) {
     });
   };
 
-  if (entries.length === 0) {
-    return <Typography color="text.secondary">No entries available to edit.</Typography>;
-  }
-
   return (
     <Stack spacing={2} mt={1}>
-      {entries.map(([key, value]) => (
-        <Stack key={key} direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
-          <Typography sx={{ minWidth: { sm: 200 }, fontWeight: 600 }}>{key}</Typography>
-          {options.enumOptions ? (
-            <TextField
-              select
-              size="small"
-              label="Value"
-              value={value ?? ''}
-              onChange={(event) => handleChange(key, Number(event.target.value))}
-              sx={{ minWidth: 200 }}
-            >
-              {options.enumOptions.map((choice) => (
-                <MenuItem key={choice.value} value={choice.value}>
-                  {choice.label}
-                </MenuItem>
-              ))}
-            </TextField>
-          ) : (
-            <TextField
-              type="number"
-              size="small"
-              label="Value"
-              value={value ?? ''}
-              inputProps={{ min: options.min }}
-              onChange={(event) => {
-                const newValue = event.target.value === '' ? undefined : Number(event.target.value);
-                handleChange(key, Number.isNaN(newValue) ? undefined : newValue);
-              }}
-              sx={{ minWidth: 200 }}
-            />
-          )}
-        </Stack>
-      ))}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+          {heading}
+        </Typography>
+        <TextField
+          size="small"
+          label="Search"
+          placeholder={options.searchPlaceholder}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          sx={{ minWidth: { xs: '100%', sm: 240 } }}
+          disabled={entries.length === 0}
+        />
+      </Stack>
+
+      {entries.length === 0 ? (
+        <Typography color="text.secondary">No entries available to edit.</Typography>
+      ) : filteredEntries.length === 0 ? (
+        <Typography color="text.secondary">No entries match your search.</Typography>
+      ) : (
+        filteredEntries.map(([key, value]) => (
+          <Stack
+            key={key}
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            alignItems={{ sm: 'center' }}
+          >
+            <Typography sx={{ minWidth: { sm: 200 }, fontWeight: 600 }}>{key}</Typography>
+            {options.enumOptions ? (
+              <TextField
+                select
+                size="small"
+                label="Value"
+                value={value ?? ''}
+                onChange={(event) => handleChange(key, Number(event.target.value))}
+                sx={{ minWidth: 200 }}
+              >
+                {options.enumOptions.map((choice) => (
+                  <MenuItem key={choice.value} value={choice.value}>
+                    {choice.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            ) : (
+              <TextField
+                type="number"
+                size="small"
+                label="Value"
+                value={value ?? ''}
+                inputProps={{ min: options.min }}
+                onChange={(event) => {
+                  const newValue = event.target.value === '' ? undefined : Number(event.target.value);
+                  handleChange(key, Number.isNaN(newValue) ? undefined : newValue);
+                }}
+                sx={{ minWidth: 200 }}
+              />
+            )}
+          </Stack>
+        ))
+      )}
     </Stack>
   );
 }
@@ -442,15 +473,25 @@ function App() {
     () => ({
       emblem_start_counts: {
         'ui:field': 'mapping',
-        'ui:options': { min: 0 },
+        'ui:options': {
+          min: 0,
+          heading: 'Emblems',
+          searchPlaceholder: 'Search emblems…',
+        },
       },
       required_traits_min: {
         'ui:field': 'mapping',
-        'ui:options': { min: 0 },
+        'ui:options': {
+          min: 0,
+          heading: 'Trait minimums',
+          searchPlaceholder: 'Search traits…',
+        },
       },
       required_champions: {
         'ui:field': 'mapping',
         'ui:options': {
+          heading: 'Champions',
+          searchPlaceholder: 'Search champions…',
           enumOptions: [
             { value: -1, label: 'Ban (-1)' },
             { value: 0, label: 'Ignore (0)' },
