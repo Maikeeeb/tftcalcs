@@ -1,17 +1,10 @@
-from bfl.config import (
-    BEAM_WIDTH,
-    BLACKLIST_TRAITS_BY_NAME,
-    EMBLEM_START_COUNTS,
-    JSON_PATH,
-    MAX_EMBLEMS_TOTAL,
-    METATFT_TXT_PATH,
-    REQUIRED_CHAMPIONS,
-    REQUIRED_TRAITS_MIN,
-    SET_ID,
-    TEAM_SIZE,
-    W_AVG,
-    W_FREQ,
-    W_WIN,
+from pathlib import Path
+
+from bfl.config import Config, REPO_ROOT
+from bfl.config_loader import (
+    DEFAULT_CONFIG_FILENAME,
+    load_config,
+    validate_config_against_data,
 )
 from bfl.metatft import (
     build_name_to_api_map,
@@ -39,46 +32,44 @@ __all__ = [
 ]
 
 
-def main():
+def _resolve_config(config: Config | None, config_path: str | None) -> Config:
+    if config is not None:
+        return config
+
+    default_path = Path(config_path) if config_path else REPO_ROOT / DEFAULT_CONFIG_FILENAME
+    if config_path or default_path.exists():
+        return load_config(str(default_path))
+
+    return load_config(None)
+
+
+def main(config: Config | None = None, config_path: str | None = None):
+    cfg = _resolve_config(config, config_path)
+
     set_data, champs, champ_traits, trait_bps, champ_cost, eligible_traits, trait_freq = load_set_data(
-        JSON_PATH, SET_ID
+        cfg.json_path, cfg.set_id, cfg.blacklist_traits_by_name
     )
 
-    def build_template(keys, provided):
-        template = {k: 0 for k in keys}
-        if not provided:
-            return template
-
-        invalid = [k for k, v in provided.items() if v != 0 and k not in template]
-        if invalid:
-            raise RuntimeError(
-                f"Invalid required keys (not in data): {sorted(invalid)}. Update config or set to 0."
-            )
-
-        template.update({k: provided[k] for k in provided if k in template})
-        return template
-
-    multi_champ_traits = [t for t, freq in trait_freq.items() if freq > 1]
-    required_champions = build_template(champs, REQUIRED_CHAMPIONS)
-    required_traits_min = build_template(multi_champ_traits, REQUIRED_TRAITS_MIN)
+    validate_config_against_data(cfg, champs, trait_bps)
 
     # Load MetaTFT stats (optional)
-    metatft_text = load_metatft_txt(str(METATFT_TXT_PATH))
+    metatft_text = load_metatft_txt(str(cfg.metatft_txt_path))
     unit_stats = metatft_to_unit_stats(metatft_text, set_data)
 
     # Precompute unit power for beam search
-    power_map = {c: unit_power(c, unit_stats) for c in champs}
+    power_map = {c: unit_power(c, unit_stats, cfg.w_win, cfg.w_avg, cfg.w_freq) for c in champs}
 
-    print(f"Loaded set {SET_ID}: {len(champs)} real units after filtering")
+    print(f"Loaded set {cfg.set_id}: {len(champs)} real units after filtering")
     print(f"Traits with breakpoints: {len(trait_bps)}")
-    print(f"Blacklisted traits (never count): {sorted(BLACKLIST_TRAITS_BY_NAME)}")
+    print(f"Blacklisted traits (never count): {sorted(cfg.blacklist_traits_by_name)}")
     print(f"Eligible traits for Bronze for Life: {len(eligible_traits)}")
-    print(f"TEAM_SIZE={TEAM_SIZE}")
-    print(f"Hard emblems: {EMBLEM_START_COUNTS}")
-    print(f"Auto-emblems allowed (total): {MAX_EMBLEMS_TOTAL}")
-    enabled_champs = [c for c, v in required_champions.items() if v > 0]
-    disabled_champs = [c for c, v in required_champions.items() if v < 0]
-    enabled_traits = {t: v for t, v in required_traits_min.items() if v > 0}
+    print(f"TEAM_SIZE={cfg.team_size}")
+    print(f"Hard emblems: {cfg.emblem_start_counts}")
+    print(f"Auto-emblems allowed (total): {cfg.max_emblems_total}")
+
+    enabled_champs = [c for c, v in cfg.required_champions.items() if v > 0]
+    disabled_champs = [c for c, v in cfg.required_champions.items() if v < 0]
+    enabled_traits = {t: v for t, v in cfg.required_traits_min.items() if v > 0}
     if enabled_champs or enabled_traits:
         print("Constraints enabled:")
         if enabled_champs:
@@ -88,13 +79,13 @@ def main():
         if enabled_traits:
             print(f" - Required trait minimums: {enabled_traits}")
     if unit_stats:
-        print(f"MetaTFT weighting enabled: W_WIN={W_WIN}, W_AVG={W_AVG}, W_FREQ={W_FREQ}")
+        print(f"MetaTFT weighting enabled: W_WIN={cfg.w_win}, W_AVG={cfg.w_avg}, W_FREQ={cfg.w_freq}")
     else:
         print("MetaTFT weighting disabled (METATFT_PASTE is empty).")
     print("Optimizing for MAX bronze-active eligible traits...\n")
 
-    if len(champs) < TEAM_SIZE:
-        raise RuntimeError(f"Not enough playable units after filtering: {len(champs)} (need {TEAM_SIZE}).")
+    if len(champs) < cfg.team_size:
+        raise RuntimeError(f"Not enough playable units after filtering: {len(champs)} (need {cfg.team_size}).")
 
     (
         team,
@@ -111,13 +102,13 @@ def main():
         champ_traits,
         trait_bps,
         eligible_traits,
-        TEAM_SIZE,
-        BEAM_WIDTH,
-        EMBLEM_START_COUNTS,
-        MAX_EMBLEMS_TOTAL,
+        cfg.team_size,
+        cfg.beam_width,
+        cfg.emblem_start_counts,
+        cfg.max_emblems_total,
         power_map,
-        required_champions=required_champions,
-        required_traits_min=required_traits_min,
+        required_champions={k: v for k, v in cfg.required_champions.items() if v != 0},
+        required_traits_min=cfg.required_traits_min,
     )
 
     print("=== Result (Bronze for Life + Emblems + Unit Strength) ===")
@@ -159,7 +150,7 @@ def main():
         print("\nIneligible traits present on team (do NOT count):")
         for t in sorted(ineligible_present):
             reason = []
-            if t in BLACKLIST_TRAITS_BY_NAME:
+            if t in cfg.blacklist_traits_by_name:
                 reason.append("blacklisted")
             if trait_freq.get(t, 0) < 2:
                 reason.append("exclusive")

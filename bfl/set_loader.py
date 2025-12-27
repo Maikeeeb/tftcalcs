@@ -3,8 +3,6 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
-from bfl.config import BLACKLIST_TRAITS_BY_NAME
-
 
 def load_set_data(
     path: str | Path,
@@ -22,7 +20,7 @@ def load_set_data(
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    blacklist = set(blacklist_traits) if blacklist_traits is not None else set(BLACKLIST_TRAITS_BY_NAME)
+    blacklist = set(blacklist_traits) if blacklist_traits is not None else set()
 
     set_data = data["sets"][set_id]
 
