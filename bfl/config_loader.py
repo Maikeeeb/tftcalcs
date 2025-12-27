@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, Iterable, Mapping, Set
 
 from bfl.config import Config, default_config
+from bfl.champion_registry import list_playable_champions
 
 
 class ConfigError(ValueError):
@@ -45,6 +46,13 @@ def _load_int_map(
             f"{name}['{key}']", value, allow_negative=allow_negative, allowed_values=allowed_values
         )
     return out
+
+
+def _validate_required_champions(config: Config, champions: Iterable[str]) -> None:
+    champ_set = set(champions)
+    unknown_champs = [c for c in config.required_champions if c not in champ_set]
+    if unknown_champs:
+        raise ConfigError(f"Required champions not found in set data: {sorted(unknown_champs)}")
 
 
 def load_config(path: str | None) -> Config:
@@ -112,7 +120,7 @@ def load_config(path: str | None) -> Config:
 
     set_id = str(data.get("set_id", base.set_id))
 
-    return Config(
+    config = Config(
         json_path=json_path,
         set_id=set_id,
         metatft_txt_path=metatft_txt_path,
@@ -128,6 +136,17 @@ def load_config(path: str | None) -> Config:
         w_freq=float(weights_raw["w_freq"]),
     )
 
+    try:
+        champs = list_playable_champions(json_path, set_id)
+    except Exception as exc:  # pragma: no cover - defensive wrapper
+        raise ConfigError(
+            f"Failed to load champion list from {json_path} for set {set_id}: {exc}"
+        ) from exc
+
+    _validate_required_champions(config, champs)
+
+    return config
+
 
 def save_config(config: Config, path: str):
     cfg_path = Path(path)
@@ -139,12 +158,9 @@ def save_config(config: Config, path: str):
 def validate_config_against_data(
     config: Config, champions: Iterable[str], trait_breakpoints: Mapping[str, object]
 ) -> None:
+    _validate_required_champions(config, champions)
     champ_set = set(champions)
     trait_set = set(trait_breakpoints)
-
-    unknown_champs = [c for c in config.required_champions if c not in champ_set]
-    if unknown_champs:
-        raise ConfigError(f"Required champions not found in set data: {sorted(unknown_champs)}")
 
     invalid_req_traits = [t for t in config.required_traits_min if t not in trait_set]
     if invalid_req_traits:
