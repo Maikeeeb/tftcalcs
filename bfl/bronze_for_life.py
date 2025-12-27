@@ -58,8 +58,9 @@ def main():
         template.update({k: provided[k] for k in provided if k in template})
         return template
 
+    multi_champ_traits = [t for t, freq in trait_freq.items() if freq > 1]
     required_champions = build_template(champs, REQUIRED_CHAMPIONS)
-    required_traits_min = build_template(trait_bps, REQUIRED_TRAITS_MIN)
+    required_traits_min = build_template(multi_champ_traits, REQUIRED_TRAITS_MIN)
 
     # Load MetaTFT stats (optional)
     metatft_text = load_metatft_txt(str(METATFT_TXT_PATH))
