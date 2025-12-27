@@ -19,29 +19,36 @@ BLACKLIST_TRAITS_BY_NAME: Set[str] = {
 # --- Emblem modeling (simple) ---
 # If a trait is in EMBLEM_START_COUNTS, it starts at that many units (e.g., 1 emblem => +1).
 EMBLEM_START_COUNTS: Dict[str, int] = {
-    # Origins
-    "Zaun": 0,
-    "Piltover": 0,
-    "Bilgewater": 0,
-    "Freljord": 0,
-    "Ixtal": 0,
-    "Void": 0,
-    "Darkin": 0,
-
-    # Classes
+    # Only traits that appear on multiple champions
     "Arcanist": 0,
+    "Bilgewater": 0,
     "Bruiser": 0,
+    "Darkin": 0,
     "Defender": 0,
+    "Demacia": 0,
+    "Disruptor": 0,
+    "Freljord": 0,
+    "Gunslinger": 0,
     "Invoker": 0,
+    "Ionia": 0,
+    "Ixtal": 0,
     "Juggernaut": 0,
     "Longshot": 0,
+    "Noxus": 0,
+    "Piltover": 0,
+    "Quickstriker": 0,
+    "Shurima": 0,
     "Slayer": 0,
+    "Targon": 0,
     "Vanquisher": 0,
+    "Void": 0,
     "Warden": 0,
     "Yordle": 0,
-
-    # Add/remove based on what your JSON actually allows
+    "Zaun": 0,
 }
+
+# Add/remove based on what your JSON actually allows
+
 
 # If > 0, the optimizer will choose up to this many traits to receive +1 starting count (emblem),
 # unless you hard-code EMBLEM_START_COUNTS above (hard-coded counts are always applied).

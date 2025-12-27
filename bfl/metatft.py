@@ -8,6 +8,7 @@ def normalize_name(s: str) -> str:
     # Lowercase, remove spaces/punctuation for matching
     return re.sub(r"[^a-z0-9]+", "", s.lower())
 
+
 def parse_metatft_units(text: str) -> Dict[str, Dict[str, float]]:
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     out: Dict[str, Dict[str, float]] = {}
@@ -85,7 +86,6 @@ def parse_metatft_units(text: str) -> Dict[str, Dict[str, float]]:
         i += 1
 
     return out
-
 
 
 def build_name_to_api_map(set_data) -> Dict[str, str]:
