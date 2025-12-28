@@ -154,6 +154,7 @@ def metatft_to_unit_stats(paste: str, set_data) -> Dict[str, Dict[str, float | L
 
     raw = parse_metatft_units(paste)
     name_to_api = build_name_to_api_map(set_data)
+    champion_keys = set(name_to_api)
 
     unit_stats: Dict[str, Dict[str, float | List[str]]] = {}
     missed: List[str] = []
@@ -163,7 +164,10 @@ def metatft_to_unit_stats(paste: str, set_data) -> Dict[str, Dict[str, float | L
         if not api:
             missed.append(name)
             continue
-        unit_stats[api] = stats
+        filtered_items = [
+            item for item in stats.get("items", []) if normalize_name(item) not in champion_keys
+        ]
+        unit_stats[api] = {**stats, "items": filtered_items}
 
     if missed:
         print(f"Warning: couldn't map {len(missed)} units from MetaTFT paste (first 15): {missed[:15]}")

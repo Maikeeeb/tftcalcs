@@ -108,6 +108,23 @@ Object.entries(assetModules).forEach(([path, urlValue]) => {
 aliasIfMissing('arcanist', ['sorcerer'], emblemImages);
 aliasIfMissing('arcanist', ['sorcerer'], traitImages);
 
+const legacyItemAliases: Record<string, string[]> = {
+  handofjustice: ['unstableconcoction'],
+  voidstaff: ['statikkshiv'],
+  giantslayer: ['madredsbloodrazor'],
+  strikersflail: ['powergauntlet'],
+  redbuff: ['rapidfirecannon'],
+  sunfire: ['redbuff'],
+  nashorstooth: ['leviathan'],
+  edgeofnight: ['guardianangel'],
+  steadfastheart: ['nightharvester'],
+  evenshroud: ['spectralgauntlet'],
+};
+
+Object.entries(legacyItemAliases).forEach(([target, sources]) => {
+  aliasIfMissing(target, sources, itemImages);
+});
+
 const getChampionImage = (name: string) => {
   const normalized = normalizeKey(name);
   const apiNameMatch = normalized.match(/^tft\d+(.*)$/);
