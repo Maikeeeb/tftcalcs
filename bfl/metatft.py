@@ -19,9 +19,9 @@ class TraitStat:
     freq: float
 
 
-def parse_metatft_units(text: str) -> Dict[str, Dict[str, float]]:
+def parse_metatft_units(text: str) -> Dict[str, Dict[str, float | List[str]]]:
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    out: Dict[str, Dict[str, float]] = {}
+    out: Dict[str, Dict[str, float | List[str]]] = {}
 
     tier_set = {"S", "A", "B", "C", "D"}
 
@@ -34,66 +34,87 @@ def parse_metatft_units(text: str) -> Dict[str, Dict[str, float]]:
     # Heuristic: ignore these known non-unit labels / columns
     headers = {"Unit", "Tier", "Avg Place", "Win Rate", "Frequency", "Popular Items"}
 
-    # Heuristic: items are usually followed by more items; we’ll skip candidate names
-    # unless they are followed soon by a valid tier/avg/win trio.
-    i = 0
-    while i < len(lines):
-        ln = lines[i]
-
-        if ln in headers:
-            i += 1
+    for idx, ln in enumerate(lines):
+        if ln in headers or ln not in tier_set:
             continue
 
-        # Strip "Unlockable Unit" prefix if present (sometimes glued)
-        if ln.startswith("Unlockable Unit"):
-            ln = ln.replace("Unlockable Unit", "").strip()
+        # Walk backward to find the closest preceding candidate name
+        name = None
+        name_idx = idx - 1
+        while name_idx >= 0:
+            candidate = lines[name_idx]
 
-        # Candidate name must not be a tier and must not be numeric-ish
-        if ln and ln not in tier_set and not re.fullmatch(r"[0-9.,%]+", ln):
-            name = ln
-
-            # Search forward for a *tight* pattern: tier, avg, win%, freq%
-            tier = None
-            avg = None
-            win = None
-            freq = 0.0
-            found = False
-
-            for j in range(i + 1, min(i + 7, len(lines))):
-                x = lines[j]
-
-                if x in headers:
-                    # if we hit headers, stop scanning this candidate
-                    break
-
-                if tier is None:
-                    if x in tier_set:
-                        tier = x
-                    continue
-
-                if avg is None:
-                    if is_float(x):
-                        avg = float(x)
-                    continue
-
-                if win is None:
-                    # win rate like "13.6%"
-                    if re.fullmatch(r"\d+(\.\d+)?\s*%", x):
-                        win = parse_percent(x)
-                    continue
-
-                # freq line: ends with percent, often has a count before it
-                m = re.search(r"([0-9]+(\.[0-9]+)?)\s*%$", x)
-                if m:
-                    freq = float(m.group(1)) / 100.0
-                found = True
+            if candidate.startswith("Unlockable Unit"):
+                name = candidate.replace("Unlockable Unit", "").strip()
                 break
 
-            # Only accept if it really looks like a unit row
-            if found and tier is not None and avg is not None and win is not None:
-                out[name] = {"avg": avg, "win": win, "freq": freq}
+            if candidate in headers or candidate in tier_set:
+                name_idx -= 1
+                continue
 
-        i += 1
+            if re.fullmatch(r"[0-9.,% ]+%?", candidate):
+                name_idx -= 1
+                continue
+
+            name = candidate
+            break
+
+        if name is None:
+            continue
+
+        # Try to use an immediate repeat of the name (MetaTFT often echoes it)
+        if name_idx + 1 < len(lines):
+            repeat = lines[name_idx + 1]
+            if (
+                repeat not in headers
+                and repeat not in tier_set
+                and not repeat.startswith("Unlockable Unit")
+                and not re.fullmatch(r"[0-9.,% ]+%?", repeat)
+                and normalize_name(repeat) == normalize_name(name)
+            ):
+                name = repeat
+
+        # Stats follow the tier row in a fixed order
+        if idx + 3 >= len(lines):
+            continue
+
+        avg_line = lines[idx + 1]
+        win_line = lines[idx + 2]
+        freq_line = lines[idx + 3]
+
+        if not is_float(avg_line):
+            continue
+
+        if not re.fullmatch(r"\d+(\.\d+)?\s*%", win_line):
+            continue
+
+        freq_match = re.search(r"([0-9]+(\.[0-9]+)?)\s*%$", freq_line)
+        if not freq_match:
+            continue
+
+        avg = float(avg_line)
+        win = parse_percent(win_line)
+        freq = float(freq_match.group(1)) / 100.0
+
+        # Item rows extend until the next tier/header/unlockable/numeric line
+        items: List[str] = []
+        item_idx = idx + 4
+        while item_idx < len(lines):
+            nxt = lines[item_idx]
+
+            if nxt in headers or nxt in tier_set:
+                break
+
+            if nxt.startswith("Unlockable Unit"):
+                break
+
+            if re.fullmatch(r"[0-9.,% ]+%?", nxt):
+                break
+
+            items.append(nxt)
+            item_idx += 1
+
+        out[name] = {"avg": avg, "win": win, "freq": freq, "items": items}
 
     return out
 
@@ -122,7 +143,7 @@ def build_name_to_api_map(set_data) -> Dict[str, str]:
     return m
 
 
-def metatft_to_unit_stats(paste: str, set_data) -> Dict[str, Dict[str, float]]:
+def metatft_to_unit_stats(paste: str, set_data) -> Dict[str, Dict[str, float | List[str]]]:
     """
     Converts the MetaTFT paste into a dict keyed by apiName:
       { "TFT16_Aatrox": {"avg":..., "win":..., "freq":...}, ... }
@@ -134,7 +155,7 @@ def metatft_to_unit_stats(paste: str, set_data) -> Dict[str, Dict[str, float]]:
     raw = parse_metatft_units(paste)
     name_to_api = build_name_to_api_map(set_data)
 
-    unit_stats: Dict[str, Dict[str, float]] = {}
+    unit_stats: Dict[str, Dict[str, float | List[str]]] = {}
     missed: List[str] = []
 
     for name, stats in raw.items():
