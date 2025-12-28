@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Avatar,
   Box,
   Card,
   CardContent,
@@ -20,13 +21,103 @@ import {
   Button,
   MenuItem,
   TextField,
+  FormControlLabel,
+  Switch,
+  PaletteMode,
 } from '@mui/material';
 import Form from '@rjsf/mui';
 import validator from '@rjsf/validator-ajv8';
-import { FieldProps, FormRef, TemplatesType } from '@rjsf/utils';
+import { FieldProps } from '@rjsf/utils';
+import type CoreForm from '@rjsf/core';
+import type { FormProps } from '@rjsf/core';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 type ConfigData = Record<string, unknown>;
+
+type AppProps = {
+  mode: PaletteMode;
+  onToggleColorMode: () => void;
+};
+
+const normalizeKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const assetModules = import.meta.glob('../tft-images/*', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+
+const championImages: Record<string, string> = {};
+const traitImages: Record<string, string> = {};
+const emblemImages: Record<string, string> = {};
+
+const championAvatarImgProps = { style: { objectPosition: '70% 50%' } } as const;
+
+const aliasIfMissing = (
+  targetKey: string,
+  sourceKeys: string[],
+  imageMap: Record<string, string>,
+) => {
+  if (imageMap[targetKey]) return;
+  for (const source of sourceKeys) {
+    if (imageMap[source]) {
+      imageMap[targetKey] = imageMap[source];
+      return;
+    }
+  }
+};
+
+Object.entries(assetModules).forEach(([path, urlValue]) => {
+  const filename = path.split('/').pop() ?? '';
+  const url = urlValue as string;
+  const normalizedFilename = normalizeKey(filename);
+
+  const championMatch = filename.match(/TFT\d+_(.+?)_splash/);
+  if (championMatch) {
+    championImages[normalizeKey(championMatch[1])] = url;
+    return;
+  }
+
+  const emblemMatch = filename.match(/TFT\d+_Item_(.+?)EmblemItem/);
+  if (emblemMatch) {
+    emblemImages[normalizeKey(emblemMatch[1])] = url;
+    return;
+  }
+
+  const traitMatch = filename.match(/Trait_Icon_\d+_(.+?)\./);
+  if (traitMatch) {
+    traitImages[normalizeKey(traitMatch[1])] = url;
+    return;
+  }
+
+  if (normalizedFilename.includes('arcanist')) {
+    traitImages.arcanist = url;
+  }
+});
+
+aliasIfMissing('arcanist', ['sorcerer'], emblemImages);
+aliasIfMissing('arcanist', ['sorcerer'], traitImages);
+
+const getChampionImage = (name: string) => {
+  const normalized = normalizeKey(name);
+  const apiNameMatch = normalized.match(/^tft\d+(.*)$/);
+  const candidates = [normalized];
+
+  if (apiNameMatch?.[1]) {
+    candidates.push(apiNameMatch[1]);
+  }
+
+  for (const candidate of candidates) {
+    if (championImages[candidate]) {
+      return championImages[candidate];
+    }
+  }
+
+  return undefined;
+};
+const getTraitImage = (name: string) => traitImages[normalizeKey(name)];
+const getEmblemImage = (name: string) =>
+  emblemImages[normalizeKey(name)] ?? traitImages[normalizeKey(name)];
 
 type SolverResponse = {
   context: Record<string, unknown>;
@@ -78,59 +169,137 @@ const fetchJson = async <T,>(path: string): Promise<T> => {
 type MappingFieldOptions = {
   enumOptions?: { value: number; label: string }[];
   min?: number;
+  heading?: string;
+  searchPlaceholder?: string;
+  imageType?: 'trait' | 'emblem' | 'champion';
 };
 
 function MappingField(props: FieldProps<Record<string, number>>) {
   const options = (props.uiSchema?.['ui:options'] as MappingFieldOptions | undefined) ?? {};
   const entries = Object.entries(props.formData ?? {});
+  const [search, setSearch] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
-  const handleChange = (key: string, value: number | undefined) => {
-    props.onChange({
-      ...(props.formData ?? {}),
-      [key]: value,
-    });
+  const filteredEntries = entries.filter(([key]) =>
+    key.toLowerCase().includes(search.toLowerCase().trim()),
+  );
+
+  const previewLimit = 20;
+  const isSearching = search.trim().length > 0;
+  const visibleEntries = isSearching || showAll
+    ? filteredEntries
+    : filteredEntries.slice(0, previewLimit);
+
+  const getAvatarSrc = (key: string) => {
+    switch (options.imageType) {
+      case 'champion':
+        return getChampionImage(key);
+      case 'emblem':
+        return getEmblemImage(key);
+      case 'trait':
+        return getTraitImage(key);
+      default:
+        return undefined;
+    }
   };
 
-  if (entries.length === 0) {
-    return <Typography color="text.secondary">No entries available to edit.</Typography>;
-  }
+  const heading = options.heading ?? props.name;
+
+  const handleChange = (key: string, value: number | undefined) => {
+    const next = { ...(props.formData ?? {}) } as Record<string, number>;
+    if (value === undefined) {
+      delete next[key];
+    } else {
+      next[key] = value;
+    }
+    props.onChange(next);
+  };
 
   return (
     <Stack spacing={2} mt={1}>
-      {entries.map(([key, value]) => (
-        <Stack key={key} direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
-          <Typography sx={{ minWidth: { sm: 200 }, fontWeight: 600 }}>{key}</Typography>
-          {options.enumOptions ? (
-            <TextField
-              select
-              size="small"
-              label="Value"
-              value={value ?? ''}
-              onChange={(event) => handleChange(key, Number(event.target.value))}
-              sx={{ minWidth: 200 }}
-            >
-              {options.enumOptions.map((choice) => (
-                <MenuItem key={choice.value} value={choice.value}>
-                  {choice.label}
-                </MenuItem>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+          {heading}
+        </Typography>
+        <TextField
+          size="small"
+          label="Search"
+          placeholder={options.searchPlaceholder}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          sx={{ minWidth: { xs: '100%', sm: 240 } }}
+          disabled={entries.length === 0}
+        />
+      </Stack>
+
+      {entries.length === 0 ? (
+        <Typography color="text.secondary">No entries available to edit.</Typography>
+      ) : filteredEntries.length === 0 ? (
+        <Typography color="text.secondary">No entries match your search.</Typography>
+      ) : (
+        <>
+          {!isSearching && filteredEntries.length > previewLimit ? (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Showing first {previewLimit} of {filteredEntries.length} entries.
+              </Typography>
+              <Button variant="text" size="small" onClick={() => setShowAll((prev) => !prev)}>
+                {showAll ? 'Show less' : 'Show all'}
+              </Button>
+            </Stack>
+          ) : null}
+          <Box sx={{ maxHeight: 420, overflowY: 'auto', pr: 1 }}>
+            <Grid container columnSpacing={2} rowSpacing={1.5}>
+              {visibleEntries.map(([key, value]) => (
+                <Grid item xs={12} md={6} key={key}>
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 180 }}>
+                      {getAvatarSrc(key) ? (
+                        <Avatar
+                          src={getAvatarSrc(key)}
+                          alt={key}
+                          sx={{ width: 26, height: 26 }}
+                          imgProps={options.imageType === 'champion' ? championAvatarImgProps : undefined}
+                        />
+                      ) : null}
+                      <Typography sx={{ fontWeight: 600 }}>{key}</Typography>
+                    </Stack>
+                    {options.enumOptions ? (
+                      <TextField
+                        select
+                        size="small"
+                        label="Value"
+                        value={value ?? ''}
+                        onChange={(event) => handleChange(key, Number(event.target.value))}
+                        fullWidth
+                      >
+                        {options.enumOptions.map((choice) => (
+                          <MenuItem key={choice.value} value={choice.value}>
+                            {choice.label}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    ) : (
+                      <TextField
+                        type="number"
+                        size="small"
+                        label="Value"
+                        value={value ?? ''}
+                        inputProps={{ min: options.min }}
+                        onChange={(event) => {
+                          const newValue = event.target.value === '' ? undefined : Number(event.target.value);
+                          handleChange(key, Number.isNaN(newValue) ? undefined : newValue);
+                        }}
+                        fullWidth
+                      />
+                    )}
+                  </Stack>
+                </Grid>
               ))}
-            </TextField>
-          ) : (
-            <TextField
-              type="number"
-              size="small"
-              label="Value"
-              value={value ?? ''}
-              inputProps={{ min: options.min }}
-              onChange={(event) => {
-                const newValue = event.target.value === '' ? undefined : Number(event.target.value);
-                handleChange(key, Number.isNaN(newValue) ? undefined : newValue);
-              }}
-              sx={{ minWidth: 200 }}
-            />
-          )}
-        </Stack>
-      ))}
+            </Grid>
+          </Box>
+        </>
+      )}
     </Stack>
   );
 }
@@ -155,7 +324,17 @@ function TraitsPanel({
       </Typography>
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
         {traits.map((trait) => (
-          <Chip key={trait} label={trait} color={color} variant="outlined" />
+          <Chip
+            key={trait}
+            label={trait}
+            color={color}
+            variant="outlined"
+            avatar={
+              getTraitImage(trait) ? (
+                <Avatar src={getTraitImage(trait)} alt={trait} sx={{ width: 24, height: 24 }} />
+              ) : undefined
+            }
+          />
         ))}
       </Stack>
     </Box>
@@ -185,7 +364,19 @@ function RequirementTable({
         <TableBody>
           {championEntries.map(([name, detail]) => (
             <TableRow key={name} selected={!detail.satisfied}>
-              <TableCell>{name}</TableCell>
+              <TableCell>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {getChampionImage(name) ? (
+                    <Avatar
+                      src={getChampionImage(name)}
+                      alt={name}
+                      sx={{ width: 28, height: 28 }}
+                      imgProps={championAvatarImgProps}
+                    />
+                  ) : null}
+                  <span>{name}</span>
+                </Stack>
+              </TableCell>
               <TableCell>{detail.status}</TableCell>
               <TableCell>{detail.present ? 'Yes' : 'No'}</TableCell>
               <TableCell>{detail.satisfied ? 'Satisfied' : 'Missing'}</TableCell>
@@ -207,7 +398,14 @@ function RequirementTable({
         <TableBody>
           {traitEntries.map(([name, detail]) => (
             <TableRow key={name} selected={!detail.satisfied}>
-              <TableCell>{name}</TableCell>
+              <TableCell>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {getTraitImage(name) ? (
+                    <Avatar src={getTraitImage(name)} alt={name} sx={{ width: 24, height: 24 }} />
+                  ) : null}
+                  <span>{name}</span>
+                </Stack>
+              </TableCell>
               <TableCell>{detail.minimum}</TableCell>
               <TableCell>{detail.actual}</TableCell>
               <TableCell>{detail.satisfied ? 'Satisfied' : 'Missing'}</TableCell>
@@ -236,7 +434,20 @@ function TeamRoster({
             return (
               <Grid item xs={12} sm={6} md={4} key={unit}>
                 <Card variant="outlined">
-                  <CardHeader title={unit} subheader={`Cost: ${info?.cost ?? 'N/A'}`} />
+                  <CardHeader
+                    avatar={
+                      getChampionImage(unit) ? (
+                        <Avatar
+                          src={getChampionImage(unit)}
+                          alt={unit}
+                          sx={{ width: 40, height: 40 }}
+                          imgProps={championAvatarImgProps}
+                        />
+                      ) : undefined
+                    }
+                    title={unit}
+                    subheader={`Cost: ${info?.cost ?? 'N/A'}`}
+                  />
                   <CardContent>
                     <Stack spacing={1}>
                       <Box>
@@ -245,7 +456,16 @@ function TeamRoster({
                         </Typography>
                         <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
                           {info?.traits?.map((trait) => (
-                            <Chip key={trait} label={trait} size="small" />
+                            <Chip
+                              key={trait}
+                              label={trait}
+                              size="small"
+                              avatar={
+                                getTraitImage(trait) ? (
+                                  <Avatar src={getTraitImage(trait)} alt={trait} sx={{ width: 24, height: 24 }} />
+                                ) : undefined
+                              }
+                            />
                           ))}
                         </Stack>
                       </Box>
@@ -304,7 +524,16 @@ function TraitsSummary({ response }: { response: SolverResponse }) {
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {Object.entries(solution.trait_counts).map(([trait, count]) => (
-                <Chip key={trait} label={`${trait}: ${count}`} variant="outlined" />
+                <Chip
+                  key={trait}
+                  label={`${trait}: ${count}`}
+                  variant="outlined"
+                  avatar={
+                    getTraitImage(trait) ? (
+                      <Avatar src={getTraitImage(trait)} alt={trait} sx={{ width: 24, height: 24 }} />
+                    ) : undefined
+                  }
+                />
               ))}
             </Stack>
           </Box>
@@ -315,7 +544,17 @@ function TraitsSummary({ response }: { response: SolverResponse }) {
               </Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 {Object.entries(solution.emblems).map(([trait, count]) => (
-                  <Chip key={trait} label={`${trait}: ${count}`} color="secondary" variant="outlined" />
+                  <Chip
+                    key={trait}
+                    label={`${trait}: ${count}`}
+                    color="secondary"
+                    variant="outlined"
+                    avatar={
+                      getEmblemImage(trait) ? (
+                        <Avatar src={getEmblemImage(trait)} alt={`${trait} emblem`} sx={{ width: 24, height: 24 }} />
+                      ) : undefined
+                    }
+                  />
                 ))}
               </Stack>
             </Box>
@@ -383,9 +622,9 @@ function Loader() {
   );
 }
 
-function App() {
+function App({ mode, onToggleColorMode }: AppProps) {
   const [formData, setFormData] = useState<ConfigData | undefined>();
-  const formRef = useRef<FormRef>(null);
+  const formRef = useRef<CoreForm<any, any, any> | null>(null);
 
   const schemaQuery = useQuery({ queryKey: ['schema'], queryFn: () => fetchJson<Record<string, unknown>>('/schema') });
   const configQuery = useQuery({ queryKey: ['config'], queryFn: () => fetchJson<ConfigData>('/config') });
@@ -411,21 +650,24 @@ function App() {
     },
   });
 
-  const templates: TemplatesType = useMemo(
+  const templates: FormProps['templates'] = useMemo(
     () => ({
       ButtonTemplates: {
-        SubmitButton: (props) => (
-          <Box textAlign="right" mt={2}>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={props.disabled || runMutation.isPending}
-              endIcon={runMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
-            >
-              {runMutation.isPending ? 'Running…' : 'Run solver'}
-            </Button>
-          </Box>
-        ),
+        SubmitButton: (props) => {
+          const isDisabled = (props as { disabled?: boolean }).disabled;
+          return (
+            <Box textAlign="right" mt={2}>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={isDisabled || runMutation.isPending}
+                endIcon={runMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+              >
+                {runMutation.isPending ? 'Running…' : 'Run solver'}
+              </Button>
+            </Box>
+          );
+        },
       },
     }),
     [runMutation.isPending]
@@ -442,15 +684,28 @@ function App() {
     () => ({
       emblem_start_counts: {
         'ui:field': 'mapping',
-        'ui:options': { min: 0 },
+        'ui:options': {
+          min: 0,
+          heading: 'Emblems',
+          searchPlaceholder: 'Search emblems…',
+          imageType: 'emblem',
+        },
       },
       required_traits_min: {
         'ui:field': 'mapping',
-        'ui:options': { min: 0 },
+        'ui:options': {
+          min: 0,
+          heading: 'Trait minimums',
+          searchPlaceholder: 'Search traits…',
+          imageType: 'trait',
+        },
       },
       required_champions: {
         'ui:field': 'mapping',
         'ui:options': {
+          heading: 'Champions',
+          searchPlaceholder: 'Search champions…',
+          imageType: 'champion',
           enumOptions: [
             { value: -1, label: 'Ban (-1)' },
             { value: 0, label: 'Ignore (0)' },
@@ -472,14 +727,25 @@ function App() {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Stack spacing={3}>
-        <Box>
-          <Typography variant="h4" gutterBottom>
-            Bronze for Life UI
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Edit the solver configuration via JSON Schema, then run Bronze for Life to view the resulting team, traits, and requirements.
-          </Typography>
-        </Box>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          spacing={2}
+        >
+          <Box>
+            <Typography variant="h4" gutterBottom>
+              Bronze for Life UI
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Edit the solver configuration via JSON Schema, then run Bronze for Life to view the resulting team, traits, and requirements.
+            </Typography>
+          </Box>
+          <FormControlLabel
+            control={<Switch checked={mode === 'dark'} onChange={onToggleColorMode} />}
+            label={mode === 'dark' ? 'Dark mode' : 'Light mode'}
+          />
+        </Stack>
 
         <Card>
           <CardHeader title="Solver configuration" />
