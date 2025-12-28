@@ -51,6 +51,8 @@ const championImages: Record<string, string> = {};
 const traitImages: Record<string, string> = {};
 const emblemImages: Record<string, string> = {};
 
+const championAvatarImgProps = { style: { objectPosition: '70% 50%' } } as const;
+
 const aliasIfMissing = (
   targetKey: string,
   sourceKeys: string[],
@@ -253,7 +255,12 @@ function MappingField(props: FieldProps<Record<string, number>>) {
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 180 }}>
                       {getAvatarSrc(key) ? (
-                        <Avatar src={getAvatarSrc(key)} alt={key} sx={{ width: 26, height: 26 }} />
+                        <Avatar
+                          src={getAvatarSrc(key)}
+                          alt={key}
+                          sx={{ width: 26, height: 26 }}
+                          imgProps={options.imageType === 'champion' ? championAvatarImgProps : undefined}
+                        />
                       ) : null}
                       <Typography sx={{ fontWeight: 600 }}>{key}</Typography>
                     </Stack>
@@ -360,7 +367,12 @@ function RequirementTable({
               <TableCell>
                 <Stack direction="row" spacing={1} alignItems="center">
                   {getChampionImage(name) ? (
-                    <Avatar src={getChampionImage(name)} alt={name} sx={{ width: 28, height: 28 }} />
+                    <Avatar
+                      src={getChampionImage(name)}
+                      alt={name}
+                      sx={{ width: 28, height: 28 }}
+                      imgProps={championAvatarImgProps}
+                    />
                   ) : null}
                   <span>{name}</span>
                 </Stack>
@@ -425,7 +437,12 @@ function TeamRoster({
                   <CardHeader
                     avatar={
                       getChampionImage(unit) ? (
-                        <Avatar src={getChampionImage(unit)} alt={unit} sx={{ width: 40, height: 40 }} />
+                        <Avatar
+                          src={getChampionImage(unit)}
+                          alt={unit}
+                          sx={{ width: 40, height: 40 }}
+                          imgProps={championAvatarImgProps}
+                        />
                       ) : undefined
                     }
                     title={unit}
