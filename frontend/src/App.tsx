@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Avatar,
   Box,
   Card,
   CardContent,
@@ -23,10 +24,51 @@ import {
 } from '@mui/material';
 import Form from '@rjsf/mui';
 import validator from '@rjsf/validator-ajv8';
-import { FieldProps, FormRef, TemplatesType } from '@rjsf/utils';
+import { FieldProps } from '@rjsf/utils';
+import type CoreForm from '@rjsf/core';
+import type { FormProps } from '@rjsf/core';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 type ConfigData = Record<string, unknown>;
+
+const normalizeKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const assetModules = import.meta.glob('../tft-images/*', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+
+const championImages: Record<string, string> = {};
+const traitImages: Record<string, string> = {};
+const emblemImages: Record<string, string> = {};
+
+Object.entries(assetModules).forEach(([path, urlValue]) => {
+  const filename = path.split('/').pop() ?? '';
+  const url = urlValue as string;
+
+  const championMatch = filename.match(/TFT\d+_(.+?)_splash/);
+  if (championMatch) {
+    championImages[normalizeKey(championMatch[1])] = url;
+    return;
+  }
+
+  const emblemMatch = filename.match(/TFT\d+_Item_(.+?)EmblemItem/);
+  if (emblemMatch) {
+    emblemImages[normalizeKey(emblemMatch[1])] = url;
+    return;
+  }
+
+  const traitMatch = filename.match(/Trait_Icon_\d+_(.+?)\./);
+  if (traitMatch) {
+    traitImages[normalizeKey(traitMatch[1])] = url;
+  }
+});
+
+const getChampionImage = (name: string) => championImages[normalizeKey(name)];
+const getTraitImage = (name: string) => traitImages[normalizeKey(name)];
+const getEmblemImage = (name: string) =>
+  emblemImages[normalizeKey(name)] ?? traitImages[normalizeKey(name)];
 
 type SolverResponse = {
   context: Record<string, unknown>;
@@ -80,6 +122,7 @@ type MappingFieldOptions = {
   min?: number;
   heading?: string;
   searchPlaceholder?: string;
+  imageType?: 'trait' | 'emblem' | 'champion';
 };
 
 function MappingField(props: FieldProps<Record<string, number>>) {
@@ -91,13 +134,29 @@ function MappingField(props: FieldProps<Record<string, number>>) {
     key.toLowerCase().includes(search.toLowerCase().trim()),
   );
 
+  const getAvatarSrc = (key: string) => {
+    switch (options.imageType) {
+      case 'champion':
+        return getChampionImage(key);
+      case 'emblem':
+        return getEmblemImage(key);
+      case 'trait':
+        return getTraitImage(key);
+      default:
+        return undefined;
+    }
+  };
+
   const heading = options.heading ?? props.name;
 
   const handleChange = (key: string, value: number | undefined) => {
-    props.onChange({
-      ...(props.formData ?? {}),
-      [key]: value,
-    });
+    const next = { ...(props.formData ?? {}) } as Record<string, number>;
+    if (value === undefined) {
+      delete next[key];
+    } else {
+      next[key] = value;
+    }
+    props.onChange(next);
   };
 
   return (
@@ -129,7 +188,12 @@ function MappingField(props: FieldProps<Record<string, number>>) {
             spacing={2}
             alignItems={{ sm: 'center' }}
           >
-            <Typography sx={{ minWidth: { sm: 200 }, fontWeight: 600 }}>{key}</Typography>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: { sm: 220 } }}>
+              {getAvatarSrc(key) ? (
+                <Avatar src={getAvatarSrc(key)} alt={key} sx={{ width: 28, height: 28 }} />
+              ) : null}
+              <Typography sx={{ fontWeight: 600 }}>{key}</Typography>
+            </Stack>
             {options.enumOptions ? (
               <TextField
                 select
@@ -186,7 +250,17 @@ function TraitsPanel({
       </Typography>
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
         {traits.map((trait) => (
-          <Chip key={trait} label={trait} color={color} variant="outlined" />
+          <Chip
+            key={trait}
+            label={trait}
+            color={color}
+            variant="outlined"
+            avatar={
+              getTraitImage(trait) ? (
+                <Avatar src={getTraitImage(trait)} alt={trait} sx={{ width: 24, height: 24 }} />
+              ) : undefined
+            }
+          />
         ))}
       </Stack>
     </Box>
@@ -216,7 +290,14 @@ function RequirementTable({
         <TableBody>
           {championEntries.map(([name, detail]) => (
             <TableRow key={name} selected={!detail.satisfied}>
-              <TableCell>{name}</TableCell>
+              <TableCell>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {getChampionImage(name) ? (
+                    <Avatar src={getChampionImage(name)} alt={name} sx={{ width: 28, height: 28 }} />
+                  ) : null}
+                  <span>{name}</span>
+                </Stack>
+              </TableCell>
               <TableCell>{detail.status}</TableCell>
               <TableCell>{detail.present ? 'Yes' : 'No'}</TableCell>
               <TableCell>{detail.satisfied ? 'Satisfied' : 'Missing'}</TableCell>
@@ -238,7 +319,14 @@ function RequirementTable({
         <TableBody>
           {traitEntries.map(([name, detail]) => (
             <TableRow key={name} selected={!detail.satisfied}>
-              <TableCell>{name}</TableCell>
+              <TableCell>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {getTraitImage(name) ? (
+                    <Avatar src={getTraitImage(name)} alt={name} sx={{ width: 24, height: 24 }} />
+                  ) : null}
+                  <span>{name}</span>
+                </Stack>
+              </TableCell>
               <TableCell>{detail.minimum}</TableCell>
               <TableCell>{detail.actual}</TableCell>
               <TableCell>{detail.satisfied ? 'Satisfied' : 'Missing'}</TableCell>
@@ -267,7 +355,15 @@ function TeamRoster({
             return (
               <Grid item xs={12} sm={6} md={4} key={unit}>
                 <Card variant="outlined">
-                  <CardHeader title={unit} subheader={`Cost: ${info?.cost ?? 'N/A'}`} />
+                  <CardHeader
+                    avatar={
+                      getChampionImage(unit) ? (
+                        <Avatar src={getChampionImage(unit)} alt={unit} sx={{ width: 40, height: 40 }} />
+                      ) : undefined
+                    }
+                    title={unit}
+                    subheader={`Cost: ${info?.cost ?? 'N/A'}`}
+                  />
                   <CardContent>
                     <Stack spacing={1}>
                       <Box>
@@ -276,7 +372,16 @@ function TeamRoster({
                         </Typography>
                         <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
                           {info?.traits?.map((trait) => (
-                            <Chip key={trait} label={trait} size="small" />
+                            <Chip
+                              key={trait}
+                              label={trait}
+                              size="small"
+                              avatar={
+                                getTraitImage(trait) ? (
+                                  <Avatar src={getTraitImage(trait)} alt={trait} sx={{ width: 24, height: 24 }} />
+                                ) : undefined
+                              }
+                            />
                           ))}
                         </Stack>
                       </Box>
@@ -335,7 +440,16 @@ function TraitsSummary({ response }: { response: SolverResponse }) {
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {Object.entries(solution.trait_counts).map(([trait, count]) => (
-                <Chip key={trait} label={`${trait}: ${count}`} variant="outlined" />
+                <Chip
+                  key={trait}
+                  label={`${trait}: ${count}`}
+                  variant="outlined"
+                  avatar={
+                    getTraitImage(trait) ? (
+                      <Avatar src={getTraitImage(trait)} alt={trait} sx={{ width: 24, height: 24 }} />
+                    ) : undefined
+                  }
+                />
               ))}
             </Stack>
           </Box>
@@ -346,7 +460,17 @@ function TraitsSummary({ response }: { response: SolverResponse }) {
               </Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 {Object.entries(solution.emblems).map(([trait, count]) => (
-                  <Chip key={trait} label={`${trait}: ${count}`} color="secondary" variant="outlined" />
+                  <Chip
+                    key={trait}
+                    label={`${trait}: ${count}`}
+                    color="secondary"
+                    variant="outlined"
+                    avatar={
+                      getEmblemImage(trait) ? (
+                        <Avatar src={getEmblemImage(trait)} alt={`${trait} emblem`} sx={{ width: 24, height: 24 }} />
+                      ) : undefined
+                    }
+                  />
                 ))}
               </Stack>
             </Box>
@@ -416,7 +540,7 @@ function Loader() {
 
 function App() {
   const [formData, setFormData] = useState<ConfigData | undefined>();
-  const formRef = useRef<FormRef>(null);
+  const formRef = useRef<CoreForm<any, any, any> | null>(null);
 
   const schemaQuery = useQuery({ queryKey: ['schema'], queryFn: () => fetchJson<Record<string, unknown>>('/schema') });
   const configQuery = useQuery({ queryKey: ['config'], queryFn: () => fetchJson<ConfigData>('/config') });
@@ -442,21 +566,24 @@ function App() {
     },
   });
 
-  const templates: TemplatesType = useMemo(
+  const templates: FormProps['templates'] = useMemo(
     () => ({
       ButtonTemplates: {
-        SubmitButton: (props) => (
-          <Box textAlign="right" mt={2}>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={props.disabled || runMutation.isPending}
-              endIcon={runMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
-            >
-              {runMutation.isPending ? 'Running…' : 'Run solver'}
-            </Button>
-          </Box>
-        ),
+        SubmitButton: (props) => {
+          const isDisabled = (props as { disabled?: boolean }).disabled;
+          return (
+            <Box textAlign="right" mt={2}>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={isDisabled || runMutation.isPending}
+                endIcon={runMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+              >
+                {runMutation.isPending ? 'Running…' : 'Run solver'}
+              </Button>
+            </Box>
+          );
+        },
       },
     }),
     [runMutation.isPending]
@@ -477,6 +604,7 @@ function App() {
           min: 0,
           heading: 'Emblems',
           searchPlaceholder: 'Search emblems…',
+          imageType: 'emblem',
         },
       },
       required_traits_min: {
@@ -485,6 +613,7 @@ function App() {
           min: 0,
           heading: 'Trait minimums',
           searchPlaceholder: 'Search traits…',
+          imageType: 'trait',
         },
       },
       required_champions: {
@@ -492,6 +621,7 @@ function App() {
         'ui:options': {
           heading: 'Champions',
           searchPlaceholder: 'Search champions…',
+          imageType: 'champion',
           enumOptions: [
             { value: -1, label: 'Ban (-1)' },
             { value: 0, label: 'Ignore (0)' },
