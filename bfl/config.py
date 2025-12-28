@@ -184,6 +184,7 @@ class Config:
     json_path: Path
     set_id: str
     metatft_txt_path: Path
+    metatft_traits_path: Path
     team_size: int
     beam_width: int
     blacklist_traits_by_name: Set[str] = field(default_factory=set)
@@ -194,12 +195,14 @@ class Config:
     w_win: float = 2.0
     w_avg: float = 1.0
     w_freq: float = 0.1
+    mode: str = "bronze"
 
     def to_dict(self) -> Dict:
         return {
             "json_path": str(self.json_path),
             "set_id": self.set_id,
             "metatft_txt_path": str(self.metatft_txt_path),
+            "metatft_traits_path": str(self.metatft_traits_path),
             "team_size": self.team_size,
             "beam_width": self.beam_width,
             "blacklist_traits_by_name": sorted(self.blacklist_traits_by_name),
@@ -210,6 +213,7 @@ class Config:
             "w_win": self.w_win,
             "w_avg": self.w_avg,
             "w_freq": self.w_freq,
+            "mode": self.mode,
         }
 
 
@@ -218,6 +222,7 @@ def default_config() -> Config:
         json_path=REPO_ROOT / "en_us.json",
         set_id="16",
         metatft_txt_path=REPO_ROOT / "metatft_units.txt",
+        metatft_traits_path=REPO_ROOT / "metatft_traits.txt",
         team_size=9,
         beam_width=700,
         blacklist_traits_by_name=set(DEFAULT_BLACKLIST_TRAITS_BY_NAME),
@@ -228,4 +233,5 @@ def default_config() -> Config:
         w_win=2.0,
         w_avg=1.0,
         w_freq=0.1,
+        mode="bronze",
     )

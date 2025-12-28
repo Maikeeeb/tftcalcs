@@ -40,6 +40,7 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
 
     json_path = Path(payload.get("json_path", base.json_path)).expanduser()
     metatft_txt_path = Path(payload.get("metatft_txt_path", base.metatft_txt_path)).expanduser()
+    metatft_traits_path = Path(payload.get("metatft_traits_path", base.metatft_traits_path)).expanduser()
     team_size = _validate_int("team_size", payload.get("team_size", base.team_size), allow_negative=False)
     beam_width = _validate_int("beam_width", payload.get("beam_width", base.beam_width), allow_negative=False)
     max_emblems_total = _validate_int(
@@ -78,11 +79,15 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
             raise ConfigError(f"{name} must be numeric (got {type(value).__name__}).")
 
     set_id = str(payload.get("set_id", base.set_id))
+    mode = str(payload.get("mode", base.mode))
+    if mode not in {"bronze", "standard"}:
+        raise ConfigError("mode must be 'bronze' or 'standard'.")
 
     config = Config(
         json_path=json_path,
         set_id=set_id,
         metatft_txt_path=metatft_txt_path,
+        metatft_traits_path=metatft_traits_path,
         team_size=team_size,
         beam_width=beam_width,
         blacklist_traits_by_name=blacklist_traits_by_name,
@@ -93,6 +98,7 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
         w_win=float(weights_raw["w_win"]),
         w_avg=float(weights_raw["w_avg"]),
         w_freq=float(weights_raw["w_freq"]),
+        mode=mode,
     )
 
     try:

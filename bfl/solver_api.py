@@ -9,8 +9,10 @@ from bfl.metatft import (
     build_name_to_api_map,
     load_metatft_txt,
     metatft_to_unit_stats,
+    metatft_to_trait_stats,
     normalize_name,
     parse_metatft_units,
+    trait_power,
     unit_power,
 )
 from bfl.set_loader import load_set_data
@@ -22,10 +24,12 @@ __all__ = [
     "load_set_data",
     "load_metatft_txt",
     "metatft_to_unit_stats",
+    "metatft_to_trait_stats",
     "normalize_name",
     "parse_metatft_units",
     "solve_beam_search_bronze_with_emblems",
     "unit_power",
+    "trait_power",
     "apply_emblem_starts",
     "classify_traits",
     "run_bfl",
@@ -94,6 +98,9 @@ def run_bfl(config: Config) -> Dict[str, object]:
     metatft_text = load_metatft_txt(str(config.metatft_txt_path))
     unit_stats = metatft_to_unit_stats(metatft_text, set_data)
 
+    trait_text = load_metatft_txt(str(config.metatft_traits_path))
+    trait_stats = metatft_to_trait_stats(trait_text, set_data)
+
     power_map = {c: unit_power(c, unit_stats, config.w_win, config.w_avg, config.w_freq) for c in champs}
 
     if len(champs) < config.team_size:
@@ -123,6 +130,9 @@ def run_bfl(config: Config) -> Dict[str, object]:
         power_map,
         required_champions={k: v for k, v in config.required_champions.items() if v != 0},
         required_traits_min=config.required_traits_min,
+        trait_stats=trait_stats if config.mode == "standard" else None,
+        mode=config.mode,
+        trait_weights=(config.w_win, config.w_avg, config.w_freq),
     )
 
     requirements = _build_requirement_details(team, counts, config)
@@ -141,11 +151,13 @@ def run_bfl(config: Config) -> Dict[str, object]:
             "trait_breakpoint_count": len(trait_bps),
             "emblem_start_counts": config.emblem_start_counts,
             "max_emblems_total": config.max_emblems_total,
+            "mode": config.mode,
         },
         "meta": {
             "enabled": bool(unit_stats),
             "weights": {"w_win": config.w_win, "w_avg": config.w_avg, "w_freq": config.w_freq},
             "unit_stats": unit_stats,
+            "trait_stats_enabled": bool(trait_stats),
         },
         "solution": {
             "team": sorted(team),
