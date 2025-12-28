@@ -29,3 +29,5 @@ def test_parse_metatft_units_ignores_items_and_still_parses_units():
     assert raw["Alpha"]["avg"] == 3.50
     assert abs(raw["Alpha"]["win"] - 0.12) < 1e-9
     assert abs(raw["Alpha"]["freq"] - 0.05) < 1e-9
+    assert raw["Alpha"]["items"] == ["Infinity Edge", "Hand Of Justice"]
+    assert raw["Beta"]["items"] == ["Guinsoo's Rageblade"]

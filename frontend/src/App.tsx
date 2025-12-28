@@ -26,6 +26,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   PaletteMode,
+  Tooltip,
 } from '@mui/material';
 import Form from '@rjsf/mui';
 import validator from '@rjsf/validator-ajv8';
@@ -52,6 +53,7 @@ const assetModules = import.meta.glob('../tft-images/*', {
 const championImages: Record<string, string> = {};
 const traitImages: Record<string, string> = {};
 const emblemImages: Record<string, string> = {};
+const itemImages: Record<string, string> = {};
 
 const championAvatarImgProps = { style: { objectPosition: '70% 50%' } } as const;
 
@@ -92,6 +94,12 @@ Object.entries(assetModules).forEach(([path, urlValue]) => {
     return;
   }
 
+  const itemMatch = filename.match(/TFT_Item_(.+?)(?:\.TFT_Set\d+)?\.png/i);
+  if (itemMatch) {
+    itemImages[normalizeKey(itemMatch[1])] = url;
+    return;
+  }
+
   if (normalizedFilename.includes('arcanist')) {
     traitImages.arcanist = url;
   }
@@ -120,6 +128,7 @@ const getChampionImage = (name: string) => {
 const getTraitImage = (name: string) => traitImages[normalizeKey(name)];
 const getEmblemImage = (name: string) =>
   emblemImages[normalizeKey(name)] ?? traitImages[normalizeKey(name)];
+const getItemImage = (name: string) => itemImages[normalizeKey(name)];
 
 type SolverResponse = {
   context: Record<string, unknown> & { mode?: 'bronze' | 'standard' };
@@ -149,7 +158,7 @@ type SolverResponse = {
     {
       traits: string[];
       cost?: number;
-      metatft?: { avg?: number; win?: number; freq?: number } | null;
+      metatft?: { avg?: number; win?: number; freq?: number; items?: string[] } | null;
     }
   >;
   requirements: {
@@ -434,6 +443,7 @@ function TeamRoster({
         <Grid container spacing={2}>
           {solution.team.map((unit) => {
             const info = units[unit];
+            const topItems = info?.metatft?.items?.slice(0, 3) ?? [];
             return (
               <Grid item xs={12} sm={6} md={4} key={unit}>
                 <Card variant="outlined">
@@ -450,6 +460,24 @@ function TeamRoster({
                     }
                     title={unit}
                     subheader={`Cost: ${info?.cost ?? 'N/A'}`}
+                    action={
+                      topItems.length ? (
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          {topItems.map((item) => (
+                            <Tooltip title={item} key={`${unit}-${item}`}>
+                              <Avatar
+                                variant="rounded"
+                                src={getItemImage(item)}
+                                alt={item}
+                                sx={{ width: 32, height: 32 }}
+                              >
+                                {getItemImage(item) ? null : item.slice(0, 2)}
+                              </Avatar>
+                            </Tooltip>
+                          ))}
+                        </Stack>
+                      ) : null
+                    }
                   />
                   <CardContent>
                     <Stack spacing={1}>
