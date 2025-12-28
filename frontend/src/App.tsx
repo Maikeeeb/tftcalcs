@@ -21,6 +21,9 @@ import {
   Button,
   MenuItem,
   TextField,
+  FormControlLabel,
+  Switch,
+  PaletteMode,
 } from '@mui/material';
 import Form from '@rjsf/mui';
 import validator from '@rjsf/validator-ajv8';
@@ -30,6 +33,11 @@ import type { FormProps } from '@rjsf/core';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 type ConfigData = Record<string, unknown>;
+
+type AppProps = {
+  mode: PaletteMode;
+  onToggleColorMode: () => void;
+};
 
 const normalizeKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -597,7 +605,7 @@ function Loader() {
   );
 }
 
-function App() {
+function App({ mode, onToggleColorMode }: AppProps) {
   const [formData, setFormData] = useState<ConfigData | undefined>();
   const formRef = useRef<CoreForm<any, any, any> | null>(null);
 
@@ -702,14 +710,25 @@ function App() {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Stack spacing={3}>
-        <Box>
-          <Typography variant="h4" gutterBottom>
-            Bronze for Life UI
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Edit the solver configuration via JSON Schema, then run Bronze for Life to view the resulting team, traits, and requirements.
-          </Typography>
-        </Box>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          spacing={2}
+        >
+          <Box>
+            <Typography variant="h4" gutterBottom>
+              Bronze for Life UI
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Edit the solver configuration via JSON Schema, then run Bronze for Life to view the resulting team, traits, and requirements.
+            </Typography>
+          </Box>
+          <FormControlLabel
+            control={<Switch checked={mode === 'dark'} onChange={onToggleColorMode} />}
+            label={mode === 'dark' ? 'Dark mode' : 'Light mode'}
+          />
+        </Stack>
 
         <Card>
           <CardHeader title="Solver configuration" />
