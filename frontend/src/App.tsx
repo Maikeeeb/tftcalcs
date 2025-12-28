@@ -88,7 +88,23 @@ Object.entries(assetModules).forEach(([path, urlValue]) => {
 aliasIfMissing('arcanist', ['sorcerer'], emblemImages);
 aliasIfMissing('arcanist', ['sorcerer'], traitImages);
 
-const getChampionImage = (name: string) => championImages[normalizeKey(name)];
+const getChampionImage = (name: string) => {
+  const normalized = normalizeKey(name);
+  const apiNameMatch = normalized.match(/^tft\d+(.*)$/);
+  const candidates = [normalized];
+
+  if (apiNameMatch?.[1]) {
+    candidates.push(apiNameMatch[1]);
+  }
+
+  for (const candidate of candidates) {
+    if (championImages[candidate]) {
+      return championImages[candidate];
+    }
+  }
+
+  return undefined;
+};
 const getTraitImage = (name: string) => traitImages[normalizeKey(name)];
 const getEmblemImage = (name: string) =>
   emblemImages[normalizeKey(name)] ?? traitImages[normalizeKey(name)];
