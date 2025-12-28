@@ -43,9 +43,24 @@ const championImages: Record<string, string> = {};
 const traitImages: Record<string, string> = {};
 const emblemImages: Record<string, string> = {};
 
+const aliasIfMissing = (
+  targetKey: string,
+  sourceKeys: string[],
+  imageMap: Record<string, string>,
+) => {
+  if (imageMap[targetKey]) return;
+  for (const source of sourceKeys) {
+    if (imageMap[source]) {
+      imageMap[targetKey] = imageMap[source];
+      return;
+    }
+  }
+};
+
 Object.entries(assetModules).forEach(([path, urlValue]) => {
   const filename = path.split('/').pop() ?? '';
   const url = urlValue as string;
+  const normalizedFilename = normalizeKey(filename);
 
   const championMatch = filename.match(/TFT\d+_(.+?)_splash/);
   if (championMatch) {
@@ -62,8 +77,16 @@ Object.entries(assetModules).forEach(([path, urlValue]) => {
   const traitMatch = filename.match(/Trait_Icon_\d+_(.+?)\./);
   if (traitMatch) {
     traitImages[normalizeKey(traitMatch[1])] = url;
+    return;
+  }
+
+  if (normalizedFilename.includes('arcanist')) {
+    traitImages.arcanist = url;
   }
 });
+
+aliasIfMissing('arcanist', ['sorcerer'], emblemImages);
+aliasIfMissing('arcanist', ['sorcerer'], traitImages);
 
 const getChampionImage = (name: string) => championImages[normalizeKey(name)];
 const getTraitImage = (name: string) => traitImages[normalizeKey(name)];
