@@ -1,0 +1,1197 @@
+Trait
+
+Tier
+
+Avg Place
+
+Win Rate
+
+Frequency
+traitBase
+Shurima
+4 Shurima
+
+S
+
+1.07
+
+94.6%
+
+28,972 0.1%
+traitBase
+Demacia
+11 Demacia
+
+S
+
+1.10
+
+90.2%
+
+5,360 0.0%
+traitBase
+Bilgewater
+10 Bilgewater
+
+S
+
+1.18
+
+90.5%
+
+88,207 0.2%
+traitBase
+Noxus
+10 Noxus
+
+S
+
+1.29
+
+82.4%
+
+34,686 0.1%
+traitBase
+Darkin
+3 Darkin
+
+S
+
+2.64
+
+28.6%
+
+26,080 0.1%
+traitBase
+Riftscourge
+1 Riftscourge
+
+S
+
+2.74
+
+33.1%
+
+1,328,254 3.5%
+traitBase
+Void
+9 Void
+
+S
+
+2.79
+
+33.5%
+
+1,121,702 3.0%
+traitBase
+Shurima
+3 Shurima
+
+S
+
+3.30
+
+21.2%
+
+430,974 1.1%
+traitBase
+Darkin
+2 Darkin
+
+S
+
+3.32
+
+18.9%
+
+383,418 1.0%
+traitBase
+Rune Mage
+1 Rune Mage
+
+S
+
+3.33
+
+21.6%
+
+1,830,589 4.9%
+traitBase
+Freljord
+7 Freljord
+
+S
+
+3.49
+
+17.7%
+
+318,547 0.8%
+traitBase
+Quickstriker
+4 Quickstriker
+
+S
+
+3.54
+
+16.6%
+
+214,924 0.6%
+traitBase
+Immortal
+1 Immortal
+
+S
+
+3.62
+
+13.2%
+
+271,957 0.7%
+traitBase
+Quickstriker
+3 Quickstriker
+
+S
+
+3.65
+
+16.9%
+
+1,672,688 4.5%
+traitBase
+Soulbound
+1 Soulbound
+
+S
+
+3.66
+
+21.8%
+
+8,906,936 23.7%
+traitBase
+Bruiser
+6 Bruiser
+
+S
+
+3.68
+
+13.4%
+
+960,855 2.6%
+traitBase
+Chainbreaker
+1 Chainbreaker
+
+S
+
+3.74
+
+17.7%
+
+1,246,038 3.3%
+traitBase
+Quickstriker
+5 Quickstriker
+
+S
+
+3.78
+
+14.1%
+
+50,222 0.1%
+traitBase
+Eternal
+1 Eternal
+
+S
+
+3.78
+
+17.8%
+
+8,089,362 21.5%
+traitBase
+Gunslinger
+4 Gunslinger
+
+S
+
+3.78
+
+20.6%
+
+154,636 0.4%
+traitBase
+Harvester
+1 Harvester
+
+S
+
+3.79
+
+19.2%
+
+7,340,698 19.5%
+traitBase
+World Ender
+1 World Ender
+
+S
+
+3.82
+
+14.5%
+
+1,049,150 2.8%
+traitBase
+Ascendant
+1 Ascendant
+
+S
+
+3.82
+
+16.7%
+
+803,317 2.1%
+traitBase
+Longshot
+4 Longshot
+
+S
+
+3.85
+
+11.8%
+
+73,410 0.2%
+traitBase
+Dragonborn
+1 Dragonborn
+
+S
+
+3.86
+
+18.6%
+
+8,298,277 22.1%
+traitBase
+Heroic
+1 Heroic
+
+S
+
+3.86
+
+11.3%
+
+2,118,475 5.6%
+traitBase
+The Boss
+1 The Boss
+
+S
+
+3.91
+
+16.5%
+
+3,879,379 10.3%
+traitBase
+Dragonguards
+2 Dragonguards
+
+S
+
+3.91
+
+13.8%
+
+94,835 0.3%
+traitBase
+Ixtal
+7 Ixtal
+
+S
+
+3.94
+
+24.4%
+
+49,087 0.1%
+traitBase
+Longshot
+5 Longshot
+
+S
+
+3.96
+
+9.2%
+
+18,011 0.0%
+traitBase
+Gunslinger
+2 Gunslinger
+
+S
+
+3.97
+
+20.2%
+
+6,115,345 16.3%
+traitBase
+Slayer
+4 Slayer
+
+S
+
+3.99
+
+12.3%
+
+423,884 1.1%
+traitBase
+Noxus
+3 Noxus
+
+A
+
+4.03
+
+14.6%
+
+4,518,053 12.0%
+traitBase
+Vanquisher
+3 Vanquisher
+
+A
+
+4.05
+
+13.3%
+
+436,833 1.2%
+traitBase
+Darkin
+1 Darkin
+
+A
+
+4.05
+
+15.2%
+
+2,920,734 7.8%
+traitBase
+Bilgewater
+3 Bilgewater
+
+A
+
+4.06
+
+16.3%
+
+1,745,107 4.6%
+traitBase
+Demacia
+7 Demacia
+
+A
+
+4.08
+
+10.5%
+
+2,039,858 5.4%
+traitBase
+Glutton
+1 Glutton
+
+A
+
+4.11
+
+18.3%
+
+2,569,704 6.8%
+traitBase
+Chronokeeper
+1 Chronokeeper
+
+A
+
+4.12
+
+16.7%
+
+2,501,084 6.7%
+traitBase
+Quickstriker
+2 Quickstriker
+
+A
+
+4.13
+
+14.6%
+
+9,076,088 24.2%
+traitBase
+Warden
+3 Warden
+
+A
+
+4.13
+
+18.2%
+
+1,847,903 4.9%
+traitBase
+Blacksmith
+1 Blacksmith
+
+A
+
+4.13
+
+17.2%
+
+7,092,956 18.9%
+traitBase
+Juggernaut
+2 Juggernaut
+
+A
+
+4.14
+
+14.5%
+
+13,476,014 35.9%
+traitBase
+Longshot
+2 Longshot
+
+A
+
+4.14
+
+16.5%
+
+4,118,649 11.0%
+traitBase
+Warden
+5 Warden
+
+A
+
+4.14
+
+10.2%
+
+265,216 0.7%
+traitBase
+Shurima
+2 Shurima
+
+A
+
+4.16
+
+13.1%
+
+2,189,691 5.8%
+traitBase
+Bruiser
+2 Bruiser
+
+A
+
+4.17
+
+16.3%
+
+10,567,704 28.1%
+traitBase
+Vanquisher
+2 Vanquisher
+
+A
+
+4.18
+
+15.0%
+
+3,901,667 10.4%
+traitBase
+Ionia
+5 Ionia
+
+A
+
+4.18
+
+14.7%
+
+1,760,261 4.7%
+traitBase
+Disruptor
+2 Disruptor
+
+A
+
+4.21
+
+13.5%
+
+4,112,203 10.9%
+traitBase
+Emperor
+1 Emperor
+
+A
+
+4.21
+
+14.4%
+
+5,166,156 13.8%
+traitBase
+Sentinels of Light
+2 Sentinels of Light
+
+A
+
+4.21
+
+9.2%
+
+90,539 0.2%
+traitBase
+Yordle
+2 Yordle
+
+A
+
+4.21
+
+14.6%
+
+3,263,036 8.7%
+traitBase
+Warden
+4 Warden
+
+A
+
+4.22
+
+13.5%
+
+624,864 1.7%
+traitBase
+Arcanist
+2 Arcanist
+
+A
+
+4.24
+
+13.3%
+
+8,727,390 23.2%
+traitBase
+Assimilator
+1 Assimilator
+
+A
+
+4.24
+
+14.9%
+
+3,726,197 9.9%
+traitBase
+HexMech
+1 HexMech
+
+A
+
+4.25
+
+18.9%
+
+3,024,603 8.1%
+traitBase
+Ionia
+3 Ionia
+
+A
+
+4.25
+
+14.5%
+
+3,744,921 10.0%
+traitBase
+Juggernaut
+4 Juggernaut
+
+B
+
+4.26
+
+10.9%
+
+380,663 1.0%
+traitBase
+Vanquisher
+4 Vanquisher
+
+B
+
+4.27
+
+10.6%
+
+78,784 0.2%
+traitBase
+Yordle
+8 Yordle
+
+B
+
+4.28
+
+13.9%
+
+1,652,453 4.4%
+traitBase
+Freljord
+3 Freljord
+
+B
+
+4.28
+
+12.6%
+
+5,041,800 13.4%
+traitBase
+Longshot
+3 Longshot
+
+B
+
+4.29
+
+11.1%
+
+365,658 1.0%
+traitBase
+Arcanist
+4 Arcanist
+
+B
+
+4.33
+
+12.1%
+
+1,550,505 4.1%
+traitBase
+Invoker
+2 Invoker
+
+B
+
+4.33
+
+14.7%
+
+4,950,830 13.2%
+traitBase
+Freljord
+5 Freljord
+
+B
+
+4.36
+
+11.0%
+
+784,882 2.1%
+traitBase
+Targon
+1 Targon
+
+B
+
+4.38
+
+13.8%
+
+12,832,877 34.2%
+traitBase
+Shadow Isles
+5 Shadow Isles
+
+B
+
+4.38
+
+7.5%
+
+705,983 1.9%
+traitBase
+Slayer
+2 Slayer
+
+B
+
+4.39
+
+11.1%
+
+4,211,008 11.2%
+traitBase
+Ionia
+7 Ionia
+
+B
+
+4.39
+
+13.0%
+
+1,610,497 4.3%
+traitBase
+Piltover
+6 Piltover
+
+B
+
+4.39
+
+16.7%
+
+2,279,056 6.1%
+traitBase
+Dark Child
+1 Dark Child
+
+B
+
+4.40
+
+12.0%
+
+3,015,673 8.0%
+traitBase
+Vanquisher
+5 Vanquisher
+
+B
+
+4.40
+
+8.5%
+
+25,584 0.1%
+traitBase
+Defender
+2 Defender
+
+B
+
+4.42
+
+12.5%
+
+14,263,800 38.0%
+traitBase
+Warden
+2 Warden
+
+B
+
+4.45
+
+13.8%
+
+5,901,112 15.7%
+traitBase
+Slayer
+6 Slayer
+
+B
+
+4.47
+
+6.8%
+
+94,259 0.3%
+traitBase
+Disruptor
+4 Disruptor
+
+B
+
+4.50
+
+7.3%
+
+88,145 0.2%
+traitBase
+Invoker
+4 Invoker
+
+B
+
+4.50
+
+9.9%
+
+709,476 1.9%
+traitBase
+Piltover
+2 Piltover
+
+C
+
+4.51
+
+10.9%
+
+4,201,327 11.2%
+traitBase
+Arcanist
+6 Arcanist
+
+C
+
+4.55
+
+9.7%
+
+310,896 0.8%
+traitBase
+Void
+2 Void
+
+C
+
+4.57
+
+8.6%
+
+642,597 1.7%
+traitBase
+Chosen Wolves
+2 Chosen Wolves
+
+C
+
+4.60
+
+8.3%
+
+148,261 0.4%
+traitBase
+Piltover
+4 Piltover
+
+C
+
+4.63
+
+20.4%
+
+829,608 2.2%
+traitBase
+Defender
+4 Defender
+
+C
+
+4.67
+
+6.8%
+
+491,520 1.3%
+traitBase
+Zaun
+7 Zaun
+
+D
+
+4.75
+
+3.1%
+
+412,245 1.1%
+traitBase
+Star Forger
+1 Star Forger
+
+D
+
+4.78
+
+10.1%
+
+846,402 2.3%
+traitBase
+Defender
+6 Defender
+
+D
+
+4.87
+
+4.2%
+
+48,553 0.1%
+traitBase
+Noxus
+7 Noxus
+
+D
+
+4.88
+
+5.4%
+
+761,588 2.0%
+traitBase
+Bilgewater
+5 Bilgewater
+
+D
+
+4.95
+
+10.8%
+
+668,210 1.8%
+traitBase
+Bruiser
+4 Bruiser
+
+D
+
+4.99
+
+9.2%
+
+852,664 2.3%
+traitBase
+Demacia
+3 Demacia
+
+D
+
+5.01
+
+6.9%
+
+683,637 1.8%
+traitBase
+Noxus
+5 Noxus
+
+D
+
+5.04
+
+6.6%
+
+379,494 1.0%
+traitBase
+Shadow Isles
+2 Shadow Isles
+
+D
+
+5.04
+
+6.4%
+
+61,307 0.2%
+traitBase
+Caretaker
+1 Caretaker
+
+D
+
+5.12
+
+8.1%
+
+2,141,613 5.7%
+traitBase
+Zaun
+3 Zaun
+
+D
+
+5.16
+
+5.1%
+
+344,350 0.9%
+traitBase
+Shadow Isles
+3 Shadow Isles
+
+D
+
+5.20
+
+5.7%
+
+63,015 0.2%
+traitBase
+Zaun
+5 Zaun
+
+D
+
+5.28
+
+2.8%
+
+139,354 0.4%
+traitBase
+Juggernaut
+6 Juggernaut
+
+D
+
+5.30
+
+4.2%
+
+44,079 0.1%
+traitBase
+Bilgewater
+7 Bilgewater
+
+D
+
+5.32
+
+7.3%
+
+1,222,861 3.3%
+traitBase
+Demacia
+5 Demacia
+
+D
+
+5.33
+
+5.0%
+
+373,567 1.0%
+traitBase
+Ixtal
+5 Ixtal
+
+D
+
+5.34
+
+9.8%
+
+838,562 2.2%
+traitBase
+Huntress
+1 Huntress
+
+D
+
+5.35
+
+9.5%
+
+972,148 2.6%
+traitBase
+Void
+4 Void
+
+D
+
+5.55
+
+4.9%
+
+162,485 0.4%
+traitBase
+Shadow Isles
+4 Shadow Isles
+
+D
+
+5.56
+
+4.9%
+
+193,990 0.5%
+traitBase
+Void
+6 Void
+
+D
+
+5.57
+
+4.3%
+
+1,614,031 4.3%
+traitBase
+Yordle
+6 Yordle
+
+D
+
+5.94
+
+2.0%
+
+289,427 0.8%
+traitBase
+Yordle
+4 Yordle
+
+D
+
+6.04
+
+2.6%
+
+126,327 0.3%
+traitBase
+Ixtal
+3 Ixtal
+
+D
+
+6.17
+
+6.4%
+
+903,004 2.4% 
