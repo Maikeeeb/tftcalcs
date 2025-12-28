@@ -35,6 +35,11 @@ __all__ = [
     "run_bfl",
 ]
 
+BARON_API_NAME = "TFT16_BaronNashor"
+
+SPECIAL_CHAMPION_SLOT_SIZES = {BARON_API_NAME: 2}
+SPECIAL_TRAIT_VALUE_OVERRIDES = {BARON_API_NAME: {"Void": 2}}
+
 
 def _resolve_config(config: Config | None, config_path: str | None) -> Config:
     if config is not None:
@@ -133,6 +138,8 @@ def run_bfl(config: Config) -> Dict[str, object]:
         trait_stats=trait_stats if config.mode == "standard" else None,
         mode=config.mode,
         trait_weights=(config.w_win, config.w_avg, config.w_freq),
+        champ_slot_sizes=SPECIAL_CHAMPION_SLOT_SIZES,
+        trait_value_overrides=SPECIAL_TRAIT_VALUE_OVERRIDES,
     )
 
     requirements = _build_requirement_details(team, counts, config)

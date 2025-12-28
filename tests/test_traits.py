@@ -31,3 +31,28 @@ def test_classify_traits_with_emblem_start(toy_set_data):
     assert counts["X"] == 2
     assert "X" in bronze
     assert "X" in active_any
+
+
+def test_classify_traits_supports_trait_value_overrides():
+    champ_traits = {
+        "TFT16_BaronNashor": ["Void"],
+        "TFT16_KogMaw": ["Void"],
+    }
+    trait_bps = {"Void": [2, 4]}
+
+    eligible = {"Void"}
+    overrides = {"TFT16_BaronNashor": {"Void": 2}}
+
+    team = ["TFT16_BaronNashor", "TFT16_KogMaw"]
+    counts, bronze, active_any, upgraded, used = classify_traits(
+        team,
+        champ_traits,
+        trait_bps,
+        eligible,
+        emblem_counts={},
+        trait_value_overrides=overrides,
+    )
+
+    assert counts["Void"] == 3
+    assert bronze == ["Void"]
+    assert active_any == ["Void"]

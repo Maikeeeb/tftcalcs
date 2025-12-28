@@ -1,5 +1,32 @@
 from collections import defaultdict
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
+
+
+def add_champion_traits(
+    counts: Dict[str, int],
+    champion: str,
+    champ_traits: Dict[str, List[str]],
+    trait_value_overrides: Optional[Dict[str, Dict[str, int]]] = None,
+) -> None:
+    """Increment ``counts`` for each trait on ``champion``.
+
+    Parameters
+    ----------
+    counts: Dict[str, int]
+        Mutable trait counter to update.
+    champion: str
+        apiName of the champion whose traits should be added.
+    champ_traits: Dict[str, List[str]]
+        Mapping of champion apiName to their trait list.
+    trait_value_overrides: Optional[Dict[str, Dict[str, int]]]
+        Optional per-champion overrides for how many stacks each trait
+        contributes. When omitted, each trait counts as ``1``. Values are
+        looked up as ``trait_value_overrides[champion][trait]``.
+    """
+
+    overrides = (trait_value_overrides or {}).get(champion, {})
+    for trait in champ_traits[champion]:
+        counts[trait] += overrides.get(trait, 1)
 
 
 def apply_emblem_starts(counts: Dict[str, int], emblem_counts: Dict[str, int]) -> Dict[str, int]:
@@ -15,12 +42,12 @@ def classify_traits(
     trait_bps: Dict[str, List[int]],
     eligible_traits: Set[str],
     emblem_counts: Dict[str, int],
+    trait_value_overrides: Optional[Dict[str, Dict[str, int]]] = None,
 ) -> Tuple[Dict[str, int], List[str], List[str], List[str], List[str]]:
     # base counts from team
     cnt = defaultdict(int)
     for c in team:
-        for t in champ_traits[c]:
-            cnt[t] += 1
+        add_champion_traits(cnt, c, champ_traits, trait_value_overrides)
 
     # add emblem starts
     cnt2 = apply_emblem_starts(cnt, emblem_counts)

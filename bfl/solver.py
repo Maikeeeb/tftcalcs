@@ -2,7 +2,11 @@ from collections import defaultdict
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from bfl.metatft import TraitStat, trait_power
-from bfl.traits import apply_emblem_starts, classify_traits
+from bfl.traits import add_champion_traits, apply_emblem_starts, classify_traits
+
+
+def _team_slots(team: List[str], champ_slot_sizes: Dict[str, int]) -> int:
+    return sum(champ_slot_sizes.get(c, 1) for c in team)
 
 
 def compute_effective_counts(base_counts: Dict[str, int], emblem_counts: Dict[str, int]) -> Dict[str, int]:
@@ -25,12 +29,15 @@ def build_required_team(
     champ_traits: Dict[str, List[str]],
     power_map: Dict[str, float],
     required_champions: Optional[Dict[str, int]],
+    champ_slot_sizes: Optional[Dict[str, int]] = None,
+    trait_value_overrides: Optional[Dict[str, Dict[str, int]]] = None,
     forced_units: Optional[Iterable[str]] = None,
     team_size: Optional[int] = None,
 ) -> Tuple[List[str], Dict[str, int], float]:
     """Assemble the starting team from forced and required champions."""
 
     required_map = required_champions or {}
+    slot_sizes = champ_slot_sizes or {}
     champs_set = set(champs)
 
     start_team: List[str] = []
@@ -59,16 +66,17 @@ def build_required_team(
         for c in forced_units:
             _add_candidate(c)
 
-    if team_size is not None and len(start_team) > team_size:
+    starting_slots = _team_slots(start_team, slot_sizes)
+
+    if team_size is not None and starting_slots > team_size:
         raise RuntimeError(
-            f"Required champions count ({len(start_team)}) exceeds TEAM_SIZE={team_size}."
+            f"Required champions slot usage ({starting_slots}) exceeds TEAM_SIZE={team_size}."
         )
 
     base_counts = defaultdict(int)
     team_power = 0.0
     for c in start_team:
-        for t in champ_traits[c]:
-            base_counts[t] += 1
+        add_champion_traits(base_counts, c, champ_traits, trait_value_overrides)
         team_power += power_map.get(c, 0.0)
 
     return start_team, base_counts, team_power
@@ -111,6 +119,8 @@ def solve_beam_search_bronze_with_emblems(
     trait_stats: Optional[Dict[str, List[TraitStat]]] = None,
     mode: str = "bronze",
     trait_weights: Tuple[float, float, float] | None = None,
+    champ_slot_sizes: Optional[Dict[str, int]] = None,
+    trait_value_overrides: Optional[Dict[str, Dict[str, int]]] = None,
 ):
     """
     Beam search for teams with either max bronze-active traits (bronze mode) or
@@ -132,6 +142,8 @@ def solve_beam_search_bronze_with_emblems(
 
     required_traits_min = required_traits_min or {}
     required_map = required_champions or {}
+    slot_sizes = champ_slot_sizes or {}
+    trait_value_overrides = trait_value_overrides or {}
     banned_champs = {c for c, flag in required_map.items() if flag < 0}
     champs_set = set(champs)
 
@@ -170,7 +182,14 @@ def solve_beam_search_bronze_with_emblems(
         )
 
     start_team, base_counts0, team_power0 = build_required_team(
-        champs, champ_traits, power_map, required_champions, forced_units, team_size
+        champs,
+        champ_traits,
+        power_map,
+        required_champions,
+        slot_sizes,
+        trait_value_overrides,
+        forced_units,
+        team_size,
     )
 
     # ----------------------------
@@ -280,7 +299,8 @@ def solve_beam_search_bronze_with_emblems(
     bronze0, active0, upgraded0, missing0, _, trait_score0 = score_state(base_counts0)
     beam: List[Tuple[List[str], Dict[str, int], float, Tuple]] = []
 
-    remaining_slots0 = team_size - len(start_team)
+    used_slots0 = _team_slots(start_team, slot_sizes)
+    remaining_slots0 = team_size - used_slots0
     if feasibility_check(base_counts0, choose_best_emblems, required_traits_min, remaining_slots0):
         beam.append(
             (
@@ -291,21 +311,31 @@ def solve_beam_search_bronze_with_emblems(
             )
         )
 
-    for _ in range(remaining_slots0):
+    while True:
         candidates = []
-        for team, base_counts, team_power, _key in beam:
+        progressed = False
+        for team, base_counts, team_power, key in beam:
             team_set = set(team)
+            current_slots = _team_slots(team, slot_sizes)
+            remaining_slots = team_size - current_slots
+            if remaining_slots <= 0:
+                candidates.append((team, base_counts, team_power, key))
+                continue
+
             for c in playable_champs:
                 if c in team_set:
                     continue
 
+                slot_cost = slot_sizes.get(c, 1)
+                if slot_cost > remaining_slots:
+                    continue
+
                 new_team = team + [c]
                 new_counts = defaultdict(int, base_counts)
-                for t in champ_traits[c]:
-                    new_counts[t] += 1
+                add_champion_traits(new_counts, c, champ_traits, trait_value_overrides)
 
                 new_power = team_power + power_map.get(c, 0.0)
-                new_remaining_slots = team_size - len(new_team)
+                new_remaining_slots = remaining_slots - slot_cost
 
                 if not feasibility_check(
                     new_counts, choose_best_emblems, required_traits_min, new_remaining_slots
@@ -314,13 +344,17 @@ def solve_beam_search_bronze_with_emblems(
 
                 bronze, active, upgraded, missing, _, trait_score = score_state(new_counts)
 
-                key = build_sort_key(missing, bronze, active, upgraded, new_power, trait_score)
-                candidates.append((new_team, new_counts, new_power, key))
+                new_key = build_sort_key(missing, bronze, active, upgraded, new_power, trait_score)
+                candidates.append((new_team, new_counts, new_power, new_key))
+                progressed = True
+
+        if not candidates:
+            break
 
         candidates.sort(key=lambda x: x[3], reverse=True)
         beam = candidates[:beam_width]
 
-        if not beam:
+        if not progressed:
             break
 
     if not beam:
@@ -333,7 +367,7 @@ def solve_beam_search_bronze_with_emblems(
     emblem_counts = choose_best_emblems(best_base_counts)
 
     counts, bronze_traits, active_traits, upgraded_traits, used_traits = classify_traits(
-        best_team, champ_traits, trait_bps, eligible_traits, emblem_counts
+        best_team, champ_traits, trait_bps, eligible_traits, emblem_counts, trait_value_overrides
     )
 
     for t, min_count in required_traits_min.items():
