@@ -436,11 +436,10 @@ function TeamRoster({
 }) {
   const { solution, units, meta } = response;
 
-  const topUnits = useMemo(() => {
+  const { topUnits, topUnitItems } = useMemo(() => {
     const weightedScores = solution.team
       .map((unit) => {
-        const info = units[unit];
-        const stats = info?.metatft;
+        const stats = units[unit]?.metatft;
         if (!stats) return null;
 
         const winScore = (stats.win ?? 0) * (meta.weights.w_win ?? 1);
@@ -448,24 +447,29 @@ function TeamRoster({
         const avgScore = (stats.avg ?? 0) * (meta.weights.w_avg ?? 1);
         const score = winScore + freqScore - avgScore;
 
-        return { unit, score };
+        return { unit, score, items: stats.items ?? [] };
       })
-      .filter((entry): entry is { unit: string; score: number } => Boolean(entry));
+      .filter((entry): entry is { unit: string; score: number; items: string[] } => Boolean(entry));
 
     weightedScores.sort((a, b) => b.score - a.score);
-    return new Set(weightedScores.slice(0, 3).map((entry) => entry.unit));
+    const topThree = weightedScores.slice(0, 3);
+    return {
+      topUnits: new Set(topThree.map((entry) => entry.unit)),
+      topUnitItems: new Map(topThree.map((entry) => [entry.unit, entry.items])),
+    };
   }, [meta.weights.w_avg, meta.weights.w_freq, meta.weights.w_win, solution.team, units]);
 
   const missingItemImages = new Set<string>();
 
   const rosterCards = solution.team.map((unit) => {
     const info = units[unit];
-    const showItems = topUnits.has(unit) ? info?.metatft?.items ?? [] : [];
+    const showItems = topUnits.has(unit) ? topUnitItems.get(unit) ?? [] : [];
     showItems.forEach((item) => {
       if (!getItemImage(item)) {
         missingItemImages.add(item);
       }
     });
+    const metatftStats = info?.metatft ?? (meta.unit_stats?.[unit] as SolverResponse['units'][string]['metatft']);
     return (
       <Grid item xs={12} sm={6} md={4} key={unit}>
         <Card variant="outlined">
@@ -522,22 +526,28 @@ function TeamRoster({
                   ))}
                 </Stack>
               </Box>
-              {info?.metatft ? (
+              {meta.enabled ? (
                 <Box>
                   <Typography variant="body2" color="text.secondary">
                     MetaTFT
                   </Typography>
-                  <Stack direction="row" spacing={1}>
-                    {'avg' in info.metatft && info.metatft.avg !== undefined && (
-                      <Chip label={`Avg: ${info.metatft.avg.toFixed(2)}`} size="small" />
-                    )}
-                    {'win' in info.metatft && info.metatft.win !== undefined && (
-                      <Chip label={`Win: ${info.metatft.win.toFixed(2)}`} size="small" />
-                    )}
-                    {'freq' in info.metatft && info.metatft.freq !== undefined && (
-                      <Chip label={`Freq: ${info.metatft.freq.toFixed(2)}`} size="small" />
-                    )}
-                  </Stack>
+                  {metatftStats ? (
+                    <Stack direction="row" spacing={1}>
+                      {'avg' in metatftStats && metatftStats.avg !== undefined && (
+                        <Chip label={`Avg: ${metatftStats.avg.toFixed(2)}`} size="small" />
+                      )}
+                      {'win' in metatftStats && metatftStats.win !== undefined && (
+                        <Chip label={`Win: ${metatftStats.win.toFixed(2)}`} size="small" />
+                      )}
+                      {'freq' in metatftStats && metatftStats.freq !== undefined && (
+                        <Chip label={`Freq: ${metatftStats.freq.toFixed(2)}`} size="small" />
+                      )}
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No MetaTFT stats available for this unit.
+                    </Typography>
+                  )}
                 </Box>
               ) : null}
             </Stack>
