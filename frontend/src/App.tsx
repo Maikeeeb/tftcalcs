@@ -168,10 +168,17 @@ function MappingField(props: FieldProps<Record<string, number>>) {
   const options = (props.uiSchema?.['ui:options'] as MappingFieldOptions | undefined) ?? {};
   const entries = Object.entries(props.formData ?? {});
   const [search, setSearch] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
   const filteredEntries = entries.filter(([key]) =>
     key.toLowerCase().includes(search.toLowerCase().trim()),
   );
+
+  const previewLimit = 20;
+  const isSearching = search.trim().length > 0;
+  const visibleEntries = isSearching || showAll
+    ? filteredEntries
+    : filteredEntries.slice(0, previewLimit);
 
   const getAvatarSrc = (key: string) => {
     switch (options.imageType) {
@@ -200,7 +207,7 @@ function MappingField(props: FieldProps<Record<string, number>>) {
 
   return (
     <Stack spacing={2} mt={1}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
           {heading}
         </Typography>
@@ -220,50 +227,63 @@ function MappingField(props: FieldProps<Record<string, number>>) {
       ) : filteredEntries.length === 0 ? (
         <Typography color="text.secondary">No entries match your search.</Typography>
       ) : (
-        filteredEntries.map(([key, value]) => (
-          <Stack
-            key={key}
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={2}
-            alignItems={{ sm: 'center' }}
-          >
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: { sm: 220 } }}>
-              {getAvatarSrc(key) ? (
-                <Avatar src={getAvatarSrc(key)} alt={key} sx={{ width: 28, height: 28 }} />
-              ) : null}
-              <Typography sx={{ fontWeight: 600 }}>{key}</Typography>
+        <>
+          {!isSearching && filteredEntries.length > previewLimit ? (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Showing first {previewLimit} of {filteredEntries.length} entries.
+              </Typography>
+              <Button variant="text" size="small" onClick={() => setShowAll((prev) => !prev)}>
+                {showAll ? 'Show less' : 'Show all'}
+              </Button>
             </Stack>
-            {options.enumOptions ? (
-              <TextField
-                select
-                size="small"
-                label="Value"
-                value={value ?? ''}
-                onChange={(event) => handleChange(key, Number(event.target.value))}
-                sx={{ minWidth: 200 }}
-              >
-                {options.enumOptions.map((choice) => (
-                  <MenuItem key={choice.value} value={choice.value}>
-                    {choice.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-            ) : (
-              <TextField
-                type="number"
-                size="small"
-                label="Value"
-                value={value ?? ''}
-                inputProps={{ min: options.min }}
-                onChange={(event) => {
-                  const newValue = event.target.value === '' ? undefined : Number(event.target.value);
-                  handleChange(key, Number.isNaN(newValue) ? undefined : newValue);
-                }}
-                sx={{ minWidth: 200 }}
-              />
-            )}
-          </Stack>
-        ))
+          ) : null}
+          <Box sx={{ maxHeight: 420, overflowY: 'auto', pr: 1 }}>
+            <Grid container columnSpacing={2} rowSpacing={1.5}>
+              {visibleEntries.map(([key, value]) => (
+                <Grid item xs={12} md={6} key={key}>
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 180 }}>
+                      {getAvatarSrc(key) ? (
+                        <Avatar src={getAvatarSrc(key)} alt={key} sx={{ width: 26, height: 26 }} />
+                      ) : null}
+                      <Typography sx={{ fontWeight: 600 }}>{key}</Typography>
+                    </Stack>
+                    {options.enumOptions ? (
+                      <TextField
+                        select
+                        size="small"
+                        label="Value"
+                        value={value ?? ''}
+                        onChange={(event) => handleChange(key, Number(event.target.value))}
+                        fullWidth
+                      >
+                        {options.enumOptions.map((choice) => (
+                          <MenuItem key={choice.value} value={choice.value}>
+                            {choice.label}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    ) : (
+                      <TextField
+                        type="number"
+                        size="small"
+                        label="Value"
+                        value={value ?? ''}
+                        inputProps={{ min: options.min }}
+                        onChange={(event) => {
+                          const newValue = event.target.value === '' ? undefined : Number(event.target.value);
+                          handleChange(key, Number.isNaN(newValue) ? undefined : newValue);
+                        }}
+                        fullWidth
+                      />
+                    )}
+                  </Stack>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        </>
       )}
     </Stack>
   );
