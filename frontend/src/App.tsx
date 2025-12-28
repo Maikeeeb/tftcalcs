@@ -437,27 +437,27 @@ function TeamRoster({
   const { solution, units, meta } = response;
 
   const { topUnits, topUnitItems } = useMemo(() => {
-    const weightedScores = solution.team
-      .map((unit) => {
-        const stats = units[unit]?.metatft;
-        if (!stats) return null;
+    const weightedScores = solution.team.map((unit, index) => {
+      const stats =
+        units[unit]?.metatft ?? (meta.unit_stats?.[unit] as SolverResponse['units'][string]['metatft']);
+      const winScore = (stats?.win ?? 0) * (meta.weights.w_win ?? 1);
+      const freqScore = (stats?.freq ?? 0) * (meta.weights.w_freq ?? 1);
+      const avgScore = (stats?.avg ?? 0) * (meta.weights.w_avg ?? 1);
+      const score = winScore + freqScore - avgScore;
 
-        const winScore = (stats.win ?? 0) * (meta.weights.w_win ?? 1);
-        const freqScore = (stats.freq ?? 0) * (meta.weights.w_freq ?? 1);
-        const avgScore = (stats.avg ?? 0) * (meta.weights.w_avg ?? 1);
-        const score = winScore + freqScore - avgScore;
+      return { unit, score, items: stats?.items ?? [], index };
+    });
 
-        return { unit, score, items: stats.items ?? [] };
-      })
-      .filter((entry): entry is { unit: string; score: number; items: string[] } => Boolean(entry));
-
-    weightedScores.sort((a, b) => b.score - a.score);
+    weightedScores.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.index - b.index;
+    });
     const topThree = weightedScores.slice(0, 3);
     return {
       topUnits: new Set(topThree.map((entry) => entry.unit)),
       topUnitItems: new Map(topThree.map((entry) => [entry.unit, entry.items])),
     };
-  }, [meta.weights.w_avg, meta.weights.w_freq, meta.weights.w_win, solution.team, units]);
+  }, [meta.unit_stats, meta.weights.w_avg, meta.weights.w_freq, meta.weights.w_win, solution.team, units]);
 
   const missingItemImages = new Set<string>();
 
