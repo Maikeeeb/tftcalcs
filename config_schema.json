@@ -17,6 +17,10 @@
       "type": "string",
       "description": "Optional path to MetaTFT export text used for tie-break weights."
     },
+    "metatft_traits_path": {
+      "type": "string",
+      "description": "Optional path to MetaTFT trait export text used for standard mode."
+    },
     "team_size": {
       "type": "integer",
       "minimum": 1,
@@ -75,6 +79,11 @@
     "w_freq": {
       "type": "number",
       "description": "Weight for MetaTFT frequency when computing unit power tie-breaks."
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["bronze", "standard"],
+      "description": "Bronze for Life (bronze) or MetaTFT trait-first (standard) mode."
     }
   }
 }

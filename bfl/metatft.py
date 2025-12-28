@@ -1,10 +1,22 @@
 import re
+from dataclasses import dataclass
 from typing import Dict, List
 
 
 def normalize_name(s: str) -> str:
     # Lowercase, remove spaces/punctuation for matching
     return re.sub(r"[^a-z0-9]+", "", s.lower())
+
+
+@dataclass(frozen=True)
+class TraitStat:
+    """Represents a MetaTFT trait breakpoint with performance stats."""
+
+    required: int
+    tier: str
+    avg: float
+    win: float
+    freq: float
 
 
 def parse_metatft_units(text: str) -> Dict[str, Dict[str, float]]:
@@ -165,3 +177,132 @@ def load_metatft_txt(path: str) -> str:
     except FileNotFoundError:
         print(f"MetaTFT file not found: {path}")
         return ""
+
+
+def parse_metatft_traits(text: str) -> Dict[str, List[TraitStat]]:
+    """
+    Parse a MetaTFT trait paste into a mapping of trait name -> breakpoints.
+
+    The input is expected to resemble the MetaTFT trait table copy-paste. Rows
+    generally look like::
+
+        traitBase
+        Shurima
+        4 Shurima
+        S
+        1.07
+        94.6%
+        28,972 0.1%
+
+    This parser is intentionally forgiving and skips entries that do not match
+    the expected pattern.
+    """
+
+    tokens = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    out: Dict[str, List[TraitStat]] = {}
+
+    def _parse_required(label: str) -> int | None:
+        m = re.match(r"(\d+)", label)
+        return int(m.group(1)) if m else None
+
+    def _parse_percent(value: str) -> float:
+        return float(value.replace("%", "").replace(",", "").strip()) / 100.0
+
+    i = 0
+    while i < len(tokens):
+        if tokens[i] != "traitBase":
+            i += 1
+            continue
+
+        if i + 6 >= len(tokens):
+            break
+
+        trait_name = tokens[i + 1]
+        label = tokens[i + 2]
+        tier = tokens[i + 3]
+        avg_str = tokens[i + 4]
+        win_str = tokens[i + 5]
+        freq_line = tokens[i + 6]
+
+        required = _parse_required(label)
+        if required is None:
+            i += 1
+            continue
+
+        try:
+            avg = float(avg_str)
+            win = _parse_percent(win_str)
+        except ValueError:
+            i += 1
+            continue
+
+        freq_match = re.search(r"([0-9]+(?:\.[0-9]+)?)%$", freq_line.replace(",", ""))
+        freq = float(freq_match.group(1)) / 100.0 if freq_match else 0.0
+
+        out.setdefault(trait_name, []).append(
+            TraitStat(required=required, tier=tier, avg=avg, win=win, freq=freq)
+        )
+
+        i += 7
+
+    # Sort breakpoints from lowest to highest requirement for easy lookup.
+    for trait, stats in out.items():
+        out[trait] = sorted(stats, key=lambda s: s.required)
+
+    return out
+
+
+def metatft_to_trait_stats(paste: str, set_data) -> Dict[str, List[TraitStat]]:
+    """
+    Converts the MetaTFT trait paste into a dict keyed by trait name as it
+    appears in the set data. Unknown traits are ignored.
+    """
+
+    paste = paste.strip()
+    if not paste:
+        return {}
+
+    raw = parse_metatft_traits(paste)
+    name_to_trait = {normalize_name(tr["name"]): tr["name"] for tr in set_data["traits"]}
+
+    trait_stats: Dict[str, List[TraitStat]] = {}
+    missed: List[str] = []
+
+    for name, stats in raw.items():
+        key = name_to_trait.get(normalize_name(name))
+        if not key:
+            missed.append(name)
+            continue
+        trait_stats[key] = stats
+
+    if missed:
+        print(
+            f"Warning: couldn't map {len(missed)} traits from MetaTFT paste (first 15): {missed[:15]}"
+        )
+
+    print(f"Loaded MetaTFT stats for {len(trait_stats)} traits.")
+    return trait_stats
+
+
+def trait_power(
+    trait: str,
+    count: int,
+    trait_stats: Dict[str, List[TraitStat]],
+    w_win: float = 2.0,
+    w_avg: float = 1.0,
+    w_freq: float = 0.1,
+) -> float:
+    """
+    Returns a score for the highest breakpoint satisfied for ``trait``.
+    """
+
+    stats = trait_stats.get(trait)
+    if not stats:
+        return 0.0
+
+    eligible = [s for s in stats if count >= s.required]
+    if not eligible:
+        return 0.0
+
+    best = max(eligible, key=lambda s: s.required)
+    return (w_win * best.win) - (w_avg * best.avg) + (w_freq * best.freq)

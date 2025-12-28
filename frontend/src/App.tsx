@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -23,6 +23,8 @@ import {
   TextField,
   FormControlLabel,
   Switch,
+  ToggleButton,
+  ToggleButtonGroup,
   PaletteMode,
 } from '@mui/material';
 import Form from '@rjsf/mui';
@@ -120,7 +122,7 @@ const getEmblemImage = (name: string) =>
   emblemImages[normalizeKey(name)] ?? traitImages[normalizeKey(name)];
 
 type SolverResponse = {
-  context: Record<string, unknown>;
+  context: Record<string, unknown> & { mode?: 'bronze' | 'standard' };
   meta: {
     enabled: boolean;
     weights: {
@@ -129,6 +131,7 @@ type SolverResponse = {
       w_freq: number;
     };
     unit_stats?: Record<string, { avg?: number; win?: number; freq?: number }>;
+    trait_stats_enabled?: boolean;
   };
   solution: {
     team: string[];
@@ -591,11 +594,19 @@ function MetaCard({ response }: { response: SolverResponse }) {
       <CardContent>
         <Stack spacing={1}>
           <Typography variant="body1">
+            Mode: {(response.context.mode as string) ?? 'bronze'}
+          </Typography>
+          <Typography variant="body1">
             MetaTFT weights {meta.enabled ? 'enabled' : 'disabled'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             w_win: {meta.weights.w_win}, w_avg: {meta.weights.w_avg}, w_freq: {meta.weights.w_freq}
           </Typography>
+          {meta.trait_stats_enabled !== undefined ? (
+            <Typography variant="body2" color="text.secondary">
+              Trait preferences from MetaTFT {meta.trait_stats_enabled ? 'enabled' : 'disabled'}
+            </Typography>
+          ) : null}
         </Stack>
       </CardContent>
     </Card>
@@ -624,6 +635,7 @@ function Loader() {
 
 function App({ mode, onToggleColorMode }: AppProps) {
   const [formData, setFormData] = useState<ConfigData | undefined>();
+  const [activeMode, setActiveMode] = useState<'bronze' | 'standard'>('bronze');
   const formRef = useRef<CoreForm<any, any, any> | null>(null);
 
   const schemaQuery = useQuery({ queryKey: ['schema'], queryFn: () => fetchJson<Record<string, unknown>>('/schema') });
@@ -631,9 +643,20 @@ function App({ mode, onToggleColorMode }: AppProps) {
 
   useEffect(() => {
     if (configQuery.data) {
-      setFormData(configQuery.data);
+      const modeFromConfig =
+        configQuery.data.mode === 'standard' || configQuery.data.mode === 'bronze'
+          ? (configQuery.data.mode as 'bronze' | 'standard')
+          : 'bronze';
+      setActiveMode(modeFromConfig);
+      setFormData({ ...configQuery.data, mode: modeFromConfig });
     }
   }, [configQuery.data]);
+
+  useEffect(() => {
+    if (formData?.mode === 'standard' || formData?.mode === 'bronze') {
+      setActiveMode(formData.mode);
+    }
+  }, [formData?.mode]);
 
   const runMutation = useMutation({
     mutationFn: async (data: ConfigData) => {
@@ -713,9 +736,20 @@ function App({ mode, onToggleColorMode }: AppProps) {
           ],
         },
       },
+      mode: { 'ui:widget': 'hidden' },
+      metatft_traits_path: { 'ui:widget': 'hidden' },
     }),
     [],
   );
+
+  const handleModeToggle = (
+    _: MouseEvent<HTMLElement>,
+    value: 'bronze' | 'standard' | null,
+  ) => {
+    if (!value) return;
+    setActiveMode(value);
+    setFormData((prev) => ({ ...(prev ?? {}), mode: value }));
+  };
 
   const handleRunClick = () => {
     formRef.current?.submit();
@@ -735,11 +769,26 @@ function App({ mode, onToggleColorMode }: AppProps) {
         >
           <Box>
             <Typography variant="h4" gutterBottom>
-              Bronze for Life UI
+              {activeMode === 'standard' ? 'Standard mode' : 'Bronze for Life'} UI
             </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Edit the solver configuration via JSON Schema, then run Bronze for Life to view the resulting team, traits, and requirements.
+            <Typography variant="body1" color="text.secondary" paragraph>
+              Edit the solver configuration via JSON Schema, then run the solver to view the resulting team, traits, and requirements.
             </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Mode
+              </Typography>
+              <ToggleButtonGroup
+                color="primary"
+                value={activeMode}
+                exclusive
+                onChange={handleModeToggle}
+                size="small"
+              >
+                <ToggleButton value="bronze">Bronze for Life</ToggleButton>
+                <ToggleButton value="standard">Standard</ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
           </Box>
           <FormControlLabel
             control={<Switch checked={mode === 'dark'} onChange={onToggleColorMode} />}
