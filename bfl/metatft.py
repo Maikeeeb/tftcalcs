@@ -19,9 +19,9 @@ class TraitStat:
     freq: float
 
 
-def parse_metatft_units(text: str) -> Dict[str, Dict[str, float]]:
+def parse_metatft_units(text: str) -> Dict[str, Dict[str, float | List[str]]]:
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    out: Dict[str, Dict[str, float]] = {}
+    out: Dict[str, Dict[str, float | List[str]]] = {}
 
     tier_set = {"S", "A", "B", "C", "D"}
 
@@ -57,7 +57,7 @@ def parse_metatft_units(text: str) -> Dict[str, Dict[str, float]]:
             avg = None
             win = None
             freq = 0.0
-            found = False
+            freq_idx: int | None = None
 
             for j in range(i + 1, min(i + 7, len(lines))):
                 x = lines[j]
@@ -86,12 +86,32 @@ def parse_metatft_units(text: str) -> Dict[str, Dict[str, float]]:
                 m = re.search(r"([0-9]+(\.[0-9]+)?)\s*%$", x)
                 if m:
                     freq = float(m.group(1)) / 100.0
-                found = True
+                    freq_idx = j
                 break
 
             # Only accept if it really looks like a unit row
-            if found and tier is not None and avg is not None and win is not None:
-                out[name] = {"avg": avg, "win": win, "freq": freq}
+            if tier is not None and avg is not None and win is not None and freq_idx is not None:
+                items: List[str] = []
+                k = freq_idx + 1
+
+                while k < len(lines):
+                    nxt = lines[k]
+
+                    if nxt in headers or nxt in tier_set:
+                        break
+
+                    if nxt.startswith("Unlockable Unit"):
+                        break
+
+                    if re.fullmatch(r"[0-9.,% ]+%?", nxt):
+                        break
+
+                    items.append(nxt)
+                    k += 1
+
+                out[name] = {"avg": avg, "win": win, "freq": freq, "items": items}
+                i = k
+                continue
 
         i += 1
 
@@ -122,7 +142,7 @@ def build_name_to_api_map(set_data) -> Dict[str, str]:
     return m
 
 
-def metatft_to_unit_stats(paste: str, set_data) -> Dict[str, Dict[str, float]]:
+def metatft_to_unit_stats(paste: str, set_data) -> Dict[str, Dict[str, float | List[str]]]:
     """
     Converts the MetaTFT paste into a dict keyed by apiName:
       { "TFT16_Aatrox": {"avg":..., "win":..., "freq":...}, ... }
@@ -134,7 +154,7 @@ def metatft_to_unit_stats(paste: str, set_data) -> Dict[str, Dict[str, float]]:
     raw = parse_metatft_units(paste)
     name_to_api = build_name_to_api_map(set_data)
 
-    unit_stats: Dict[str, Dict[str, float]] = {}
+    unit_stats: Dict[str, Dict[str, float | List[str]]] = {}
     missed: List[str] = []
 
     for name, stats in raw.items():
