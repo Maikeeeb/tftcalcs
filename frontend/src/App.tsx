@@ -33,7 +33,11 @@ type ConfigData = Record<string, unknown>;
 
 const normalizeKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-const assetModules = import.meta.glob('../tft-images/*', { eager: true, as: 'url' });
+const assetModules = import.meta.glob('../tft-images/*', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
 
 const championImages: Record<string, string> = {};
 const traitImages: Record<string, string> = {};
