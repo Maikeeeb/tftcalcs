@@ -82,6 +82,12 @@ Object.entries(assetModules).forEach(([path, urlValue]) => {
     return;
   }
 
+  const directChampionMatch = filename.match(/TFT\d+_(.+?)\.TFT_Set\d+\.png$/);
+  if (directChampionMatch && !filename.includes('_splash')) {
+    championImages[normalizeKey(directChampionMatch[1])] = url;
+    return;
+  }
+
   const emblemMatch = filename.match(/TFT\d+_Item_(.+?)EmblemItem/);
   if (emblemMatch) {
     emblemImages[normalizeKey(emblemMatch[1])] = url;
