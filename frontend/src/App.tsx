@@ -122,6 +122,7 @@ type MappingFieldOptions = {
   min?: number;
   heading?: string;
   searchPlaceholder?: string;
+  imageType?: 'trait' | 'emblem' | 'champion';
 };
 
 function MappingField(props: FieldProps<Record<string, number>>) {
@@ -132,6 +133,19 @@ function MappingField(props: FieldProps<Record<string, number>>) {
   const filteredEntries = entries.filter(([key]) =>
     key.toLowerCase().includes(search.toLowerCase().trim()),
   );
+
+  const getAvatarSrc = (key: string) => {
+    switch (options.imageType) {
+      case 'champion':
+        return getChampionImage(key);
+      case 'emblem':
+        return getEmblemImage(key);
+      case 'trait':
+        return getTraitImage(key);
+      default:
+        return undefined;
+    }
+  };
 
   const heading = options.heading ?? props.name;
 
@@ -174,7 +188,12 @@ function MappingField(props: FieldProps<Record<string, number>>) {
             spacing={2}
             alignItems={{ sm: 'center' }}
           >
-            <Typography sx={{ minWidth: { sm: 200 }, fontWeight: 600 }}>{key}</Typography>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: { sm: 220 } }}>
+              {getAvatarSrc(key) ? (
+                <Avatar src={getAvatarSrc(key)} alt={key} sx={{ width: 28, height: 28 }} />
+              ) : null}
+              <Typography sx={{ fontWeight: 600 }}>{key}</Typography>
+            </Stack>
             {options.enumOptions ? (
               <TextField
                 select
@@ -585,6 +604,7 @@ function App() {
           min: 0,
           heading: 'Emblems',
           searchPlaceholder: 'Search emblems…',
+          imageType: 'emblem',
         },
       },
       required_traits_min: {
@@ -593,6 +613,7 @@ function App() {
           min: 0,
           heading: 'Trait minimums',
           searchPlaceholder: 'Search traits…',
+          imageType: 'trait',
         },
       },
       required_champions: {
@@ -600,6 +621,7 @@ function App() {
         'ui:options': {
           heading: 'Champions',
           searchPlaceholder: 'Search champions…',
+          imageType: 'champion',
           enumOptions: [
             { value: -1, label: 'Ban (-1)' },
             { value: 0, label: 'Ignore (0)' },
