@@ -305,4 +305,12 @@ def trait_power(
         return 0.0
 
     best = max(eligible, key=lambda s: s.required)
-    return (w_win * best.win) - (w_avg * best.avg) + (w_freq * best.freq)
+    score = (w_win * best.win) - (w_avg * best.avg) + (w_freq * best.freq)
+
+    # MetaTFT averages are lower-better, so some breakpoints can produce
+    # negative values when directly combined with the weights. Returning
+    # zero instead of the raw negative score prevents the solver from
+    # treating active traits as a penalty relative to having no traits at
+    # all, which keeps standard mode focused on activating the strongest
+    # available traits.
+    return max(0.0, score)
