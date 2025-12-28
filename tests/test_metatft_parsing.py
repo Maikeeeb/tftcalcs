@@ -20,6 +20,7 @@ def test_parse_metatft_units_basic():
     assert raw["Alpha"]["avg"] == 3.50
     assert abs(raw["Alpha"]["win"] - 0.12) < 1e-9
     assert abs(raw["Alpha"]["freq"] - 0.05) < 1e-9
+    assert raw["Alpha"]["items"] == ["Infinity Edge"]
 
 
 def test_metatft_to_unit_stats_maps_to_api(toy_set_data):

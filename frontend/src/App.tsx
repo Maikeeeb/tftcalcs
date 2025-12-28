@@ -26,6 +26,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   PaletteMode,
+  Tooltip,
 } from '@mui/material';
 import Form from '@rjsf/mui';
 import validator from '@rjsf/validator-ajv8';
@@ -52,6 +53,7 @@ const assetModules = import.meta.glob('../tft-images/*', {
 const championImages: Record<string, string> = {};
 const traitImages: Record<string, string> = {};
 const emblemImages: Record<string, string> = {};
+const itemImages: Record<string, string> = {};
 
 const championAvatarImgProps = { style: { objectPosition: '70% 50%' } } as const;
 
@@ -92,6 +94,12 @@ Object.entries(assetModules).forEach(([path, urlValue]) => {
     return;
   }
 
+  const itemMatch = filename.match(/TFT_Item_(.+?)(?:\.TFT_Set\d+)?\.png/i);
+  if (itemMatch) {
+    itemImages[normalizeKey(itemMatch[1])] = url;
+    return;
+  }
+
   if (normalizedFilename.includes('arcanist')) {
     traitImages.arcanist = url;
   }
@@ -120,6 +128,7 @@ const getChampionImage = (name: string) => {
 const getTraitImage = (name: string) => traitImages[normalizeKey(name)];
 const getEmblemImage = (name: string) =>
   emblemImages[normalizeKey(name)] ?? traitImages[normalizeKey(name)];
+const getItemImage = (name: string) => itemImages[normalizeKey(name)];
 
 type SolverResponse = {
   context: Record<string, unknown> & { mode?: 'bronze' | 'standard' };
@@ -149,7 +158,7 @@ type SolverResponse = {
     {
       traits: string[];
       cost?: number;
-      metatft?: { avg?: number; win?: number; freq?: number } | null;
+      metatft?: { avg?: number; win?: number; freq?: number; items?: string[] } | null;
     }
   >;
   requirements: {
@@ -425,78 +434,135 @@ function TeamRoster({
 }: {
   response: SolverResponse;
 }) {
-  const { solution, units } = response;
+  const { solution, units, meta } = response;
+
+  const topUnits = useMemo(() => {
+    const weightedScores = solution.team
+      .map((unit) => {
+        const info = units[unit];
+        const stats = info?.metatft;
+        if (!stats) return null;
+
+        const winScore = (stats.win ?? 0) * (meta.weights.w_win ?? 1);
+        const freqScore = (stats.freq ?? 0) * (meta.weights.w_freq ?? 1);
+        const avgScore = (stats.avg ?? 0) * (meta.weights.w_avg ?? 1);
+        const score = winScore + freqScore - avgScore;
+
+        return { unit, score };
+      })
+      .filter((entry): entry is { unit: string; score: number } => Boolean(entry));
+
+    weightedScores.sort((a, b) => b.score - a.score);
+    return new Set(weightedScores.slice(0, 3).map((entry) => entry.unit));
+  }, [meta.weights.w_avg, meta.weights.w_freq, meta.weights.w_win, solution.team, units]);
+
+  const missingItemImages = new Set<string>();
+
+  const rosterCards = solution.team.map((unit) => {
+    const info = units[unit];
+    const showItems = topUnits.has(unit) ? info?.metatft?.items ?? [] : [];
+    showItems.forEach((item) => {
+      if (!getItemImage(item)) {
+        missingItemImages.add(item);
+      }
+    });
+    return (
+      <Grid item xs={12} sm={6} md={4} key={unit}>
+        <Card variant="outlined">
+          <CardHeader
+            avatar={
+              getChampionImage(unit) ? (
+                <Avatar
+                  src={getChampionImage(unit)}
+                  alt={unit}
+                  sx={{ width: 40, height: 40 }}
+                  imgProps={championAvatarImgProps}
+                />
+              ) : undefined
+            }
+            title={unit}
+            subheader={`Cost: ${info?.cost ?? 'N/A'}`}
+            action={
+              showItems.length ? (
+                <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
+                  {showItems.map((item) => (
+                    <Tooltip title={item} key={`${unit}-${item}`}>
+                      <Avatar
+                        variant="rounded"
+                        src={getItemImage(item)}
+                        alt={item}
+                        sx={{ width: 32, height: 32 }}
+                      >
+                        {getItemImage(item) ? null : item.slice(0, 2)}
+                      </Avatar>
+                    </Tooltip>
+                  ))}
+                </Stack>
+              ) : null
+            }
+          />
+          <CardContent>
+            <Stack spacing={1}>
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Traits
+                </Typography>
+                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                  {info?.traits?.map((trait) => (
+                    <Chip
+                      key={trait}
+                      label={trait}
+                      size="small"
+                      avatar={
+                        getTraitImage(trait) ? (
+                          <Avatar src={getTraitImage(trait)} alt={trait} sx={{ width: 24, height: 24 }} />
+                        ) : undefined
+                      }
+                    />
+                  ))}
+                </Stack>
+              </Box>
+              {info?.metatft ? (
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    MetaTFT
+                  </Typography>
+                  <Stack direction="row" spacing={1}>
+                    {'avg' in info.metatft && info.metatft.avg !== undefined && (
+                      <Chip label={`Avg: ${info.metatft.avg.toFixed(2)}`} size="small" />
+                    )}
+                    {'win' in info.metatft && info.metatft.win !== undefined && (
+                      <Chip label={`Win: ${info.metatft.win.toFixed(2)}`} size="small" />
+                    )}
+                    {'freq' in info.metatft && info.metatft.freq !== undefined && (
+                      <Chip label={`Freq: ${info.metatft.freq.toFixed(2)}`} size="small" />
+                    )}
+                  </Stack>
+                </Box>
+              ) : null}
+            </Stack>
+          </CardContent>
+        </Card>
+      </Grid>
+    );
+  });
+
+  const missingItemsList = Array.from(missingItemImages).sort();
 
   return (
     <Card>
       <CardHeader title="Team roster" subheader={`Team power: ${solution.team_power.toFixed(2)}`} />
       <CardContent>
-        <Grid container spacing={2}>
-          {solution.team.map((unit) => {
-            const info = units[unit];
-            return (
-              <Grid item xs={12} sm={6} md={4} key={unit}>
-                <Card variant="outlined">
-                  <CardHeader
-                    avatar={
-                      getChampionImage(unit) ? (
-                        <Avatar
-                          src={getChampionImage(unit)}
-                          alt={unit}
-                          sx={{ width: 40, height: 40 }}
-                          imgProps={championAvatarImgProps}
-                        />
-                      ) : undefined
-                    }
-                    title={unit}
-                    subheader={`Cost: ${info?.cost ?? 'N/A'}`}
-                  />
-                  <CardContent>
-                    <Stack spacing={1}>
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Traits
-                        </Typography>
-                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                          {info?.traits?.map((trait) => (
-                            <Chip
-                              key={trait}
-                              label={trait}
-                              size="small"
-                              avatar={
-                                getTraitImage(trait) ? (
-                                  <Avatar src={getTraitImage(trait)} alt={trait} sx={{ width: 24, height: 24 }} />
-                                ) : undefined
-                              }
-                            />
-                          ))}
-                        </Stack>
-                      </Box>
-                      {info?.metatft ? (
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            MetaTFT
-                          </Typography>
-                          <Stack direction="row" spacing={1}>
-                            {'avg' in info.metatft && info.metatft.avg !== undefined && (
-                              <Chip label={`Avg: ${info.metatft.avg.toFixed(2)}`} size="small" />
-                            )}
-                            {'win' in info.metatft && info.metatft.win !== undefined && (
-                              <Chip label={`Win: ${info.metatft.win.toFixed(2)}`} size="small" />
-                            )}
-                            {'freq' in info.metatft && info.metatft.freq !== undefined && (
-                              <Chip label={`Freq: ${info.metatft.freq.toFixed(2)}`} size="small" />
-                            )}
-                          </Stack>
-                        </Box>
-                      ) : null}
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
-            );
-          })}
-        </Grid>
+        <Stack spacing={2}>
+          {missingItemsList.length ? (
+            <Alert severity="warning" variant="outlined">
+              Missing images for: {missingItemsList.join(', ')}. Please report this so we can add the art.
+            </Alert>
+          ) : null}
+          <Grid container spacing={2}>
+            {rosterCards}
+          </Grid>
+        </Stack>
       </CardContent>
     </Card>
   );
