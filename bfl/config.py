@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Set
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = PACKAGE_ROOT.parent
+UNLOCKABLE_CHAMPIONS_PATH = REPO_ROOT / "frontend" / "src" / "data" / "unlockable_champions.json"
+UNLOCKABLE_CHAMPIONS = tuple(json.loads(UNLOCKABLE_CHAMPIONS_PATH.read_text(encoding="utf-8")))
 
 
 # Traits that should NEVER count for Bronze for Life even if active.
@@ -147,6 +150,11 @@ DEFAULT_REQUIRED_CHAMPIONS: Dict[str, int] = {
     "TFT16_Lucian": 0,
     "TFT16_Kobuko": 0,
 }
+
+for unlockable in UNLOCKABLE_CHAMPIONS:
+    if unlockable not in DEFAULT_REQUIRED_CHAMPIONS:
+        raise ValueError(f"Unlockable champion not found in defaults: {unlockable}")
+    DEFAULT_REQUIRED_CHAMPIONS[unlockable] = -1
 
 # Set value to N (>=1) to enforce a minimum final trait count (after emblems).
 DEFAULT_REQUIRED_TRAITS_MIN: Dict[str, int] = {

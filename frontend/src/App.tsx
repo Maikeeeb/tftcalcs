@@ -37,6 +37,7 @@ import type CoreForm from '@rjsf/core';
 import type { FormProps } from '@rjsf/core';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { buildTeamPlannerCode, getTeamPlannerSlotCount } from './teamPlanner';
+import unlockableChampions from './data/unlockable_champions.json';
 
 type ConfigData = Record<string, unknown>;
 
@@ -253,6 +254,7 @@ type MappingFieldOptions = {
   heading?: string;
   searchPlaceholder?: string;
   imageType?: 'trait' | 'emblem' | 'champion';
+  unlockableValues?: string[];
 };
 
 function MappingField(props: FieldProps<Record<string, number>>) {
@@ -260,10 +262,17 @@ function MappingField(props: FieldProps<Record<string, number>>) {
   const entries = Object.entries(props.formData ?? {});
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [showUnlockablesOnly, setShowUnlockablesOnly] = useState(false);
 
-  const filteredEntries = entries.filter(([key]) =>
+  const unlockableSet = useMemo(() => new Set(options.unlockableValues ?? []), [options.unlockableValues]);
+
+  const searchedEntries = entries.filter(([key]) =>
     key.toLowerCase().includes(search.toLowerCase().trim()),
   );
+
+  const filteredEntries = showUnlockablesOnly
+    ? searchedEntries.filter(([key]) => unlockableSet.has(key))
+    : searchedEntries;
 
   const previewLimit = 20;
   const isSearching = search.trim().length > 0;
@@ -311,6 +320,18 @@ function MappingField(props: FieldProps<Record<string, number>>) {
           sx={{ minWidth: { xs: '100%', sm: 240 } }}
           disabled={entries.length === 0}
         />
+        {options.unlockableValues?.length ? (
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={showUnlockablesOnly}
+                onChange={(event) => setShowUnlockablesOnly(event.target.checked)}
+              />
+            }
+            label="Unlockables only"
+          />
+        ) : null}
       </Stack>
 
       {entries.length === 0 ? (
@@ -1003,6 +1024,7 @@ function App({ mode, onToggleColorMode }: AppProps) {
             { value: 0, label: 'Ignore (0)' },
             { value: 1, label: 'Require (1)' },
           ],
+          unlockableValues: unlockableChampions,
         },
       },
       mode: { 'ui:widget': 'hidden' },
