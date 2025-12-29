@@ -85,6 +85,7 @@ DEFAULT_REQUIRED_CHAMPIONS: Dict[str, int] = {
     "TFT16_ChoGath": 0,
     "TFT16_KogMaw": 0,
     "TFT16_Annie": 0,
+    "TFT16_AnnieTibbers": 0,
     "TFT16_Ornn": 0,
     "TFT16_Kindred": 0,
     "TFT16_Azir": 0,

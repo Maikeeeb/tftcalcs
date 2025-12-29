@@ -15,6 +15,15 @@ def test_list_playable_champions_reads_set_data():
     assert len(champs) > 50
 
 
+def test_list_playable_champions_includes_special_units():
+    cfg = default_config()
+    champs = list_playable_champions(cfg.json_path, cfg.set_id)
+
+    # Tibbers is a playable bench unit linked to Annie and should appear even though
+    # Riot marks it with an atypical cost.
+    assert "TFT16_AnnieTibbers" in champs
+
+
 def test_load_config_validates_required_champions(tmp_path):
     cfg = default_config()
     invalid = tmp_path / "cfg.json"

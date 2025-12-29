@@ -46,6 +46,11 @@ def load_set_data(
         "TFT6_MercenaryChest",
     }
 
+    # Legitimate units with atypical costs that should still be surfaced.
+    INCLUDE_API = {
+        "TFT16_AnnieTibbers",
+    }
+
     champs: List[str] = []
     champ_traits: Dict[str, List[str]] = {}
     champ_cost: Dict[str, int] = {}
@@ -65,7 +70,7 @@ def load_set_data(
 
         # Optional heuristic: real units are normally 1-5 cost
         # If you later notice legit units outside 1-5, comment these out.
-        if cost < 1 or cost > 5:
+        if c_api not in INCLUDE_API and (cost < 1 or cost > 5):
             continue
 
         traits = [t for t in ch.get("traits", []) if t in trait_bps]
