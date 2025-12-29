@@ -6,6 +6,7 @@ from typing import Dict, List, Set
 from bfl.config import Config, REPO_ROOT
 from bfl.config_loader import DEFAULT_CONFIG_FILENAME, load_config, validate_config_against_data
 from bfl.metatft import (
+    best_trait_stat,
     build_name_to_api_map,
     classify_tank_champions,
     load_metatft_txt,
@@ -164,6 +165,20 @@ def run_bfl(config: Config) -> Dict[str, object]:
         seed_verticals=config.seed_verticals,
     )
 
+    trait_metatft: Dict[str, Dict[str, object]] = {}
+    if trait_stats:
+        for trait, count in counts.items():
+            stat = best_trait_stat(trait, count, trait_stats)
+            if not stat:
+                continue
+            trait_metatft[trait] = {
+                "required": stat.required,
+                "tier": stat.tier,
+                "avg": stat.avg,
+                "win": stat.win,
+                "freq": stat.freq,
+            }
+
     requirements = _build_requirement_details(team, counts, config, tank_champions)
 
     return {
@@ -199,6 +214,7 @@ def run_bfl(config: Config) -> Dict[str, object]:
             "active_traits": active_traits,
             "upgraded_traits": upgraded_traits,
             "used_traits": used_traits,
+            "trait_metatft": trait_metatft,
         },
         "units": {
             c: {
