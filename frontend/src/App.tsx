@@ -134,6 +134,22 @@ Object.entries(legacyItemAliases).forEach(([target, sources]) => {
   aliasIfMissing(target, sources, itemImages);
 });
 
+const itemImageRemaps: Record<string, string> = {
+  sunfirecape: 'redbuff',
+  sunfire: 'redbuff',
+  spiritvisage: 'redemption',
+  redbuff: 'rapidfirecannon',
+  protectorsvow: 'frozenheart',
+  krakensfury: 'runaanshurricane',
+  kraken: 'runaanshurricane',
+};
+
+Object.entries(itemImageRemaps).forEach(([target, source]) => {
+  if (itemImages[source]) {
+    itemImages[target] = itemImages[source];
+  }
+});
+
 const getChampionImage = (name: string) => {
   const normalized = normalizeKey(name);
   const apiNameMatch = normalized.match(/^tft\d+(.*)$/);
