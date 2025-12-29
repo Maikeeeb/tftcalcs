@@ -62,6 +62,24 @@ class TraitStat:
     freq: float
 
 
+def best_trait_stat(trait: str, count: int, trait_stats: Dict[str, List[TraitStat]]) -> TraitStat | None:
+    """Return the strongest MetaTFT breakpoint satisfied for ``trait``.
+
+    Used for surfacing the most relevant MetaTFT values for a trait given the
+    current team count.
+    """
+
+    stats = trait_stats.get(trait)
+    if not stats:
+        return None
+
+    eligible = [s for s in stats if count >= s.required]
+    if not eligible:
+        return None
+
+    return max(eligible, key=lambda s: s.required)
+
+
 def parse_metatft_units(text: str) -> Dict[str, Dict[str, float | List[str]]]:
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     out: Dict[str, Dict[str, float | List[str]]] = {}

@@ -223,6 +223,10 @@ type SolverResponse = {
     active_traits: string[];
     upgraded_traits: string[];
     used_traits: string[];
+    trait_metatft?: Record<
+      string,
+      { required: number; tier: string; avg?: number; win?: number; freq?: number }
+    >;
   };
   units: Record<
     string,
@@ -606,6 +610,8 @@ function TeamRoster({
   const { solution, units, meta } = response;
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const teamPlannerCode = useMemo(() => buildTeamPlannerCode(solution.team), [solution.team]);
+  const traitCounts = solution.trait_counts ?? {};
+  const traitMetatft = solution.trait_metatft ?? {};
 
   useEffect(() => {
     setCopyStatus('idle');
@@ -741,18 +747,34 @@ function TeamRoster({
                   Traits
                 </Typography>
                 <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                  {info?.traits?.map((trait) => (
-                    <Chip
-                      key={trait}
-                      label={trait}
-                      size="small"
-                      avatar={
-                        getTraitImage(trait) ? (
-                          <Avatar src={getTraitImage(trait)} alt={trait} sx={{ width: 24, height: 24 }} />
-                        ) : undefined
-                      }
-                    />
-                  ))}
+                  {info?.traits
+                    ?.filter((trait) => (traitCounts[trait] ?? 0) > 0)
+                    .map((trait) => {
+                      const count = traitCounts[trait] ?? 0;
+                      const metaStats = traitMetatft[trait];
+                      const metaParts: string[] = [];
+
+                      if (metaStats?.tier) metaParts.push(`Tier ${metaStats.tier}`);
+                      if (metaStats?.avg !== undefined) metaParts.push(`Avg ${metaStats.avg.toFixed(2)}`);
+                      if (metaStats?.win !== undefined) metaParts.push(`Win ${metaStats.win.toFixed(2)}`);
+                      if (metaStats?.freq !== undefined) metaParts.push(`Freq ${metaStats.freq.toFixed(2)}`);
+
+                      const labelBase = `${count} ${trait}`;
+                      const label = metaParts.length ? `${labelBase} (${metaParts.join(' • ')})` : labelBase;
+
+                      return (
+                        <Chip
+                          key={trait}
+                          label={label}
+                          size="small"
+                          avatar={
+                            getTraitImage(trait) ? (
+                              <Avatar src={getTraitImage(trait)} alt={trait} sx={{ width: 24, height: 24 }} />
+                            ) : undefined
+                          }
+                        />
+                      );
+                    })}
                 </Stack>
               </Box>
               {meta.enabled ? (
@@ -865,6 +887,9 @@ function TeamRoster({
 
 function TraitsSummary({ response }: { response: SolverResponse }) {
   const { solution } = response;
+  const traitMetatft = solution.trait_metatft ?? {};
+  const traitCountEntries = Object.entries(solution.trait_counts).filter(([, count]) => count > 0);
+  const emblemEntries = Object.entries(solution.emblems).filter(([, count]) => count > 0);
   return (
     <Card>
       <CardHeader title="Traits" subheader="Bronze, active, upgraded, and counts" />
@@ -887,27 +912,40 @@ function TraitsSummary({ response }: { response: SolverResponse }) {
               Trait counts
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {Object.entries(solution.trait_counts).map(([trait, count]) => (
-                <Chip
-                  key={trait}
-                  label={`${trait}: ${count}`}
-                  variant="outlined"
-                  avatar={
-                    getTraitImage(trait) ? (
-                      <Avatar src={getTraitImage(trait)} alt={trait} sx={{ width: 24, height: 24 }} />
-                    ) : undefined
-                  }
-                />
-              ))}
+              {traitCountEntries.map(([trait, count]) => {
+                const metaStats = traitMetatft[trait];
+                const metaParts: string[] = [];
+
+                if (metaStats?.tier) metaParts.push(`Tier ${metaStats.tier}`);
+                if (metaStats?.avg !== undefined) metaParts.push(`Avg ${metaStats.avg.toFixed(2)}`);
+                if (metaStats?.win !== undefined) metaParts.push(`Win ${metaStats.win.toFixed(2)}`);
+                if (metaStats?.freq !== undefined) metaParts.push(`Freq ${metaStats.freq.toFixed(2)}`);
+
+                const labelBase = `${count} ${trait}`;
+                const label = metaParts.length ? `${labelBase} (${metaParts.join(' • ')})` : labelBase;
+
+                return (
+                  <Chip
+                    key={trait}
+                    label={label}
+                    variant="outlined"
+                    avatar={
+                      getTraitImage(trait) ? (
+                        <Avatar src={getTraitImage(trait)} alt={trait} sx={{ width: 24, height: 24 }} />
+                      ) : undefined
+                    }
+                  />
+                );
+              })}
             </Stack>
           </Box>
-          {Object.keys(solution.emblems).length ? (
-            <Box>
-              <Typography variant="subtitle1" gutterBottom>
-                Emblems
-              </Typography>
+          <Box>
+            <Typography variant="subtitle1" gutterBottom>
+              Emblems
+            </Typography>
+            {emblemEntries.length ? (
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {Object.entries(solution.emblems).map(([trait, count]) => (
+                {emblemEntries.map(([trait, count]) => (
                   <Chip
                     key={trait}
                     label={`${trait}: ${count}`}
@@ -921,8 +959,12 @@ function TraitsSummary({ response }: { response: SolverResponse }) {
                   />
                 ))}
               </Stack>
-            </Box>
-          ) : null}
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                no emblems considered
+              </Typography>
+            )}
+          </Box>
         </Stack>
       </CardContent>
     </Card>
