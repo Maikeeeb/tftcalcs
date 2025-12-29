@@ -237,6 +237,24 @@ def metatft_to_unit_stats(paste: str, set_data) -> Dict[str, Dict[str, float | L
     return unit_stats
 
 
+NEUTRAL_AVG_PLACEMENT = 4.5
+PESSIMISM_SPREAD = 0.3
+
+
+def pessimistic_avg(avg: float, freq: float) -> float:
+    """Return a conservative average placement using 1 stdev of pessimism.
+
+    MetaTFT only provides an average placement and a play-rate frequency. Treat
+    the frequency as a crude proxy for confidence: higher frequency narrows the
+    possible range, while low frequency widens it. We model this by adding up to
+    ``PESSIMISM_SPREAD`` placements of pessimism when frequency is near zero and
+    tapering the pessimism to zero as frequency approaches one.
+    """
+
+    freq = max(0.0, min(1.0, freq))
+    return avg + (1.0 - freq) * PESSIMISM_SPREAD
+
+
 def unit_power(
     api: str,
     unit_stats: Dict[str, Dict[str, float]],
@@ -251,9 +269,10 @@ def unit_power(
     if not s:
         return 0.0
     win = float(s.get("win", 0.0))  # 0..1
-    avg = float(s.get("avg", 4.5))  # ~2..8 (lower better)
+    avg = float(s.get("avg", NEUTRAL_AVG_PLACEMENT))  # ~2..8 (lower better)
     freq = float(s.get("freq", 0.0))  # 0..1
-    return (w_win * win) - (w_avg * avg) + (w_freq * freq)
+    adj_avg = pessimistic_avg(avg, freq)
+    return (w_win * win) + (w_freq * freq) - (w_avg * (adj_avg - NEUTRAL_AVG_PLACEMENT))
 
 
 def load_metatft_txt(path: str) -> str:
@@ -391,12 +410,7 @@ def trait_power(
         return 0.0
 
     best = max(eligible, key=lambda s: s.required)
-    score = (w_win * best.win) - (w_avg * best.avg) + (w_freq * best.freq)
+    adj_avg = pessimistic_avg(best.avg, best.freq)
+    score = (w_win * best.win) + (w_freq * best.freq) - (w_avg * (adj_avg - NEUTRAL_AVG_PLACEMENT))
 
-    # MetaTFT averages are lower-better, so some breakpoints can produce
-    # negative values when directly combined with the weights. Returning
-    # zero instead of the raw negative score prevents the solver from
-    # treating active traits as a penalty relative to having no traits at
-    # all, which keeps standard mode focused on activating the strongest
-    # available traits.
-    return max(0.0, score)
+    return score
