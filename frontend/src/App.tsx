@@ -27,13 +27,16 @@ import {
   ToggleButtonGroup,
   PaletteMode,
   Tooltip,
+  TextField as MuiTextField,
 } from '@mui/material';
+import { CheckCircle, ContentCopy } from '@mui/icons-material';
 import Form from '@rjsf/mui';
 import validator from '@rjsf/validator-ajv8';
 import { FieldProps } from '@rjsf/utils';
 import type CoreForm from '@rjsf/core';
 import type { FormProps } from '@rjsf/core';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { buildTeamPlannerCode, getTeamPlannerSlotCount } from './teamPlanner';
 
 type ConfigData = Record<string, unknown>;
 
@@ -458,6 +461,24 @@ function TeamRoster({
   response: SolverResponse;
 }) {
   const { solution, units, meta } = response;
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const teamPlannerCode = useMemo(() => buildTeamPlannerCode(solution.team), [solution.team]);
+
+  useEffect(() => {
+    setCopyStatus('idle');
+  }, [teamPlannerCode.code]);
+
+  const handleCopyCode = async () => {
+    if (!teamPlannerCode.code) return;
+    try {
+      await navigator.clipboard.writeText(teamPlannerCode.code);
+      setCopyStatus('copied');
+      setTimeout(() => setCopyStatus('idle'), 2000);
+    } catch (err) {
+      console.error('Failed to copy team planner code', err);
+      setCopyStatus('error');
+    }
+  };
 
   const { topUnits, topUnitItems } = useMemo(() => {
     const weightedScores = solution.team.map((unit, index) => {
@@ -587,6 +608,62 @@ function TeamRoster({
       <CardHeader title="Team roster" subheader={`Team power: ${solution.team_power.toFixed(2)}`} />
       <CardContent>
         <Stack spacing={2}>
+          <Box>
+            <Typography variant="subtitle1" gutterBottom>
+              Team Planner import code
+            </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'flex-end' }}>
+              <TextField
+                label={`Code (${getTeamPlannerSlotCount()} slots)`}
+                value={teamPlannerCode.code ?? 'Unavailable'}
+                InputProps={{ readOnly: true }}
+                fullWidth
+                color={teamPlannerCode.missing.length || teamPlannerCode.trimmed ? 'warning' : 'primary'}
+                helperText={
+                  teamPlannerCode.missing.length || teamPlannerCode.trimmed
+                    ? 'Some units could not be included in the code.'
+                    : 'Copy this code to import the team in the League client team planner.'
+                }
+              />
+              <Tooltip
+                title={
+                  teamPlannerCode.missing.length
+                    ? `Missing mapping for: ${teamPlannerCode.missing.join(', ')}`
+                    : teamPlannerCode.trimmed
+                        ? `Limited to first ${getTeamPlannerSlotCount()} unique units.`
+                        : 'Copy team code to clipboard'
+                }
+              >
+                <span>
+                  <Button
+                    variant="outlined"
+                    startIcon={copyStatus === 'copied' ? <CheckCircle /> : <ContentCopy />}
+                    color={copyStatus === 'error' ? 'error' : 'primary'}
+                    onClick={handleCopyCode}
+                    disabled={!teamPlannerCode.code}
+                  >
+                    {copyStatus === 'copied' ? 'Copied!' : 'Copy code'}
+                  </Button>
+                </span>
+              </Tooltip>
+            </Stack>
+            {teamPlannerCode.missing.length ? (
+              <Alert severity="warning" sx={{ mt: 1 }}>
+                Missing team planner mapping for: {teamPlannerCode.missing.join(', ')}.
+              </Alert>
+            ) : null}
+            {teamPlannerCode.trimmed ? (
+              <Alert severity="info" sx={{ mt: 1 }}>
+                Only the first {getTeamPlannerSlotCount()} unique units are included in the code. Remove duplicates to
+                include all champions.
+              </Alert>
+            ) : null}
+            {copyStatus === 'error' ? (
+              <Alert severity="error" sx={{ mt: 1 }}>
+                Failed to copy the code. Please try again or copy it manually from the field.
+              </Alert>
+            ) : null}
+          </Box>
           {missingItemsList.length ? (
             <Alert severity="warning" variant="outlined">
               Missing images for: {missingItemsList.join(', ')}. Please report this so we can add the art.
