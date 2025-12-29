@@ -87,11 +87,12 @@ def feasibility_check(
     choose_best_emblems,
     required_traits_min: Dict[str, int],
     remaining_slots: int,
+    missing_required_one: int,
 ) -> bool:
     if not required_traits_min:
         return True
 
-    emblem_counts = choose_best_emblems(base_counts)
+    emblem_counts = choose_best_emblems(base_counts, missing_required_one)
     effective = compute_effective_counts(base_counts, emblem_counts)
 
     for t, need_min in required_traits_min.items():
@@ -121,6 +122,7 @@ def solve_beam_search_bronze_with_emblems(
     trait_weights: Tuple[float, float, float] | None = None,
     champ_slot_sizes: Optional[Dict[str, int]] = None,
     trait_value_overrides: Optional[Dict[str, Dict[str, int]]] = None,
+    must_include_one_of: Optional[Set[str]] = None,
 ):
     """
     Beam search for teams with either max bronze-active traits (bronze mode) or
@@ -146,6 +148,7 @@ def solve_beam_search_bronze_with_emblems(
     trait_value_overrides = trait_value_overrides or {}
     banned_champs = {c for c, flag in required_map.items() if flag < 0}
     champs_set = set(champs)
+    required_one_of = set(must_include_one_of or set())
 
     missing_banned = banned_champs - champs_set
     if missing_banned:
@@ -166,6 +169,10 @@ def solve_beam_search_bronze_with_emblems(
                 f"Forced champions not in playable pool: {missing_forced}. Check name or filtering."
             )
     playable_champs = [c for c in champs if c not in banned_champs]
+
+    required_one_of = {c for c in required_one_of if c in playable_champs}
+    if must_include_one_of and not required_one_of:
+        raise RuntimeError("No playable champions available to satisfy must-include-one-of requirement.")
 
     # Validate required traits
     for t, min_count in required_traits_min.items():
@@ -200,6 +207,18 @@ def solve_beam_search_bronze_with_emblems(
     weights = trait_weights or (2.0, 1.0, 0.1)
     use_trait_mode = mode == "standard" and bool(trait_stats)
 
+    def missing_required_one_of(team_set: Set[str]) -> int:
+        if not required_one_of:
+            return 0
+        return 0 if required_one_of.intersection(team_set) else 1
+
+    def can_satisfy_required_one_of(team_set: Set[str], remaining_slots: int) -> bool:
+        if missing_required_one_of(team_set) == 0:
+            return True
+        return any(
+            c not in team_set and slot_sizes.get(c, 1) <= remaining_slots for c in required_one_of
+        )
+
     def compute_trait_score(counts_with_emblems: Dict[str, int]) -> float:
         if not trait_stats:
             return 0.0
@@ -232,6 +251,7 @@ def solve_beam_search_bronze_with_emblems(
         return bronze, active, upgraded
 
     def build_sort_key(
+        missing_required_one: int,
         missing_requirements: int,
         bronze: int,
         active: int,
@@ -240,10 +260,18 @@ def solve_beam_search_bronze_with_emblems(
         trait_score: float,
     ) -> Tuple:
         if use_trait_mode:
-            return (-missing_requirements, trait_score, active, bronze, -upgraded, power)
-        return (-missing_requirements, bronze, active, -upgraded, power)
+            return (\
+                -missing_required_one,\
+                -missing_requirements,\
+                trait_score,\
+                active,\
+                bronze,\
+                -upgraded,\
+                power,\
+            )
+        return (-missing_required_one, -missing_requirements, bronze, active, -upgraded, power)
 
-    def choose_best_emblems(base_counts: Dict[str, int]) -> Dict[str, int]:
+    def choose_best_emblems(base_counts: Dict[str, int], missing_required_one: int) -> Dict[str, int]:
         if max_emblems_total <= 0:
             return dict(hard_emblems)
 
@@ -254,7 +282,9 @@ def solve_beam_search_bronze_with_emblems(
             bronze, active, upgraded = compute_bronze_active(cnt2)
             missing_requirements = requirement_gap(required_traits_min, cnt2)
             trait_score = compute_trait_score(cnt2)
-            key = build_sort_key(missing_requirements, bronze, active, upgraded, 0.0, trait_score)
+            key = build_sort_key(
+                missing_required_one, missing_requirements, bronze, active, upgraded, 0.0, trait_score
+            )
             return bronze, active, upgraded, missing_requirements, key
 
         already_used = sum(chosen.values())
@@ -281,9 +311,9 @@ def solve_beam_search_bronze_with_emblems(
         return chosen
 
     def score_state(
-        base_counts: Dict[str, int]
+        base_counts: Dict[str, int], missing_required_one: int
     ) -> Tuple[int, int, int, int, Dict[str, int], float]:
-        emblem_counts = choose_best_emblems(base_counts)
+        emblem_counts = choose_best_emblems(base_counts, missing_required_one)
         cnt2 = apply_emblem_starts(base_counts, emblem_counts)
 
         bronze, active, upgraded = compute_bronze_active(cnt2)
@@ -296,30 +326,40 @@ def solve_beam_search_bronze_with_emblems(
     # Beam search starting from forced/required team
     # ----------------------------
     # Beam state: (team, base_counts, team_power, sort_key)
-    bronze0, active0, upgraded0, missing0, _, trait_score0 = score_state(base_counts0)
-    beam: List[Tuple[List[str], Dict[str, int], float, Tuple]] = []
+    start_missing_required_one = missing_required_one_of(set(start_team))
+    bronze0, active0, upgraded0, missing0, _, trait_score0 = score_state(
+        base_counts0, start_missing_required_one
+    )
+    beam: List[Tuple[List[str], Dict[str, int], float, Tuple, int]] = []
 
     used_slots0 = _team_slots(start_team, slot_sizes)
     remaining_slots0 = team_size - used_slots0
-    if feasibility_check(base_counts0, choose_best_emblems, required_traits_min, remaining_slots0):
+    if start_missing_required_one and not can_satisfy_required_one_of(set(start_team), remaining_slots0):
+        pass
+    elif feasibility_check(
+        base_counts0, choose_best_emblems, required_traits_min, remaining_slots0, start_missing_required_one
+    ):
         beam.append(
             (
                 start_team,
                 base_counts0,
                 team_power0,
-                build_sort_key(missing0, bronze0, active0, upgraded0, team_power0, trait_score0),
+                build_sort_key(
+                    start_missing_required_one, missing0, bronze0, active0, upgraded0, team_power0, trait_score0
+                ),
+                start_missing_required_one,
             )
         )
 
     while True:
         candidates = []
         progressed = False
-        for team, base_counts, team_power, key in beam:
+        for team, base_counts, team_power, key, missing_required_one in beam:
             team_set = set(team)
             current_slots = _team_slots(team, slot_sizes)
             remaining_slots = team_size - current_slots
             if remaining_slots <= 0:
-                candidates.append((team, base_counts, team_power, key))
+                candidates.append((team, base_counts, team_power, key, missing_required_one))
                 continue
 
             for c in playable_champs:
@@ -337,15 +377,29 @@ def solve_beam_search_bronze_with_emblems(
                 new_power = team_power + power_map.get(c, 0.0)
                 new_remaining_slots = remaining_slots - slot_cost
 
-                if not feasibility_check(
-                    new_counts, choose_best_emblems, required_traits_min, new_remaining_slots
+                new_team_set = team_set | {c}
+                new_missing_required_one = missing_required_one_of(new_team_set)
+
+                if new_missing_required_one and not can_satisfy_required_one_of(
+                    new_team_set, new_remaining_slots
                 ):
                     continue
 
-                bronze, active, upgraded, missing, _, trait_score = score_state(new_counts)
+                if not feasibility_check(
+                    new_counts,
+                    choose_best_emblems,
+                    required_traits_min,
+                    new_remaining_slots,
+                    new_missing_required_one,
+                ):
+                    continue
 
-                new_key = build_sort_key(missing, bronze, active, upgraded, new_power, trait_score)
-                candidates.append((new_team, new_counts, new_power, new_key))
+                bronze, active, upgraded, missing, _, trait_score = score_state(new_counts, new_missing_required_one)
+
+                new_key = build_sort_key(
+                    new_missing_required_one, missing, bronze, active, upgraded, new_power, trait_score
+                )
+                candidates.append((new_team, new_counts, new_power, new_key, new_missing_required_one))
                 progressed = True
 
         if not candidates:
@@ -362,9 +416,15 @@ def solve_beam_search_bronze_with_emblems(
             "Beam search produced no candidates under the given constraints. Check filtering/requirements."
         )
 
-    best_team, best_base_counts, best_power, _best_key = max(beam, key=lambda x: x[3])
+    final_candidates = [state for state in beam if state[4] == 0] if required_one_of else beam
+    if not final_candidates:
+        raise RuntimeError("No team satisfies the must-include-one-of requirement under current constraints.")
 
-    emblem_counts = choose_best_emblems(best_base_counts)
+    best_team, best_base_counts, best_power, _best_key, best_missing_required_one = max(
+        final_candidates, key=lambda x: x[3]
+    )
+
+    emblem_counts = choose_best_emblems(best_base_counts, best_missing_required_one)
 
     counts, bronze_traits, active_traits, upgraded_traits, used_traits = classify_traits(
         best_team, champ_traits, trait_bps, eligible_traits, emblem_counts, trait_value_overrides

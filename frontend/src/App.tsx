@@ -156,6 +156,33 @@ const getEmblemImage = (name: string) =>
   emblemImages[normalizeKey(name)] ?? traitImages[normalizeKey(name)];
 const getItemImage = (name: string) => itemImages[normalizeKey(name)];
 
+const TANK_ITEM_NAMES = new Set(
+  [
+    'sunfire cape',
+    'warmogs',
+    'gargoyles',
+    'spirit visage',
+    'evenshroud',
+    "protector's vow",
+    'protectors vow',
+    'bramble vest',
+    'dragon claw',
+    'adaptive helm',
+    'steadfast heart',
+    'ionic spark',
+  ].map((name) => normalizeKey(name)),
+);
+
+const countTankItems = (items: string[] | undefined) =>
+  (items ?? []).reduce((total, item) => (TANK_ITEM_NAMES.has(normalizeKey(item)) ? total + 1 : total), 0);
+
+const isTankItemBuild = (items: string[] | undefined) => {
+  const totalItems = items?.length ?? 0;
+  if (!totalItems) return false;
+  const tankCount = countTankItems(items);
+  return tankCount >= Math.ceil(totalItems / 2);
+};
+
 type SolverResponse = {
   context: Record<string, unknown> & { mode?: 'bronze' | 'standard' };
   meta: {
@@ -457,8 +484,10 @@ function RequirementTable({
 
 function TeamRoster({
   response,
+  mustHaveItemizedTank,
 }: {
   response: SolverResponse;
+  mustHaveItemizedTank: boolean;
 }) {
   const { solution, units, meta } = response;
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
@@ -496,12 +525,54 @@ function TeamRoster({
       if (b.score !== a.score) return b.score - a.score;
       return a.index - b.index;
     });
-    const topThree = weightedScores.slice(0, 3);
+    const limit = Math.min(3, weightedScores.length);
+
+    const tankCandidates = weightedScores.filter((entry) => isTankItemBuild(entry.items));
+    const fallbackTankCandidates = weightedScores
+      .map((entry) => ({ ...entry, tankCount: countTankItems(entry.items) }))
+      .filter((entry) => entry.tankCount > 0)
+      .sort((a, b) => {
+        if (b.tankCount !== a.tankCount) return b.tankCount - a.tankCount;
+        return b.score - a.score;
+      });
+
+    const chosenTank = mustHaveItemizedTank
+      ? tankCandidates[0] ?? fallbackTankCandidates[0] ?? null
+      : null;
+
+    const selected: typeof weightedScores = [];
+    if (chosenTank) {
+      selected.push(chosenTank);
+    }
+
+    for (const entry of weightedScores) {
+      if (selected.some((sel) => sel.unit === entry.unit)) continue;
+      if (mustHaveItemizedTank && chosenTank && isTankItemBuild(entry.items)) continue;
+      selected.push(entry);
+      if (selected.length >= limit) break;
+    }
+
+    if (selected.length < limit) {
+      for (const entry of weightedScores) {
+        if (selected.some((sel) => sel.unit === entry.unit)) continue;
+        selected.push(entry);
+        if (selected.length >= limit) break;
+      }
+    }
+
     return {
-      topUnits: new Set(topThree.map((entry) => entry.unit)),
-      topUnitItems: new Map(topThree.map((entry) => [entry.unit, entry.items])),
+      topUnits: new Set(selected.map((entry) => entry.unit)),
+      topUnitItems: new Map(selected.map((entry) => [entry.unit, entry.items])),
     };
-  }, [meta.unit_stats, meta.weights.w_avg, meta.weights.w_freq, meta.weights.w_win, solution.team, units]);
+  }, [
+    meta.unit_stats,
+    meta.weights.w_avg,
+    meta.weights.w_freq,
+    meta.weights.w_win,
+    mustHaveItemizedTank,
+    solution.team,
+    units,
+  ]);
 
   const missingItemImages = new Set<string>();
 
@@ -789,10 +860,10 @@ function MetaCard({ response }: { response: SolverResponse }) {
   );
 }
 
-function ResultsSection({ response }: { response: SolverResponse }) {
+function ResultsSection({ response, mustHaveItemizedTank }: { response: SolverResponse; mustHaveItemizedTank: boolean }) {
   return (
     <Stack spacing={3} mt={2} mb={4}>
-      <TeamRoster response={response} />
+      <TeamRoster response={response} mustHaveItemizedTank={mustHaveItemizedTank} />
       <TraitsSummary response={response} />
       <RequirementsCard response={response} />
       <MetaCard response={response} />
@@ -812,6 +883,7 @@ function Loader() {
 function App({ mode, onToggleColorMode }: AppProps) {
   const [formData, setFormData] = useState<ConfigData | undefined>();
   const [activeMode, setActiveMode] = useState<'bronze' | 'standard'>('bronze');
+  const [mustHaveItemizedTank, setMustHaveItemizedTank] = useState(true);
   const formRef = useRef<CoreForm<any, any, any> | null>(null);
 
   const schemaQuery = useQuery({ queryKey: ['schema'], queryFn: () => fetchJson<Record<string, unknown>>('/schema') });
@@ -823,8 +895,13 @@ function App({ mode, onToggleColorMode }: AppProps) {
         configQuery.data.mode === 'standard' || configQuery.data.mode === 'bronze'
           ? (configQuery.data.mode as 'bronze' | 'standard')
           : 'bronze';
+      const mustHaveTankFromConfig =
+        typeof configQuery.data.must_have_itemized_tank === 'boolean'
+          ? (configQuery.data.must_have_itemized_tank as boolean)
+          : true;
       setActiveMode(modeFromConfig);
-      setFormData({ ...configQuery.data, mode: modeFromConfig });
+      setMustHaveItemizedTank(mustHaveTankFromConfig);
+      setFormData({ ...configQuery.data, mode: modeFromConfig, must_have_itemized_tank: mustHaveTankFromConfig });
     }
   }, [configQuery.data]);
 
@@ -914,6 +991,7 @@ function App({ mode, onToggleColorMode }: AppProps) {
       },
       mode: { 'ui:widget': 'hidden' },
       metatft_traits_path: { 'ui:widget': 'hidden' },
+      must_have_itemized_tank: { 'ui:widget': 'hidden' },
     }),
     [],
   );
@@ -984,8 +1062,15 @@ function App({ mode, onToggleColorMode }: AppProps) {
                 ref={formRef}
                 schema={schemaQuery.data}
                 formData={formData}
-                onChange={(event) => setFormData(event.formData)}
-                onSubmit={(event) => runMutation.mutate(event.formData)}
+                onChange={(event) =>
+                  setFormData({ ...event.formData, must_have_itemized_tank: mustHaveItemizedTank })
+                }
+                onSubmit={(event) =>
+                  runMutation.mutate({
+                    ...event.formData,
+                    must_have_itemized_tank: mustHaveItemizedTank,
+                  })
+                }
                 validator={validator}
                 templates={templates}
                 fields={fields}
@@ -1000,7 +1085,29 @@ function App({ mode, onToggleColorMode }: AppProps) {
                 {(runMutation.error as Error).message}
               </Alert>
             ) : null}
-            <Box mt={3} display="flex" justifyContent="flex-end">
+            <Box
+              mt={3}
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              flexDirection={{ xs: 'column', sm: 'row' }}
+              gap={1.5}
+            >
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={mustHaveItemizedTank}
+                    onChange={(event) => {
+                      setMustHaveItemizedTank(event.target.checked);
+                      setFormData((prev) => ({
+                        ...(prev ?? {}),
+                        must_have_itemized_tank: event.target.checked,
+                      }));
+                    }}
+                  />
+                }
+                label="Must have itemized tank"
+              />
               <Button
                 variant="contained"
                 onClick={handleRunClick}
@@ -1013,7 +1120,9 @@ function App({ mode, onToggleColorMode }: AppProps) {
           </CardContent>
         </Card>
 
-        {runMutation.data ? <ResultsSection response={runMutation.data} /> : null}
+        {runMutation.data ? (
+          <ResultsSection response={runMutation.data} mustHaveItemizedTank={mustHaveItemizedTank} />
+        ) : null}
       </Stack>
     </Container>
   );

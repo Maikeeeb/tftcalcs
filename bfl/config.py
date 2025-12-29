@@ -197,6 +197,7 @@ class Config:
     w_avg: float = 1.0
     w_freq: float = 0.1
     mode: str = "bronze"
+    must_have_itemized_tank: bool = True
 
     def to_dict(self) -> Dict:
         return {
@@ -215,6 +216,7 @@ class Config:
             "w_avg": self.w_avg,
             "w_freq": self.w_freq,
             "mode": self.mode,
+            "must_have_itemized_tank": self.must_have_itemized_tank,
         }
 
 
@@ -235,4 +237,5 @@ def default_config() -> Config:
         w_avg=1.0,
         w_freq=0.1,
         mode="bronze",
+        must_have_itemized_tank=True,
     )

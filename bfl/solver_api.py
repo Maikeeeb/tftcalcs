@@ -1,12 +1,13 @@
 """Structured API for running Bronze for Life solver."""
 
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Set
 
 from bfl.config import Config, REPO_ROOT
 from bfl.config_loader import DEFAULT_CONFIG_FILENAME, load_config, validate_config_against_data
 from bfl.metatft import (
     build_name_to_api_map,
+    classify_tank_champions,
     load_metatft_txt,
     metatft_to_unit_stats,
     metatft_to_trait_stats,
@@ -53,7 +54,7 @@ def _resolve_config(config: Config | None, config_path: str | None) -> Config:
 
 
 def _build_requirement_details(
-    team: List[str], counts: Dict[str, int], config: Config
+    team: List[str], counts: Dict[str, int], config: Config, tank_champions: set[str] | None
 ) -> Dict[str, object]:
     champion_requirements: Dict[str, Dict[str, object]] = {}
     for champ, flag in config.required_champions.items():
@@ -81,13 +82,26 @@ def _build_requirement_details(
             "satisfied": counts.get(trait, 0) >= minimum,
         }
 
+    tank_requirement = None
+    if config.must_have_itemized_tank:
+        has_tank = bool(set(team) & (tank_champions or set()))
+        tank_requirement = {
+            "required": True,
+            "candidates": sorted(tank_champions or []),
+            "satisfied": has_tank,
+        }
+
+    all_satisfied = all(detail["satisfied"] for detail in champion_requirements.values()) and all(
+        detail["satisfied"] for detail in trait_requirements.values()
+    )
+    if tank_requirement:
+        all_satisfied = all_satisfied and tank_requirement["satisfied"]
+
     return {
         "champions": champion_requirements,
         "traits": trait_requirements,
-        "all_satisfied": all(
-            detail["satisfied"] for detail in champion_requirements.values()
-        )
-        and all(detail["satisfied"] for detail in trait_requirements.values()),
+        "tank": tank_requirement,
+        "all_satisfied": all_satisfied,
     }
 
 
@@ -102,6 +116,12 @@ def run_bfl(config: Config) -> Dict[str, object]:
 
     metatft_text = load_metatft_txt(str(config.metatft_txt_path))
     unit_stats = metatft_to_unit_stats(metatft_text, set_data)
+    tank_champions = classify_tank_champions(unit_stats)
+
+    if config.must_have_itemized_tank and not tank_champions:
+        raise RuntimeError(
+            "Must-have tank requirement enabled, but no tank champions could be identified from MetaTFT data."
+        )
 
     trait_text = load_metatft_txt(str(config.metatft_traits_path))
     trait_stats = metatft_to_trait_stats(trait_text, set_data)
@@ -140,9 +160,10 @@ def run_bfl(config: Config) -> Dict[str, object]:
         trait_weights=(config.w_win, config.w_avg, config.w_freq),
         champ_slot_sizes=SPECIAL_CHAMPION_SLOT_SIZES,
         trait_value_overrides=SPECIAL_TRAIT_VALUE_OVERRIDES,
+        must_include_one_of=tank_champions if config.must_have_itemized_tank else None,
     )
 
-    requirements = _build_requirement_details(team, counts, config)
+    requirements = _build_requirement_details(team, counts, config, tank_champions)
 
     return {
         "context": {

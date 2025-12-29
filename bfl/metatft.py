@@ -1,11 +1,54 @@
 import re
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, Iterable, List, Set
 
 
 def normalize_name(s: str) -> str:
     # Lowercase, remove spaces/punctuation for matching
     return re.sub(r"[^a-z0-9]+", "", s.lower())
+
+
+TANK_ITEM_NAMES: Set[str] = {
+    normalize_name(name)
+    for name in [
+        "sunfire cape",
+        "warmogs",
+        "gargoyles",
+        "spirit visage",
+        "evenshroud",
+        "protector's vow",
+        "protectors vow",
+        "bramble vest",
+        "dragon claw",
+        "adaptive helm",
+        "steadfast heart",
+        "ionic spark",
+    ]
+}
+
+
+def _count_tank_items(items: Iterable[str] | None) -> int:
+    return sum(1 for item in items or [] if normalize_name(item) in TANK_ITEM_NAMES)
+
+
+def is_tank_item_build(items: Iterable[str] | None) -> bool:
+    items = list(items or [])
+    if not items:
+        return False
+    return _count_tank_items(items) >= (len(items) + 1) // 2
+
+
+def classify_tank_champions(unit_stats: Dict[str, Dict[str, float | List[str]]]) -> Set[str]:
+    """Return champions whose popular items are primarily tank items."""
+
+    tanks: Set[str] = set()
+    for champ, stats in unit_stats.items():
+        items = stats.get("items")
+        if not isinstance(items, list):
+            continue
+        if is_tank_item_build(items):
+            tanks.add(champ)
+    return tanks
 
 
 @dataclass(frozen=True)

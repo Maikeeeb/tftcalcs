@@ -27,6 +27,12 @@ def _validate_int(name: str, value, *, allow_negative: bool = False, allowed_val
     return value
 
 
+def _validate_bool(name: str, value) -> bool:
+    if isinstance(value, bool):
+        return value
+    raise ConfigError(f"{name} must be a boolean (got {type(value).__name__}).")
+
+
 def _load_int_map(
     raw: Mapping | None,
     defaults: Dict[str, int],
@@ -124,6 +130,10 @@ def load_config(path: str | None) -> Config:
     if mode not in {"bronze", "standard"}:
         raise ConfigError(f"mode must be 'bronze' or 'standard' (got {mode}).")
 
+    must_have_itemized_tank = _validate_bool(
+        "must_have_itemized_tank", data.get("must_have_itemized_tank", base.must_have_itemized_tank)
+    )
+
     config = Config(
         json_path=json_path,
         set_id=set_id,
@@ -140,6 +150,7 @@ def load_config(path: str | None) -> Config:
         w_avg=float(weights_raw["w_avg"]),
         w_freq=float(weights_raw["w_freq"]),
         mode=mode,
+        must_have_itemized_tank=must_have_itemized_tank,
     )
 
     try:

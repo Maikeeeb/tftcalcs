@@ -83,6 +83,10 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
     if mode not in {"bronze", "standard"}:
         raise ConfigError("mode must be 'bronze' or 'standard'.")
 
+    must_have_itemized_tank = payload.get("must_have_itemized_tank", base.must_have_itemized_tank)
+    if not isinstance(must_have_itemized_tank, bool):
+        raise ConfigError("must_have_itemized_tank must be a boolean.")
+
     config = Config(
         json_path=json_path,
         set_id=set_id,
@@ -99,6 +103,7 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
         w_avg=float(weights_raw["w_avg"]),
         w_freq=float(weights_raw["w_freq"]),
         mode=mode,
+        must_have_itemized_tank=must_have_itemized_tank,
     )
 
     try:

@@ -84,6 +84,10 @@
       "type": "string",
       "enum": ["bronze", "standard"],
       "description": "Bronze for Life (bronze) or MetaTFT trait-first (standard) mode."
+    },
+    "must_have_itemized_tank": {
+      "type": "boolean",
+      "description": "If true, the solver only returns teams that include a champion whose preferred items are tank items."
     }
   }
 }
