@@ -37,6 +37,7 @@ import type CoreForm from '@rjsf/core';
 import type { FormProps } from '@rjsf/core';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { buildTeamPlannerCode, getTeamPlannerSlotCount } from './teamPlanner';
+import championCosts from './data/champion_costs.json';
 import unlockableChampions from './data/unlockable_champions.json';
 
 type ConfigData = Record<string, unknown>;
@@ -255,6 +256,7 @@ type MappingFieldOptions = {
   searchPlaceholder?: string;
   imageType?: 'trait' | 'emblem' | 'champion';
   unlockableValues?: string[];
+  championCosts?: Record<string, number>;
 };
 
 function MappingField(props: FieldProps<Record<string, number>>) {
@@ -263,8 +265,35 @@ function MappingField(props: FieldProps<Record<string, number>>) {
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [showUnlockablesOnly, setShowUnlockablesOnly] = useState(false);
+  const [costToggles, setCostToggles] = useState<Record<number, boolean>>({});
 
   const unlockableSet = useMemo(() => new Set(options.unlockableValues ?? []), [options.unlockableValues]);
+  const costMap = options.championCosts ?? {};
+
+  const availableCosts = useMemo(() => {
+    const costs = new Set<number>();
+    entries.forEach(([key]) => {
+      const cost = costMap[key];
+      if (typeof cost === 'number') {
+        costs.add(cost);
+      }
+    });
+    return Array.from(costs).sort((a, b) => a - b);
+  }, [costMap, entries]);
+
+  useEffect(() => {
+    setCostToggles((prev) => {
+      const next = { ...prev } as Record<number, boolean>;
+      let changed = false;
+      availableCosts.forEach((cost) => {
+        if (next[cost] === undefined) {
+          next[cost] = true;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [availableCosts]);
 
   const searchedEntries = entries.filter(([key]) =>
     key.toLowerCase().includes(search.toLowerCase().trim()),
@@ -305,6 +334,28 @@ function MappingField(props: FieldProps<Record<string, number>>) {
     props.onChange(next);
   };
 
+  const applyCostToggle = (cost: number, enabled: boolean) => {
+    if (!options.championCosts) return;
+    const targetValue = enabled ? 0 : -1;
+    const next = { ...(props.formData ?? {}) } as Record<string, number>;
+    let changed = false;
+
+    entries.forEach(([key, value]) => {
+      if (unlockableSet.has(key)) return;
+      if (options.championCosts?.[key] !== cost) return;
+      if (value === 1) return;
+
+      if (next[key] !== targetValue) {
+        next[key] = targetValue;
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      props.onChange(next);
+    }
+  };
+
   return (
     <Stack spacing={2} mt={1}>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
@@ -320,6 +371,32 @@ function MappingField(props: FieldProps<Record<string, number>>) {
           sx={{ minWidth: { xs: '100%', sm: 240 } }}
           disabled={entries.length === 0}
         />
+        {options.imageType === 'champion' && availableCosts.length ? (
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography variant="body2" color="text.secondary">
+              Cost filters
+            </Typography>
+            {availableCosts.map((cost) => {
+              const isEnabled = costToggles[cost] ?? true;
+              return (
+                <ToggleButton
+                  key={`cost-${cost}`}
+                  size="small"
+                  value={cost}
+                  selected={isEnabled}
+                  onChange={() => {
+                    const nextEnabled = !isEnabled;
+                    setCostToggles((prev) => ({ ...prev, [cost]: nextEnabled }));
+                    applyCostToggle(cost, nextEnabled);
+                  }}
+                  aria-label={`Toggle ${cost}-cost champions`}
+                >
+                  {cost}-cost: {isEnabled ? 'Ignore' : 'Ban'}
+                </ToggleButton>
+              );
+            })}
+          </Stack>
+        ) : null}
         {options.unlockableValues?.length ? (
           <FormControlLabel
             control={
@@ -1025,6 +1102,7 @@ function App({ mode, onToggleColorMode }: AppProps) {
             { value: 1, label: 'Require (1)' },
           ],
           unlockableValues: unlockableChampions,
+          championCosts,
         },
       },
       mode: { 'ui:widget': 'hidden' },
