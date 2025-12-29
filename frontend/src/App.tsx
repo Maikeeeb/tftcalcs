@@ -139,6 +139,8 @@ const itemImageRemaps: Record<string, string> = {
   sunfire: 'redbuff',
   spiritvisage: 'redemption',
   redbuff: 'rapidfirecannon',
+  protectorsvow: 'frozenheart',
+  kraken: 'runaanshurricane',
 };
 
 Object.entries(itemImageRemaps).forEach(([target, source]) => {
