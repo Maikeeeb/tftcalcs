@@ -140,6 +140,7 @@ const itemImageRemaps: Record<string, string> = {
   spiritvisage: 'redemption',
   redbuff: 'rapidfirecannon',
   protectorsvow: 'frozenheart',
+  krakensfury: 'runaanshurricane',
   kraken: 'runaanshurricane',
 };
 
