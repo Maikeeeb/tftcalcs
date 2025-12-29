@@ -123,6 +123,7 @@ def solve_beam_search_bronze_with_emblems(
     champ_slot_sizes: Optional[Dict[str, int]] = None,
     trait_value_overrides: Optional[Dict[str, Dict[str, int]]] = None,
     must_include_one_of: Optional[Set[str]] = None,
+    seed_verticals: bool = True,
 ):
     """
     Beam search for teams with either max bronze-active traits (bronze mode) or
@@ -140,6 +141,11 @@ def solve_beam_search_bronze_with_emblems(
     forced_units:
       Optional iterable of champion apiNames that MUST be included in the final team.
       Example: ["TFT16_Alpha", "TFT16_Beta"]
+
+    seed_verticals:
+      When enabled, prime the initial beam with vertical-focused teams aimed at the
+      highest reachable breakpoint for each trait. This helps the search consider
+      far-off breakpoints (e.g., Void 9) even when early partial teams look weak.
     """
 
     required_traits_min = required_traits_min or {}
@@ -322,34 +328,104 @@ def solve_beam_search_bronze_with_emblems(
 
         return bronze, active, upgraded, missing_requirements, emblem_counts, trait_score
 
+    def generate_vertical_seeds() -> List[Tuple[List[str], Dict[str, int], float]]:
+        seeds: List[Tuple[List[str], Dict[str, int], float]] = []
+        remaining_slots = team_size - _team_slots(start_team, slot_sizes)
+        if remaining_slots <= 0:
+            return seeds
+
+        start_team_set = set(start_team)
+        seen: Set[Tuple[str, ...]] = set()
+
+        for trait, bps in trait_bps.items():
+            candidates = []
+            for champ in playable_champs:
+                if champ in start_team_set or trait not in champ_traits.get(champ, []):
+                    continue
+
+                contribution = trait_value_overrides.get(champ, {}).get(trait, 1)
+                slot_cost = slot_sizes.get(champ, 1)
+
+                if contribution <= 0 or slot_cost > remaining_slots:
+                    continue
+
+                candidates.append((champ, contribution, slot_cost, power_map.get(champ, 0.0)))
+
+            if not candidates:
+                continue
+
+            candidates.sort(key=lambda x: (-x[1], -x[3]))
+
+            trait_base = base_counts0.get(trait, 0)
+            slots_left = remaining_slots
+            max_possible = trait_base
+            for _champ, contribution, slot_cost, _power in candidates:
+                if slot_cost > slots_left:
+                    continue
+                slots_left -= slot_cost
+                max_possible += contribution
+
+            target_breakpoints = [bp for bp in bps if trait_base < bp <= max_possible]
+            if not target_breakpoints:
+                continue
+
+            target = max(target_breakpoints)
+
+            seed_team = list(start_team)
+            seed_counts = defaultdict(int, base_counts0)
+            seed_power = team_power0
+            seed_slots_left = remaining_slots
+
+            for champ, _contribution, slot_cost, champ_power in candidates:
+                if seed_slots_left <= 0 or seed_counts.get(trait, 0) >= target:
+                    break
+                seed_team.append(champ)
+                add_champion_traits(seed_counts, champ, champ_traits, trait_value_overrides)
+                seed_power += champ_power
+                seed_slots_left -= slot_cost
+
+            if seed_counts.get(trait, 0) < target:
+                continue
+
+            key = tuple(sorted(seed_team))
+            if key in seen:
+                continue
+            seen.add(key)
+
+            seeds.append((seed_team, seed_counts, seed_power))
+
+        return seeds
+
+    def add_initial_state(team: List[str], base_counts: Dict[str, int], team_power: float):
+        team_set = set(team)
+        missing_one = missing_required_one_of(team_set)
+        used_slots = _team_slots(team, slot_sizes)
+        remaining = team_size - used_slots
+
+        if missing_one and not can_satisfy_required_one_of(team_set, remaining):
+            return
+
+        if not feasibility_check(base_counts, choose_best_emblems, required_traits_min, remaining, missing_one):
+            return
+
+        bronze, active, upgraded, missing, _, trait_score = score_state(base_counts, missing_one)
+        sort_key = build_sort_key(missing_one, missing, bronze, active, upgraded, team_power, trait_score)
+
+        initial_states.append((team, base_counts, team_power, sort_key, missing_one))
+
     # ----------------------------
     # Beam search starting from forced/required team
     # ----------------------------
-    # Beam state: (team, base_counts, team_power, sort_key)
-    start_missing_required_one = missing_required_one_of(set(start_team))
-    bronze0, active0, upgraded0, missing0, _, trait_score0 = score_state(
-        base_counts0, start_missing_required_one
-    )
-    beam: List[Tuple[List[str], Dict[str, int], float, Tuple, int]] = []
+    # Beam state: (team, base_counts, team_power, sort_key, missing_required_one)
+    initial_states: List[Tuple[List[str], Dict[str, int], float, Tuple, int]] = []
 
-    used_slots0 = _team_slots(start_team, slot_sizes)
-    remaining_slots0 = team_size - used_slots0
-    if start_missing_required_one and not can_satisfy_required_one_of(set(start_team), remaining_slots0):
-        pass
-    elif feasibility_check(
-        base_counts0, choose_best_emblems, required_traits_min, remaining_slots0, start_missing_required_one
-    ):
-        beam.append(
-            (
-                start_team,
-                base_counts0,
-                team_power0,
-                build_sort_key(
-                    start_missing_required_one, missing0, bronze0, active0, upgraded0, team_power0, trait_score0
-                ),
-                start_missing_required_one,
-            )
-        )
+    add_initial_state(start_team, base_counts0, team_power0)
+
+    if seed_verticals:
+        for seed_team, seed_counts, seed_power in generate_vertical_seeds():
+            add_initial_state(seed_team, seed_counts, seed_power)
+
+    beam = sorted(initial_states, key=lambda x: x[3], reverse=True)[:beam_width]
 
     while True:
         candidates = []

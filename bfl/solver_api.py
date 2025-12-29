@@ -161,6 +161,7 @@ def run_bfl(config: Config) -> Dict[str, object]:
         champ_slot_sizes=SPECIAL_CHAMPION_SLOT_SIZES,
         trait_value_overrides=SPECIAL_TRAIT_VALUE_OVERRIDES,
         must_include_one_of=tank_champions if config.must_have_itemized_tank else None,
+        seed_verticals=config.seed_verticals,
     )
 
     requirements = _build_requirement_details(team, counts, config, tank_champions)
@@ -180,6 +181,7 @@ def run_bfl(config: Config) -> Dict[str, object]:
             "emblem_start_counts": config.emblem_start_counts,
             "max_emblems_total": config.max_emblems_total,
             "mode": config.mode,
+            "seed_verticals": config.seed_verticals,
         },
         "meta": {
             "enabled": bool(unit_stats),

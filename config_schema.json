@@ -88,6 +88,10 @@
     "must_have_itemized_tank": {
       "type": "boolean",
       "description": "If true, the solver only returns teams that include a champion whose preferred items are tank items."
+    },
+    "seed_verticals": {
+      "type": "boolean",
+      "description": "If true, pre-seed the beam search with trait-vertical teams to reach far breakpoints."
     }
   }
 }

@@ -62,3 +62,46 @@ def test_beam_search_honors_special_slot_sizes_and_trait_values():
     assert len(team) == 2  # Baron counts as 2 slots, only one other unit fits
     assert counts["Void"] == 3
     assert active_traits == ["Void"]
+
+
+def test_vertical_seeding_reaches_far_breakpoints():
+    champs = ["StackA", "StackB", "StackC", "PowerD"]
+    champ_traits = {
+        "StackA": ["Stack"],
+        "StackB": ["Stack"],
+        "StackC": ["Stack"],
+        "PowerD": ["Other"],
+    }
+    trait_bps = {"Stack": [3], "Other": [1]}
+    eligible = {"Stack"}
+
+    power_map = {"StackA": 0.0, "StackB": 0.0, "StackC": 0.0, "PowerD": 10.0}
+
+    seeded_team, *_ = solve_beam_search_bronze_with_emblems(
+        champs=champs,
+        champ_traits=champ_traits,
+        trait_bps=trait_bps,
+        eligible_traits=eligible,
+        team_size=3,
+        beam_width=1,
+        hard_emblems={},
+        max_emblems_total=0,
+        power_map=power_map,
+        seed_verticals=True,
+    )
+
+    _, _, _, _, unseeded_counts, *_ = solve_beam_search_bronze_with_emblems(
+        champs=champs,
+        champ_traits=champ_traits,
+        trait_bps=trait_bps,
+        eligible_traits=eligible,
+        team_size=3,
+        beam_width=1,
+        hard_emblems={},
+        max_emblems_total=0,
+        power_map=power_map,
+        seed_verticals=False,
+    )
+
+    assert set(seeded_team) == {"StackA", "StackB", "StackC"}
+    assert unseeded_counts.get("Stack", 0) < 3

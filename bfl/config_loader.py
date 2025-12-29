@@ -133,6 +133,7 @@ def load_config(path: str | None) -> Config:
     must_have_itemized_tank = _validate_bool(
         "must_have_itemized_tank", data.get("must_have_itemized_tank", base.must_have_itemized_tank)
     )
+    seed_verticals = _validate_bool("seed_verticals", data.get("seed_verticals", base.seed_verticals))
 
     config = Config(
         json_path=json_path,
@@ -151,6 +152,7 @@ def load_config(path: str | None) -> Config:
         w_freq=float(weights_raw["w_freq"]),
         mode=mode,
         must_have_itemized_tank=must_have_itemized_tank,
+        seed_verticals=seed_verticals,
     )
 
     try:

@@ -206,6 +206,7 @@ class Config:
     w_freq: float = 0.1
     mode: str = "bronze"
     must_have_itemized_tank: bool = True
+    seed_verticals: bool = True
 
     def to_dict(self) -> Dict:
         return {
@@ -225,6 +226,7 @@ class Config:
             "w_freq": self.w_freq,
             "mode": self.mode,
             "must_have_itemized_tank": self.must_have_itemized_tank,
+            "seed_verticals": self.seed_verticals,
         }
 
 
@@ -246,4 +248,5 @@ def default_config() -> Config:
         w_freq=0.1,
         mode="bronze",
         must_have_itemized_tank=True,
+        seed_verticals=True,
     )
