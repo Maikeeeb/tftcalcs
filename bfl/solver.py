@@ -544,19 +544,20 @@ def solve_beam_search_bronze_with_emblems(
         if not feasibility_check(base_counts, choose_best_emblems, required_traits_min, remaining, missing_one):
             return
 
-        bronze,
-        active,
-        upgraded,
-        missing,
-        _,
-        trait_score,
-        quality_score,
-        penalty,
-        missing_quality_trait,
-        bronze_score,
-        qt,
-        qc,
-    ) = score_state(team, base_counts, missing_one)
+        (
+            bronze,
+            active,
+            upgraded,
+            missing,
+            _,
+            trait_score,
+            quality_score,
+            penalty,
+            missing_quality_trait,
+            bronze_score,
+            qt,
+            qc,
+        ) = score_state(team, base_counts, missing_one)
 
         if bronze + remaining * 3 < 6:
             return
