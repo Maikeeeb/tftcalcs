@@ -73,9 +73,15 @@ def load_set_data(
         if c_api not in INCLUDE_API and (cost < 1 or cost > 5):
             continue
 
-        traits = [t for t in ch.get("traits", []) if t in trait_bps]
-        if not traits:
+        raw_traits = ch.get("traits", [])
+        if not isinstance(raw_traits, list) or not raw_traits:
             continue
+
+        # Keep champions even if all their traits are filtered out (e.g., traits
+        # without breakpoints or blacklisted from eligibility). This lets
+        # single-trait units like Ryze remain usable as carries/tanks even when
+        # their traits contribute nothing to the Bronze objective.
+        traits = [t for t in raw_traits if t in trait_bps]
 
         champs.append(c_api)
         champ_traits[c_api] = traits
