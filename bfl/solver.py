@@ -254,7 +254,11 @@ def solve_beam_search_bronze_with_emblems(
     # ----------------------------
     # Quality unit heuristics
     # ----------------------------
-    sorted_power = sorted(power_map.values(), reverse=True)
+    # Derive quality thresholds from champions that are actually playable. Using the
+    # full set (including banned unlockables) can inflate the threshold so high that
+    # no remaining units count as quality, which causes the search to discard every
+    # candidate team.
+    sorted_power = sorted((power_map.get(c, 0.0) for c in playable_champs), reverse=True)
     if sorted_power:
         quality_threshold = sorted_power[min(6, len(sorted_power) - 1)]
     else:
@@ -262,7 +266,8 @@ def solve_beam_search_bronze_with_emblems(
 
     tank_quality_threshold = quality_threshold
     if tank_champions:
-        max_tank_power = max((power_map.get(ch, 0.0) for ch in tank_champions), default=None)
+        playable_tanks = [ch for ch in tank_champions if ch in playable_champs]
+        max_tank_power = max((power_map.get(ch, 0.0) for ch in playable_tanks), default=None)
         if max_tank_power is not None:
             tank_quality_threshold = min(quality_threshold, max_tank_power)
 
