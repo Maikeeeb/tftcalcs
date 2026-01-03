@@ -117,7 +117,8 @@ def run_bfl(config: Config) -> Dict[str, object]:
 
     metatft_text = load_metatft_txt(str(config.metatft_txt_path))
     unit_stats = metatft_to_unit_stats(metatft_text, set_data)
-    tank_champions = classify_tank_champions(unit_stats)
+    tank_champions = classify_tank_champions(unit_stats, champ_cost)
+    tank_champion_filter = tank_champions if config.must_have_itemized_tank else None
 
     if config.must_have_itemized_tank and not tank_champions:
         raise RuntimeError(
@@ -157,12 +158,12 @@ def run_bfl(config: Config) -> Dict[str, object]:
         required_champions={k: v for k, v in config.required_champions.items() if v != 0},
         required_traits_min=config.required_traits_min,
         trait_stats=trait_stats if config.mode == "standard" else None,
-        tank_champions=tank_champions,
+        tank_champions=tank_champion_filter,
         mode=config.mode,
         trait_weights=(config.w_win, config.w_avg, config.w_freq),
         champ_slot_sizes=SPECIAL_CHAMPION_SLOT_SIZES,
         trait_value_overrides=SPECIAL_TRAIT_VALUE_OVERRIDES,
-        must_include_one_of=tank_champions if config.must_have_itemized_tank else None,
+        must_include_one_of=tank_champion_filter if config.must_have_itemized_tank else None,
         seed_verticals=config.seed_verticals,
     )
 

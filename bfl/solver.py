@@ -223,6 +223,12 @@ def solve_beam_search_bronze_with_emblems(
     else:
         quality_threshold = 0.0
 
+    tank_quality_threshold = quality_threshold
+    if tank_champions:
+        max_tank_power = max((power_map.get(ch, 0.0) for ch in tank_champions), default=None)
+        if max_tank_power is not None:
+            tank_quality_threshold = min(quality_threshold, max_tank_power)
+
     def missing_required_one_of(team_set: Set[str]) -> int:
         if not required_one_of:
             return 0
@@ -247,12 +253,19 @@ def solve_beam_search_bronze_with_emblems(
         return score
 
     def is_trait_active(counts_with_emblems: Dict[str, int], trait: str) -> bool:
+        # Personal/exclusive traits (not in ``eligible_traits``) should never
+        # satisfy quality checks. Only traits that can contribute to bronze are
+        # considered for "trait active" checks here.
+        if trait not in eligible_traits:
+            return False
+
         bp = trait_bps.get(trait, [1])[0]
         return counts_with_emblems.get(trait, 0) >= bp
 
     def is_quality_unit(champ: str, counts_with_emblems: Dict[str, int]) -> bool:
         power = power_map.get(champ, 0.0)
-        if power < quality_threshold:
+        threshold = tank_quality_threshold if champ in tank_champions else quality_threshold
+        if power < threshold:
             return False
         champ_traits_list = champ_traits.get(champ, [])
         for trait in champ_traits_list:
@@ -276,7 +289,8 @@ def solve_beam_search_bronze_with_emblems(
                 trait_value_overrides.get(champ, {}).get(trait, 1) > 0 and is_trait_active(counts_with_emblems, trait)
                 for trait in traits
             )
-            if power >= quality_threshold and not activates_trait:
+            threshold = tank_quality_threshold if champ in tank_champions else quality_threshold
+            if power >= threshold and not activates_trait:
                 quality_missing_trait = True
             if not is_quality_unit(champ, counts_with_emblems):
                 continue
@@ -310,7 +324,7 @@ def solve_beam_search_bronze_with_emblems(
 
     def bronze_piecewise_score(bronze: int) -> float:
         if bronze < 6:
-            return float("-inf")
+            return -(6 - bronze) * 50.0
         if bronze >= 10:
             return 225.0
         mapping = {6: 100.0, 7: 160.0, 8: 200.0, 9: 215.0}
@@ -379,12 +393,7 @@ def solve_beam_search_bronze_with_emblems(
             qt, qc, quality_score, missing_traits = quality_summary(team or [], cnt2)
             penalty = bronze_penalty(team or [], cnt2)
             bronze_score = bronze_piecewise_score(bronze)
-            valid = (
-                bronze_score != float("-inf")
-                and qt > 0
-                and qc > 0
-                and not missing_traits
-            )
+            valid = bronze >= 6 and qt > 0 and qc > 0 and not missing_traits
             key = build_sort_key(
                 valid,
                 missing_required_one,
@@ -562,8 +571,8 @@ def solve_beam_search_bronze_with_emblems(
         if bronze + remaining * 3 < 6:
             return
 
-        bronze_key = bronze_score if bronze_score != float("-inf") else -1e9
-        valid = bronze_score != float("-inf") and qt > 0 and qc > 0 and not missing_quality_trait
+        bronze_key = bronze_score
+        valid = bronze >= 6 and qt > 0 and qc > 0 and not missing_quality_trait
         sort_key = build_sort_key(
             valid,
             missing_one,
@@ -655,8 +664,8 @@ def solve_beam_search_bronze_with_emblems(
                 if bronze + new_remaining_slots * 3 < 6:
                     continue
 
-                bronze_key = bronze_score if bronze_score != float("-inf") else -1e9
-                valid = bronze_score != float("-inf") and qt > 0 and qc > 0 and not missing_quality_trait
+                bronze_key = bronze_score
+                valid = bronze >= 6 and qt > 0 and qc > 0 and not missing_quality_trait
 
                 new_key = build_sort_key(
                     valid,
@@ -688,12 +697,58 @@ def solve_beam_search_bronze_with_emblems(
             "Beam search produced no candidates under the given constraints. Check filtering/requirements."
         )
 
-    final_candidates = [state for state in beam if state[4] == 0] if required_one_of else beam
-    if not final_candidates:
-        raise RuntimeError("No team satisfies the must-include-one-of requirement under current constraints.")
+    evaluated_states = []
+    for team, base_counts, team_power, _key, missing_required_one in beam:
+        (
+            bronze,
+            active,
+            upgraded,
+            missing,
+            _emblems,
+            trait_score,
+            quality_score,
+            penalty,
+            missing_quality_trait,
+            bronze_score,
+            qt,
+            qc,
+        ) = score_state(team, base_counts, missing_required_one)
 
-    best_team, best_base_counts, best_power, _best_key, best_missing_required_one = max(
-        final_candidates, key=lambda x: x[3]
+        if bronze + (team_size - _team_slots(team, slot_sizes)) * 3 < 6:
+            continue
+
+        bronze_key = bronze_score
+        valid = bronze >= 6 and qt > 0 and qc > 0 and not missing_quality_trait
+
+        new_key = build_sort_key(
+            valid,
+            missing_required_one,
+            missing,
+            bronze,
+            bronze_key,
+            quality_score,
+            penalty,
+            active,
+            upgraded,
+            team_power,
+            trait_score,
+        )
+
+        evaluated_states.append((team, base_counts, team_power, new_key, missing_required_one, valid))
+
+    if required_one_of:
+        evaluated_states = [state for state in evaluated_states if state[4] == 0]
+        if not evaluated_states:
+            raise RuntimeError("No team satisfies the must-include-one-of requirement under current constraints.")
+
+    valid_states = [state for state in evaluated_states if state[5]]
+    if not valid_states:
+        raise RuntimeError(
+            "Beam search produced teams, but none met the Bronze-for-Life validity gates (bronze>=6 with quality tank/carry)."
+        )
+
+    best_team, best_base_counts, best_power, _best_key, best_missing_required_one, _ = max(
+        valid_states, key=lambda x: x[3]
     )
 
     emblem_counts = choose_best_emblems(best_base_counts, best_missing_required_one, best_team)
