@@ -120,7 +120,7 @@ function App({ mode, onToggleColorMode }: AppProps) {
     },
   });
 
-  const errorDebugLog = runMutation.error instanceof SolverRunError ? runMutation.error.debugLog : undefined;
+  const debugLogLines = runMutation.error instanceof SolverRunError ? runMutation.error.debugLog : undefined;
 
   const templates: FormProps['templates'] = useMemo(
     () => ({
@@ -280,9 +280,9 @@ function App({ mode, onToggleColorMode }: AppProps) {
                 {(runMutation.error as Error).message}
               </Alert>
             ) : null}
-            {errorDebugLog?.length ? (
+            {debugLogLines?.length ? (
               <Box mt={2}>
-                <DebugLogCard lines={errorDebugLog} />
+                <DebugLogCard lines={debugLogLines} />
               </Box>
             ) : null}
             <Box

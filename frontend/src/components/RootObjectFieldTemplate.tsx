@@ -53,7 +53,7 @@ const RootObjectFieldTemplate = (props: ObjectFieldTemplateProps) => {
             <Box>
               <Typography variant="subtitle1">Advanced solver settings</Typography>
               <Typography variant="body2" color="text.secondary">
-                Rarely changed fields for data paths and search tuning.
+                JSON path, set id, MetaTFT export path, beam width, and trait blacklist.
               </Typography>
             </Box>
           </AccordionSummary>
