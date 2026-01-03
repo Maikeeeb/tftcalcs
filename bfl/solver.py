@@ -319,6 +319,7 @@ def solve_beam_search_bronze_with_emblems(
             trait
             for trait in champ_traits_list
             if trait_value_overrides.get(champ, {}).get(trait, 1) > 0
+            and trait in eligible_traits
         ]
 
         # Allow completely traitless champions (e.g., Ryze) to qualify as quality
@@ -342,6 +343,7 @@ def solve_beam_search_bronze_with_emblems(
                 trait
                 for trait in traits
                 if trait_value_overrides.get(champ, {}).get(trait, 1) > 0
+                and trait in eligible_traits
             ]
             activates_trait = any(is_trait_active(counts_with_emblems, trait) for trait in positive_traits)
             threshold = tank_quality_threshold if champ in tank_champions else quality_threshold
