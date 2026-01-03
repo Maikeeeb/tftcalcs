@@ -24,9 +24,23 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import MappingField from './components/MappingField';
 import ResultsSection from './components/ResultsSection';
 import Loader from './components/Loader';
+import DebugLogCard from './components/DebugLogCard';
 import { AppProps, ConfigData, SolverResponse } from './types';
 import championCosts from './data/champion_costs.json';
 import unlockableChampions from './data/unlockable_champions.json';
+
+class SolverRunError extends Error {
+  status: number;
+  debugLog?: string[];
+  context?: Record<string, unknown>;
+
+  constructor(message: string, status: number, debugLog?: string[], context?: Record<string, unknown>) {
+    super(message);
+    this.status = status;
+    this.debugLog = debugLog;
+    this.context = context;
+  }
+}
 
 const API_BASE = 'http://localhost:8000';
 
@@ -76,13 +90,36 @@ function App({ mode, onToggleColorMode }: AppProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Failed to run solver');
+
+      const rawText = await res.text();
+      let payload: any;
+      try {
+        payload = rawText ? JSON.parse(rawText) : undefined;
+      } catch {
+        payload = undefined;
       }
+
+      if (!res.ok) {
+        const detail = payload?.detail ?? payload;
+        const message =
+          typeof detail === 'string'
+            ? detail
+            : detail?.error || detail?.message || rawText || 'Failed to run solver';
+        const debugLog =
+          detail && typeof detail === 'object' && 'debug_log' in detail ? (detail as { debug_log: string[] }).debug_log : undefined;
+        const context = detail && typeof detail === 'object' && 'context' in detail ? (detail as { context: Record<string, unknown> }).context : undefined;
+        throw new SolverRunError(message, res.status, debugLog, context);
+      }
+
+      if (payload) {
+        return payload as SolverResponse;
+      }
+
       return (await res.json()) as SolverResponse;
     },
   });
+
+  const errorDebugLog = runMutation.error instanceof SolverRunError ? runMutation.error.debugLog : undefined;
 
   const templates: FormProps['templates'] = useMemo(
     () => ({
@@ -240,6 +277,11 @@ function App({ mode, onToggleColorMode }: AppProps) {
               <Alert severity="error" sx={{ mt: 2 }}>
                 {(runMutation.error as Error).message}
               </Alert>
+            ) : null}
+            {errorDebugLog?.length ? (
+              <Box mt={2}>
+                <DebugLogCard lines={errorDebugLog} />
+              </Box>
             ) : null}
             <Box
               mt={3}
