@@ -2,7 +2,7 @@ const normalizeKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g
 
 const assetModules = import.meta.env?.VITEST
   ? {}
-  : import.meta.glob('../tft-images/*', {
+  : import.meta.glob('../../tft-images/*', {
       eager: true,
       query: '?url',
       import: 'default',
