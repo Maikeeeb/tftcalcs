@@ -57,7 +57,6 @@ function App({ mode, onToggleColorMode }: AppProps) {
   const [activeMode, setActiveMode] = useState<'bronze' | 'standard'>('bronze');
   const [mustHaveItemizedTank, setMustHaveItemizedTank] = useState(true);
   const formRef = useRef<CoreForm<any, any, any> | null>(null);
-  const errorDebugLog = runMutation.error instanceof SolverRunError ? runMutation.error.debugLog : undefined;
 
   const schemaQuery = useQuery({ queryKey: ['schema'], queryFn: () => fetchJson<Record<string, unknown>>('/schema') });
   const configQuery = useQuery({ queryKey: ['config'], queryFn: () => fetchJson<ConfigData>('/config') });
