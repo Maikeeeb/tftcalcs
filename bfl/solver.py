@@ -247,6 +247,12 @@ def solve_beam_search_bronze_with_emblems(
         return score
 
     def is_trait_active(counts_with_emblems: Dict[str, int], trait: str) -> bool:
+        # Personal/exclusive traits (not in ``eligible_traits``) should never
+        # satisfy quality checks. Only traits that can contribute to bronze are
+        # considered for "trait active" checks here.
+        if trait not in eligible_traits:
+            return False
+
         bp = trait_bps.get(trait, [1])[0]
         return counts_with_emblems.get(trait, 0) >= bp
 
