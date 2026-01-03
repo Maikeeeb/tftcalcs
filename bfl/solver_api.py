@@ -1,5 +1,6 @@
 """Structured API for running Bronze for Life solver."""
 
+import json
 from pathlib import Path
 from typing import Dict, List, Set
 
@@ -36,6 +37,15 @@ __all__ = [
     "classify_traits",
     "run_bfl",
 ]
+
+
+class SolverError(RuntimeError):
+    """Raised when solver execution fails but a debug log is available."""
+
+    def __init__(self, message: str, debug_log: List[str], context: Dict[str, object]):
+        super().__init__(message)
+        self.debug_log = debug_log
+        self.context = context
 
 BARON_API_NAME = "TFT16_BaronNashor"
 
@@ -109,62 +119,88 @@ def _build_requirement_details(
 def run_bfl(config: Config) -> Dict[str, object]:
     """Execute the Bronze for Life solver and return a structured result."""
 
-    set_data, champs, champ_traits, trait_bps, champ_cost, eligible_traits, trait_freq = load_set_data(
-        config.json_path, config.set_id, config.blacklist_traits_by_name
-    )
+    decision_log: List[str] = []
+    decision_log.append(f"config: {json.dumps(config.to_dict(), sort_keys=True)}")
 
-    validate_config_against_data(config, champs, trait_bps)
+    context_details: Dict[str, object] = {"config": config.to_dict()}
 
-    metatft_text = load_metatft_txt(str(config.metatft_txt_path))
-    unit_stats = metatft_to_unit_stats(metatft_text, set_data)
-    tank_champions = classify_tank_champions(unit_stats)
-
-    if config.must_have_itemized_tank and not tank_champions:
-        raise RuntimeError(
-            "Must-have tank requirement enabled, but no tank champions could be identified from MetaTFT data."
+    try:
+        set_data, champs, champ_traits, trait_bps, champ_cost, eligible_traits, trait_freq = load_set_data(
+            config.json_path, config.set_id, config.blacklist_traits_by_name
         )
 
-    trait_text = load_metatft_txt(str(config.metatft_traits_path))
-    trait_stats = metatft_to_trait_stats(trait_text, set_data)
+        validate_config_against_data(config, champs, trait_bps)
 
-    power_map = {c: unit_power(c, unit_stats, config.w_win, config.w_avg, config.w_freq) for c in champs}
+        metatft_text = load_metatft_txt(str(config.metatft_txt_path))
+        unit_stats = metatft_to_unit_stats(metatft_text, set_data)
+        tank_champions = classify_tank_champions(unit_stats, champ_cost)
+        tank_champion_filter = tank_champions if config.must_have_itemized_tank else None
 
-    if len(champs) < config.team_size:
-        raise RuntimeError(
-            f"Not enough playable units after filtering: {len(champs)} (need {config.team_size})."
+        if config.must_have_itemized_tank and not tank_champions:
+            raise RuntimeError(
+                "Must-have tank requirement enabled, but no tank champions could be identified from MetaTFT data."
+            )
+
+        trait_text = load_metatft_txt(str(config.metatft_traits_path))
+        trait_stats = metatft_to_trait_stats(trait_text, set_data)
+
+        power_map = {c: unit_power(c, unit_stats, config.w_win, config.w_avg, config.w_freq) for c in champs}
+
+        if len(champs) < config.team_size:
+            raise RuntimeError(
+                f"Not enough playable units after filtering: {len(champs)} (need {config.team_size})."
+            )
+
+        context_details.update(
+            {
+                "champion_count": len(champs),
+                "trait_breakpoint_count": len(trait_bps),
+                "blacklist_traits": sorted(config.blacklist_traits_by_name),
+                "eligible_traits": sorted(eligible_traits),
+                "emblem_start_counts": config.emblem_start_counts,
+                "max_emblems_total": config.max_emblems_total,
+                "mode": config.mode,
+                "seed_verticals": config.seed_verticals,
+                "must_have_itemized_tank": config.must_have_itemized_tank,
+                "tank_candidates": sorted(tank_champions),
+            }
         )
 
-    (
-        team,
-        emblem_counts,
-        team_power,
-        bronze_count,
-        counts,
-        bronze_traits,
-        active_traits,
-        upgraded_traits,
-        used_traits,
-    ) = solve_beam_search_bronze_with_emblems(
-        champs,
-        champ_traits,
-        trait_bps,
-        eligible_traits,
-        config.team_size,
-        config.beam_width,
-        config.emblem_start_counts,
-        config.max_emblems_total,
-        power_map,
-        required_champions={k: v for k, v in config.required_champions.items() if v != 0},
-        required_traits_min=config.required_traits_min,
-        trait_stats=trait_stats if config.mode == "standard" else None,
-        tank_champions=tank_champions,
-        mode=config.mode,
-        trait_weights=(config.w_win, config.w_avg, config.w_freq),
-        champ_slot_sizes=SPECIAL_CHAMPION_SLOT_SIZES,
-        trait_value_overrides=SPECIAL_TRAIT_VALUE_OVERRIDES,
-        must_include_one_of=tank_champions if config.must_have_itemized_tank else None,
-        seed_verticals=config.seed_verticals,
-    )
+        (
+            team,
+            emblem_counts,
+            team_power,
+            bronze_count,
+            counts,
+            bronze_traits,
+            active_traits,
+            upgraded_traits,
+            used_traits,
+        ) = solve_beam_search_bronze_with_emblems(
+            champs,
+            champ_traits,
+            trait_bps,
+            eligible_traits,
+            config.team_size,
+            config.beam_width,
+            config.emblem_start_counts,
+            config.max_emblems_total,
+            power_map,
+            required_champions={k: v for k, v in config.required_champions.items() if v != 0},
+            required_traits_min=config.required_traits_min,
+            trait_stats=trait_stats if config.mode == "standard" else None,
+            tank_champions=tank_champion_filter,
+            mode=config.mode,
+            trait_weights=(config.w_win, config.w_avg, config.w_freq),
+            champ_slot_sizes=SPECIAL_CHAMPION_SLOT_SIZES,
+            trait_value_overrides=SPECIAL_TRAIT_VALUE_OVERRIDES,
+            must_include_one_of=tank_champion_filter if config.must_have_itemized_tank else None,
+            seed_verticals=config.seed_verticals,
+            decision_log=decision_log,
+        )
+    except Exception as exc:
+        decision_log.append(f"error: {exc}")
+        raise SolverError(str(exc), decision_log, context_details) from exc
 
     trait_metatft: Dict[str, Dict[str, object]] = {}
     if trait_stats:
@@ -182,23 +218,19 @@ def run_bfl(config: Config) -> Dict[str, object]:
 
     requirements = _build_requirement_details(team, counts, config, tank_champions)
 
-    return {
-        "context": {
+    context_details.update(
+        {
             "set_id": config.set_id,
             "json_path": str(config.json_path),
             "team_size": config.team_size,
             "beam_width": config.beam_width,
-            "blacklist_traits": sorted(config.blacklist_traits_by_name),
-            "eligible_traits": sorted(eligible_traits),
             "trait_breakpoints": trait_bps,
             "trait_frequency": trait_freq,
-            "champion_count": len(champs),
-            "trait_breakpoint_count": len(trait_bps),
-            "emblem_start_counts": config.emblem_start_counts,
-            "max_emblems_total": config.max_emblems_total,
-            "mode": config.mode,
-            "seed_verticals": config.seed_verticals,
-        },
+        }
+    )
+
+    return {
+        "context": context_details,
         "meta": {
             "enabled": bool(unit_stats),
             "weights": {"w_win": config.w_win, "w_avg": config.w_avg, "w_freq": config.w_freq},
@@ -226,5 +258,6 @@ def run_bfl(config: Config) -> Dict[str, object]:
             for c in team
         },
         "requirements": requirements,
+        "debug_log": decision_log,
     }
 
