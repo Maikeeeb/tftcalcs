@@ -694,12 +694,58 @@ def solve_beam_search_bronze_with_emblems(
             "Beam search produced no candidates under the given constraints. Check filtering/requirements."
         )
 
-    final_candidates = [state for state in beam if state[4] == 0] if required_one_of else beam
-    if not final_candidates:
-        raise RuntimeError("No team satisfies the must-include-one-of requirement under current constraints.")
+    evaluated_states = []
+    for team, base_counts, team_power, _key, missing_required_one in beam:
+        (
+            bronze,
+            active,
+            upgraded,
+            missing,
+            _emblems,
+            trait_score,
+            quality_score,
+            penalty,
+            missing_quality_trait,
+            bronze_score,
+            qt,
+            qc,
+        ) = score_state(team, base_counts, missing_required_one)
 
-    best_team, best_base_counts, best_power, _best_key, best_missing_required_one = max(
-        final_candidates, key=lambda x: x[3]
+        if bronze + (team_size - _team_slots(team, slot_sizes)) * 3 < 6:
+            continue
+
+        bronze_key = bronze_score if bronze_score != float("-inf") else -1e9
+        valid = bronze_score != float("-inf") and qt > 0 and qc > 0 and not missing_quality_trait
+
+        new_key = build_sort_key(
+            valid,
+            missing_required_one,
+            missing,
+            bronze,
+            bronze_key,
+            quality_score,
+            penalty,
+            active,
+            upgraded,
+            team_power,
+            trait_score,
+        )
+
+        evaluated_states.append((team, base_counts, team_power, new_key, missing_required_one, valid))
+
+    if required_one_of:
+        evaluated_states = [state for state in evaluated_states if state[4] == 0]
+        if not evaluated_states:
+            raise RuntimeError("No team satisfies the must-include-one-of requirement under current constraints.")
+
+    valid_states = [state for state in evaluated_states if state[5]]
+    if not valid_states:
+        raise RuntimeError(
+            "Beam search produced teams, but none met the Bronze-for-Life validity gates (bronze>=6 with quality tank/carry)."
+        )
+
+    best_team, best_base_counts, best_power, _best_key, best_missing_required_one, _ = max(
+        valid_states, key=lambda x: x[3]
     )
 
     emblem_counts = choose_best_emblems(best_base_counts, best_missing_required_one, best_team)
