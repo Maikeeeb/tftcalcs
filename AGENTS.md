@@ -10,4 +10,4 @@
   3. Start the API with `uvicorn ui_api.main:app --reload --port 8000`.
 - **Data awareness:** Check `en_us.json` and the MetaTFT text files (`metatft_units.txt`, `metatft_traits.txt`) when making related changes.
 - **Coding conventions:** Follow both Python and TypeScript standards as appropriate.
-- **Documentation:** Add or update references in `/docs/` so future work remains understandable.
+- **Documentation:** Add or update references in `/docs/` and `readme.md` so future work remains understandable.
