@@ -17,7 +17,7 @@ export type SolverResponse = {
       w_avg: number;
       w_freq: number;
     };
-    unit_stats?: Record<string, { avg?: number; win?: number; freq?: number }>;
+    unit_stats?: Record<string, { avg?: number; win?: number; freq?: number; items?: string[] }>;
     trait_stats_enabled?: boolean;
   };
   solution: {

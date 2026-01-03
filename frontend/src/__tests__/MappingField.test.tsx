@@ -14,9 +14,11 @@ const createProps = (options: MappingFieldOptions = {}): MappingProps => ({
     TFT16_Lulu: 1,
     TFT16_Teemo: -1,
   },
-  idSchema: { $id: 'root' },
+  idSchema: { $id: 'root' } as unknown as MappingProps['idSchema'],
   name: 'required_champions',
   onChange: vi.fn(),
+  onBlur: vi.fn(),
+  onFocus: vi.fn(),
   registry: {} as MappingProps['registry'],
   required: false,
   disabled: false,
@@ -66,7 +68,7 @@ describe('MappingField', () => {
     await userEvent.click(toggle);
 
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
-    const onChangeMock = props.onChange as unknown as vi.Mock;
+    const onChangeMock = props.onChange as unknown as ReturnType<typeof vi.fn>;
     expect(onChangeMock).toHaveBeenCalled();
     const updated = onChangeMock.mock.calls.at(-1)?.[0] as Record<string, number>;
     expect(updated.TFT16_Tristana).toBe(-1);
@@ -86,7 +88,7 @@ describe('MappingField', () => {
     await userEvent.clear(valueInput);
     await userEvent.type(valueInput, '3');
 
-    const onChangeMock = props.onChange as unknown as vi.Mock;
+    const onChangeMock = props.onChange as unknown as ReturnType<typeof vi.fn>;
     expect(onChangeMock).toHaveBeenCalled();
     const updated = onChangeMock.mock.calls.at(-1)?.[0] as Record<string, number>;
     expect(updated.TFT16_Tristana).toBe(3);

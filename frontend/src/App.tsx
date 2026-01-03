@@ -120,6 +120,8 @@ function App({ mode, onToggleColorMode }: AppProps) {
     },
   });
 
+  const errorDebugLog = runMutation.error instanceof SolverRunError ? runMutation.error.debugLog : undefined;
+
   const templates: FormProps['templates'] = useMemo(
     () => ({
       ButtonTemplates: {
