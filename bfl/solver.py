@@ -1,6 +1,23 @@
 from collections import defaultdict
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
+
+class DecisionLogger:
+    """Collect human-readable trace lines for solver decisions."""
+
+    def __init__(self, sink: Optional[List[str]] = None, limit: int = 1500):
+        self._sink = sink if sink is not None else []
+        self._limit = limit
+
+    @property
+    def sink(self) -> List[str]:
+        return self._sink
+
+    def log(self, message: str):
+        if len(self._sink) >= self._limit:
+            return
+        self._sink.append(message)
+
 from bfl.metatft import TraitStat, trait_power
 from bfl.traits import add_champion_traits, apply_emblem_starts, classify_traits
 
@@ -125,6 +142,7 @@ def solve_beam_search_bronze_with_emblems(
     trait_value_overrides: Optional[Dict[str, Dict[str, int]]] = None,
     must_include_one_of: Optional[Set[str]] = None,
     seed_verticals: bool = True,
+    decision_log: Optional[List[str]] = None,
 ):
     """
     Beam search for teams with either max bronze-active traits (bronze mode) or
@@ -149,6 +167,11 @@ def solve_beam_search_bronze_with_emblems(
       far-off breakpoints (e.g., Void 9) even when early partial teams look weak.
     """
 
+    logger = DecisionLogger(decision_log)
+    logger.log(
+        f"start: team_size={team_size} beam_width={beam_width} mode={mode} max_emblems={max_emblems_total}"
+    )
+
     required_traits_min = required_traits_min or {}
     required_map = required_champions or {}
     slot_sizes = champ_slot_sizes or {}
@@ -164,6 +187,9 @@ def solve_beam_search_bronze_with_emblems(
             f"Banned champions not in playable pool: {sorted(missing_banned)}. Check spelling or filtering."
         )
 
+    if banned_champs:
+        logger.log(f"banned champions excluded: {sorted(banned_champs)}")
+
     if forced_units:
         forced_units = list(forced_units)
         banned_forced = [c for c in forced_units if c in banned_champs]
@@ -176,11 +202,14 @@ def solve_beam_search_bronze_with_emblems(
             raise RuntimeError(
                 f"Forced champions not in playable pool: {missing_forced}. Check name or filtering."
             )
+        logger.log(f"forced champions: {sorted(forced_units)}")
     playable_champs = [c for c in champs if c not in banned_champs]
 
     required_one_of = {c for c in required_one_of if c in playable_champs}
     if must_include_one_of and not required_one_of:
         raise RuntimeError("No playable champions available to satisfy must-include-one-of requirement.")
+    if required_one_of:
+        logger.log(f"must include one of: {sorted(required_one_of)}")
 
     # Validate required traits
     for t, min_count in required_traits_min.items():
@@ -190,6 +219,8 @@ def solve_beam_search_bronze_with_emblems(
             raise RuntimeError(
                 f"Required trait '{t}' is not in the trait list (trait_bps). Check spelling or set data."
             )
+    if required_traits_min:
+        logger.log(f"trait minimums: { {t: v for t, v in required_traits_min.items() if v > 0} }")
 
     if team_size is not None and len(playable_champs) < team_size:
         raise RuntimeError(
@@ -205,6 +236,12 @@ def solve_beam_search_bronze_with_emblems(
         trait_value_overrides,
         forced_units,
         team_size,
+    )
+
+    logger.log(
+        "start team: "
+        f"{sorted(start_team)} slots={_team_slots(start_team, slot_sizes)} base_counts={dict(base_counts0)} "
+        f"team_power={team_power0:.2f}"
     )
 
     # ----------------------------
@@ -228,6 +265,10 @@ def solve_beam_search_bronze_with_emblems(
         max_tank_power = max((power_map.get(ch, 0.0) for ch in tank_champions), default=None)
         if max_tank_power is not None:
             tank_quality_threshold = min(quality_threshold, max_tank_power)
+
+    logger.log(
+        f"quality thresholds: carry>={quality_threshold:.2f} tank>={tank_quality_threshold:.2f} eligible_traits={len(eligible_traits)}"
+    )
 
     def missing_required_one_of(team_set: Set[str]) -> int:
         if not required_one_of:
@@ -538,6 +579,9 @@ def solve_beam_search_bronze_with_emblems(
             seen.add(key)
 
             seeds.append((seed_team, seed_counts, seed_power))
+            logger.log(
+                f"seed vertical {trait}→{target}: team={sorted(seed_team)} slots_left={seed_slots_left} trait_count={seed_counts.get(trait)}"
+            )
 
         return seeds
 
@@ -588,6 +632,10 @@ def solve_beam_search_bronze_with_emblems(
         )
 
         initial_states.append((team, base_counts, team_power, sort_key, missing_one))
+        logger.log(
+            f"seed state: team={sorted(team)} bronze={bronze} active={active} upgraded={upgraded} "
+            f"quality={quality_score:.1f} missing_required={missing} missing_one_of={missing_one}"
+        )
 
     # ----------------------------
     # Beam search starting from forced/required team
@@ -603,6 +651,9 @@ def solve_beam_search_bronze_with_emblems(
 
     beam = sorted(initial_states, key=lambda x: x[3], reverse=True)[:beam_width]
 
+    logger.log(f"initial beam size={len(beam)} (width={beam_width})")
+
+    depth = 0
     while True:
         candidates = []
         progressed = False
@@ -689,8 +740,19 @@ def solve_beam_search_bronze_with_emblems(
         candidates.sort(key=lambda x: x[3], reverse=True)
         beam = candidates[:beam_width]
 
+        if beam:
+            top_team, top_counts, _, _, top_missing_one = beam[0]
+            top_bronze, top_active, top_upgraded = compute_bronze_active(
+                apply_emblem_starts(top_counts, choose_best_emblems(top_counts, top_missing_one, top_team))
+            )
+            logger.log(
+                f"depth {depth}: advanced to {len(beam)} states; best bronze={top_bronze} active={top_active} upgraded={top_upgraded} team={sorted(top_team)}"
+            )
+
         if not progressed:
             break
+
+        depth += 1
 
     if not beam:
         raise RuntimeError(
@@ -742,6 +804,9 @@ def solve_beam_search_bronze_with_emblems(
             raise RuntimeError("No team satisfies the must-include-one-of requirement under current constraints.")
 
     valid_states = [state for state in evaluated_states if state[5]]
+    logger.log(
+        f"final evaluation: {len(evaluated_states)} states scored, {len(valid_states)} valid (bronze>=6, quality tank/carry)"
+    )
     if not valid_states:
         raise RuntimeError(
             "Beam search produced teams, but none met the Bronze-for-Life validity gates (bronze>=6 with quality tank/carry)."
@@ -755,6 +820,12 @@ def solve_beam_search_bronze_with_emblems(
 
     counts, bronze_traits, active_traits, upgraded_traits, used_traits = classify_traits(
         best_team, champ_traits, trait_bps, eligible_traits, emblem_counts, trait_value_overrides
+    )
+
+    logger.log(
+        "selected team: "
+        f"{sorted(best_team)} bronze={len(bronze_traits)} active={len(active_traits)} upgraded={len(upgraded_traits)} "
+        f"emblems={emblem_counts} team_power={best_power:.2f}"
     )
 
     for t, min_count in required_traits_min.items():

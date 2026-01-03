@@ -135,6 +135,8 @@ def run_bfl(config: Config) -> Dict[str, object]:
             f"Not enough playable units after filtering: {len(champs)} (need {config.team_size})."
         )
 
+    decision_log: List[str] = []
+
     (
         team,
         emblem_counts,
@@ -165,6 +167,7 @@ def run_bfl(config: Config) -> Dict[str, object]:
         trait_value_overrides=SPECIAL_TRAIT_VALUE_OVERRIDES,
         must_include_one_of=tank_champion_filter if config.must_have_itemized_tank else None,
         seed_verticals=config.seed_verticals,
+        decision_log=decision_log,
     )
 
     trait_metatft: Dict[str, Dict[str, object]] = {}
@@ -227,5 +230,6 @@ def run_bfl(config: Config) -> Dict[str, object]:
             for c in team
         },
         "requirements": requirements,
+        "debug_log": decision_log,
     }
 
