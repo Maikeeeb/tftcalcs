@@ -157,6 +157,7 @@ def run_bfl(config: Config) -> Dict[str, object]:
         required_champions={k: v for k, v in config.required_champions.items() if v != 0},
         required_traits_min=config.required_traits_min,
         trait_stats=trait_stats if config.mode == "standard" else None,
+        tank_champions=tank_champions,
         mode=config.mode,
         trait_weights=(config.w_win, config.w_avg, config.w_freq),
         champ_slot_sizes=SPECIAL_CHAMPION_SLOT_SIZES,

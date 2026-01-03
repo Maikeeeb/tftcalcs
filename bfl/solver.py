@@ -118,6 +118,7 @@ def solve_beam_search_bronze_with_emblems(
     required_traits_min: Optional[Dict[str, int]] = None,
     forced_units: Optional[Iterable[str]] = None,
     trait_stats: Optional[Dict[str, List[TraitStat]]] = None,
+    tank_champions: Optional[Set[str]] = None,
     mode: str = "bronze",
     trait_weights: Tuple[float, float, float] | None = None,
     champ_slot_sizes: Optional[Dict[str, int]] = None,
@@ -152,6 +153,7 @@ def solve_beam_search_bronze_with_emblems(
     required_map = required_champions or {}
     slot_sizes = champ_slot_sizes or {}
     trait_value_overrides = trait_value_overrides or {}
+    tank_champions = tank_champions or set()
     banned_champs = {c for c, flag in required_map.items() if flag < 0}
     champs_set = set(champs)
     required_one_of = set(must_include_one_of or set())
@@ -211,7 +213,15 @@ def solve_beam_search_bronze_with_emblems(
     auto_candidates = sorted([t for t in eligible_traits if t not in hard_emblems])
 
     weights = trait_weights or (2.0, 1.0, 0.1)
-    use_trait_mode = mode == "standard" and bool(trait_stats)
+
+    # ----------------------------
+    # Quality unit heuristics
+    # ----------------------------
+    sorted_power = sorted(power_map.values(), reverse=True)
+    if sorted_power:
+        quality_threshold = sorted_power[min(6, len(sorted_power) - 1)]
+    else:
+        quality_threshold = 0.0
 
     def missing_required_one_of(team_set: Set[str]) -> int:
         if not required_one_of:
@@ -236,6 +246,76 @@ def solve_beam_search_bronze_with_emblems(
             )
         return score
 
+    def is_trait_active(counts_with_emblems: Dict[str, int], trait: str) -> bool:
+        bp = trait_bps.get(trait, [1])[0]
+        return counts_with_emblems.get(trait, 0) >= bp
+
+    def is_quality_unit(champ: str, counts_with_emblems: Dict[str, int]) -> bool:
+        power = power_map.get(champ, 0.0)
+        if power < quality_threshold:
+            return False
+        champ_traits_list = champ_traits.get(champ, [])
+        for trait in champ_traits_list:
+            contribution = trait_value_overrides.get(champ, {}).get(trait, 1)
+            if contribution <= 0:
+                continue
+            if is_trait_active(counts_with_emblems, trait):
+                return True
+        return False
+
+    def quality_summary(team: List[str], counts_with_emblems: Dict[str, int]) -> Tuple[int, int, float, bool]:
+        quality_tanks = 0
+        quality_carries = 0
+        quality_score = 0.0
+        quality_missing_trait = False
+
+        for champ in team:
+            power = power_map.get(champ, 0.0)
+            traits = champ_traits.get(champ, [])
+            activates_trait = any(
+                trait_value_overrides.get(champ, {}).get(trait, 1) > 0 and is_trait_active(counts_with_emblems, trait)
+                for trait in traits
+            )
+            if power >= quality_threshold and not activates_trait:
+                quality_missing_trait = True
+            if not is_quality_unit(champ, counts_with_emblems):
+                continue
+            quality_score += power
+            is_tank = champ in tank_champions if tank_champions else True
+            if is_tank:
+                quality_tanks += 1
+                if not tank_champions:
+                    quality_carries += 1
+            else:
+                quality_carries += 1
+
+        return quality_tanks, quality_carries, quality_score, quality_missing_trait
+
+    def bronze_penalty(team: List[str], counts_with_emblems: Dict[str, int]) -> float:
+        penalty = 0.0
+        for trait in eligible_traits:
+            bps = trait_bps[trait]
+            count = counts_with_emblems.get(trait, 0)
+            if count < bps[0]:
+                continue
+            if len(bps) > 1 and count >= bps[1]:
+                continue
+            units_with_trait = [champ for champ in team if trait in champ_traits.get(champ, [])]
+            if not units_with_trait:
+                continue
+            best_power = max(power_map.get(ch, 0.0) for ch in units_with_trait)
+            if best_power < quality_threshold:
+                penalty += 5.0
+        return penalty
+
+    def bronze_piecewise_score(bronze: int) -> float:
+        if bronze < 6:
+            return float("-inf")
+        if bronze >= 10:
+            return 225.0
+        mapping = {6: 100.0, 7: 160.0, 8: 200.0, 9: 215.0}
+        return mapping.get(bronze, 200.0)
+
     def compute_bronze_active(counts_with_emblems: Dict[str, int]) -> Tuple[int, int, int]:
         bronze = 0
         active = 0
@@ -257,27 +337,35 @@ def solve_beam_search_bronze_with_emblems(
         return bronze, active, upgraded
 
     def build_sort_key(
+        valid: bool,
         missing_required_one: int,
         missing_requirements: int,
         bronze: int,
+        bronze_score: float,
+        quality_score: float,
+        penalty: float,
         active: int,
         upgraded: int,
         power: float,
         trait_score: float,
     ) -> Tuple:
-        if use_trait_mode:
-            return (\
-                -missing_required_one,\
-                -missing_requirements,\
-                trait_score,\
-                active,\
-                bronze,\
-                -upgraded,\
-                power,\
-            )
-        return (-missing_required_one, -missing_requirements, bronze, active, -upgraded, power)
+        return (
+            1 if valid else 0,
+            -missing_required_one,
+            -missing_requirements,
+            bronze_score,
+            quality_score,
+            -penalty,
+            trait_score,
+            active,
+            bronze,
+            -upgraded,
+            power,
+        )
 
-    def choose_best_emblems(base_counts: Dict[str, int], missing_required_one: int) -> Dict[str, int]:
+    def choose_best_emblems(
+        base_counts: Dict[str, int], missing_required_one: int, team: Optional[List[str]] = None
+    ) -> Dict[str, int]:
         if max_emblems_total <= 0:
             return dict(hard_emblems)
 
@@ -288,8 +376,27 @@ def solve_beam_search_bronze_with_emblems(
             bronze, active, upgraded = compute_bronze_active(cnt2)
             missing_requirements = requirement_gap(required_traits_min, cnt2)
             trait_score = compute_trait_score(cnt2)
+            qt, qc, quality_score, missing_traits = quality_summary(team or [], cnt2)
+            penalty = bronze_penalty(team or [], cnt2)
+            bronze_score = bronze_piecewise_score(bronze)
+            valid = (
+                bronze_score != float("-inf")
+                and qt > 0
+                and qc > 0
+                and not missing_traits
+            )
             key = build_sort_key(
-                missing_required_one, missing_requirements, bronze, active, upgraded, 0.0, trait_score
+                valid,
+                missing_required_one,
+                missing_requirements,
+                bronze,
+                bronze_score,
+                quality_score,
+                penalty,
+                active,
+                upgraded,
+                0.0,
+                trait_score,
             )
             return bronze, active, upgraded, missing_requirements, key
 
@@ -317,16 +424,45 @@ def solve_beam_search_bronze_with_emblems(
         return chosen
 
     def score_state(
-        base_counts: Dict[str, int], missing_required_one: int
-    ) -> Tuple[int, int, int, int, Dict[str, int], float]:
-        emblem_counts = choose_best_emblems(base_counts, missing_required_one)
+        team: List[str], base_counts: Dict[str, int], missing_required_one: int
+    ) -> Tuple[
+        int,
+        int,
+        int,
+        int,
+        Dict[str, int],
+        float,
+        float,
+        float,
+        bool,
+        float,
+        int,
+        int,
+    ]:
+        emblem_counts = choose_best_emblems(base_counts, missing_required_one, team)
         cnt2 = apply_emblem_starts(base_counts, emblem_counts)
 
         bronze, active, upgraded = compute_bronze_active(cnt2)
         missing_requirements = requirement_gap(required_traits_min, cnt2)
         trait_score = compute_trait_score(cnt2)
+        quality_tanks, quality_carries, quality_score, missing_quality_trait = quality_summary(team, cnt2)
+        penalty = bronze_penalty(team, cnt2)
+        bronze_score = bronze_piecewise_score(bronze)
 
-        return bronze, active, upgraded, missing_requirements, emblem_counts, trait_score
+        return (
+            bronze,
+            active,
+            upgraded,
+            missing_requirements,
+            emblem_counts,
+            trait_score,
+            quality_score,
+            penalty,
+            missing_quality_trait,
+            bronze_score,
+            quality_tanks,
+            quality_carries,
+        )
 
     def generate_vertical_seeds() -> List[Tuple[List[str], Dict[str, int], float]]:
         seeds: List[Tuple[List[str], Dict[str, int], float]] = []
@@ -408,8 +544,38 @@ def solve_beam_search_bronze_with_emblems(
         if not feasibility_check(base_counts, choose_best_emblems, required_traits_min, remaining, missing_one):
             return
 
-        bronze, active, upgraded, missing, _, trait_score = score_state(base_counts, missing_one)
-        sort_key = build_sort_key(missing_one, missing, bronze, active, upgraded, team_power, trait_score)
+        bronze,
+        active,
+        upgraded,
+        missing,
+        _,
+        trait_score,
+        quality_score,
+        penalty,
+        missing_quality_trait,
+        bronze_score,
+        qt,
+        qc,
+    ) = score_state(team, base_counts, missing_one)
+
+        if bronze + remaining * 3 < 6:
+            return
+
+        bronze_key = bronze_score if bronze_score != float("-inf") else -1e9
+        valid = bronze_score != float("-inf") and qt > 0 and qc > 0 and not missing_quality_trait
+        sort_key = build_sort_key(
+            valid,
+            missing_one,
+            missing,
+            bronze,
+            bronze_key,
+            quality_score,
+            penalty,
+            active,
+            upgraded,
+            team_power,
+            trait_score,
+        )
 
         initial_states.append((team, base_counts, team_power, sort_key, missing_one))
 
@@ -470,10 +636,39 @@ def solve_beam_search_bronze_with_emblems(
                 ):
                     continue
 
-                bronze, active, upgraded, missing, _, trait_score = score_state(new_counts, new_missing_required_one)
+                (
+                    bronze,
+                    active,
+                    upgraded,
+                    missing,
+                    _,
+                    trait_score,
+                    quality_score,
+                    penalty,
+                    missing_quality_trait,
+                    bronze_score,
+                    qt,
+                    qc,
+                ) = score_state(new_team, new_counts, new_missing_required_one)
+
+                if bronze + new_remaining_slots * 3 < 6:
+                    continue
+
+                bronze_key = bronze_score if bronze_score != float("-inf") else -1e9
+                valid = bronze_score != float("-inf") and qt > 0 and qc > 0 and not missing_quality_trait
 
                 new_key = build_sort_key(
-                    new_missing_required_one, missing, bronze, active, upgraded, new_power, trait_score
+                    valid,
+                    new_missing_required_one,
+                    missing,
+                    bronze,
+                    bronze_key,
+                    quality_score,
+                    penalty,
+                    active,
+                    upgraded,
+                    new_power,
+                    trait_score,
                 )
                 candidates.append((new_team, new_counts, new_power, new_key, new_missing_required_one))
                 progressed = True
@@ -500,7 +695,7 @@ def solve_beam_search_bronze_with_emblems(
         final_candidates, key=lambda x: x[3]
     )
 
-    emblem_counts = choose_best_emblems(best_base_counts, best_missing_required_one)
+    emblem_counts = choose_best_emblems(best_base_counts, best_missing_required_one, best_team)
 
     counts, bronze_traits, active_traits, upgraded_traits, used_traits = classify_traits(
         best_team, champ_traits, trait_bps, eligible_traits, emblem_counts, trait_value_overrides
