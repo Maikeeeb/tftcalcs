@@ -1,7 +1,6 @@
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { Accordion, AccordionDetails, AccordionSummary, Box, Stack, Typography } from '@mui/material';
-import { ObjectFieldTemplateProps, getDefaultRegistry } from '@rjsf/utils';
-import { useMemo } from 'react';
+import { ObjectFieldTemplateProps } from '@rjsf/utils';
 
 const advancedFieldNames = new Set([
   'json_path',
@@ -12,7 +11,11 @@ const advancedFieldNames = new Set([
 ]);
 
 const RootObjectFieldTemplate = (props: ObjectFieldTemplateProps) => {
-  const registry = useMemo(() => props.registry ?? getDefaultRegistry(), [props.registry]);
+  if (!props.registry) {
+    return null;
+  }
+
+  const { registry } = props;
   const DefaultObjectFieldTemplate = registry.templates.ObjectFieldTemplate;
 
   if (props.idSchema.$id !== 'root') {
