@@ -25,6 +25,7 @@ import MappingField from './components/MappingField';
 import ResultsSection from './components/ResultsSection';
 import Loader from './components/Loader';
 import DebugLogCard from './components/DebugLogCard';
+import RootObjectFieldTemplate from './components/RootObjectFieldTemplate';
 import { AppProps, ConfigData, SolverResponse } from './types';
 import championCosts from './data/champion_costs.json';
 import unlockableChampions from './data/unlockable_champions.json';
@@ -140,6 +141,7 @@ function App({ mode, onToggleColorMode }: AppProps) {
           );
         },
       },
+      ObjectFieldTemplate: RootObjectFieldTemplate,
     }),
     [runMutation.isPending],
   );
