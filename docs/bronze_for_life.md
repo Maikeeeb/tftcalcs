@@ -7,8 +7,8 @@ This document summarizes how Bronze-for-Life now evaluates teams and emblems aft
 A state is considered valid only if **all** of the following are met:
 
 - At least **6 bronze traits** can be achieved (states that cannot reach 6 given remaining slots are pruned).
-- At least **one quality tank** and **one quality carry** are present (quality is power-based and requires at least one active trait).
-- No quality unit is "traitless"—any unit above the quality threshold must activate at least one of its traits.
+- At least **one quality tank** and **one quality carry** are present (quality is power-based and normally requires an active trait).
+- Traitless champions (no eligible traits) may count as quality tanks/carries based on power alone; champions that *have* eligible traits still need at least one active trait.
 - Required-one-of and required trait minimums remain satisfied/feasible.
 
 Invalid states stay in the beam only as low-priority expansions; any valid state outranks invalid ones.

@@ -17,3 +17,7 @@ left with a smaller pool of units that can supply eligible traits. Because the
 objective maximizes eligible bronze traits first, any lineup dominated by
 ineligible traits (like Ryze’s) is pruned during the search, which is why no
 board is found for the provided settings.
+
+Recent changes allow traitless units to qualify as quality tanks/carries based
+on power alone, but they still do not contribute bronze traits. If the remaining
+playable pool cannot hit six bronze traits, the search will continue to fail.

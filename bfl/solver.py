@@ -313,14 +313,21 @@ def solve_beam_search_bronze_with_emblems(
         threshold = tank_quality_threshold if champ in tank_champions else quality_threshold
         if power < threshold:
             return False
+
         champ_traits_list = champ_traits.get(champ, [])
-        for trait in champ_traits_list:
-            contribution = trait_value_overrides.get(champ, {}).get(trait, 1)
-            if contribution <= 0:
-                continue
-            if is_trait_active(counts_with_emblems, trait):
-                return True
-        return False
+        positive_traits = [
+            trait
+            for trait in champ_traits_list
+            if trait_value_overrides.get(champ, {}).get(trait, 1) > 0
+        ]
+
+        # Allow completely traitless champions (e.g., Ryze) to qualify as quality
+        # tanks/carries based solely on power. Units that *have* traits must still
+        # activate at least one of them.
+        if not positive_traits:
+            return True
+
+        return any(is_trait_active(counts_with_emblems, trait) for trait in positive_traits)
 
     def quality_summary(team: List[str], counts_with_emblems: Dict[str, int]) -> Tuple[int, int, float, bool]:
         quality_tanks = 0
@@ -331,12 +338,14 @@ def solve_beam_search_bronze_with_emblems(
         for champ in team:
             power = power_map.get(champ, 0.0)
             traits = champ_traits.get(champ, [])
-            activates_trait = any(
-                trait_value_overrides.get(champ, {}).get(trait, 1) > 0 and is_trait_active(counts_with_emblems, trait)
+            positive_traits = [
+                trait
                 for trait in traits
-            )
+                if trait_value_overrides.get(champ, {}).get(trait, 1) > 0
+            ]
+            activates_trait = any(is_trait_active(counts_with_emblems, trait) for trait in positive_traits)
             threshold = tank_quality_threshold if champ in tank_champions else quality_threshold
-            if power >= threshold and not activates_trait:
+            if power >= threshold and positive_traits and not activates_trait:
                 quality_missing_trait = True
             if not is_quality_unit(champ, counts_with_emblems):
                 continue
