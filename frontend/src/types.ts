@@ -8,7 +8,7 @@ export type AppProps = {
 };
 
 export type SolverResponse = {
-  context: Record<string, unknown> & { mode?: 'bronze' | 'standard' };
+  context: Record<string, unknown> & { mode?: 'bronze' | 'standard' | 'ryze' };
   debug_log?: string[];
   meta: {
     enabled: boolean;

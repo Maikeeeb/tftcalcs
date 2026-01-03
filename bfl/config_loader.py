@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Dict, Iterable, Mapping, Set
 
-from bfl.config import Config, default_config
+from bfl.config import Config, RYZE_API_NAME, default_config
 from bfl.champion_registry import list_playable_champions
 
 
@@ -61,6 +61,33 @@ def _validate_required_champions(config: Config, champions: Iterable[str]) -> No
         raise ConfigError(f"Required champions not found in set data: {sorted(unknown_champs)}")
 
 
+def apply_ryze_mode_defaults(
+    mode: str,
+    required_champions: Dict[str, int],
+    *,
+    required_payload: Mapping | None,
+    team_size: int,
+    team_size_provided: bool,
+) -> int:
+    """Adjust defaults for Ryze-centric mode without mutating other modes.
+
+    The Ryze mode expects Ryze to be required by default and assumes a level-9
+    board size unless the user overrides those values explicitly.
+    """
+
+    if mode != "ryze":
+        return team_size
+
+    if not team_size_provided:
+        team_size = 9
+
+    ryze_overridden = required_payload is not None and RYZE_API_NAME in required_payload
+    if not ryze_overridden:
+        required_champions[RYZE_API_NAME] = 1
+
+    return team_size
+
+
 def load_config(path: str | None) -> Config:
     """Load configuration from JSON or return defaults when ``path`` is ``None``.
 
@@ -85,7 +112,9 @@ def load_config(path: str | None) -> Config:
     metatft_txt_path = Path(data.get("metatft_txt_path", base.metatft_txt_path)).expanduser()
     metatft_traits_path = Path(data.get("metatft_traits_path", base.metatft_traits_path)).expanduser()
 
-    team_size = _validate_int("team_size", data.get("team_size", base.team_size), allow_negative=False)
+    team_size_input = data.get("team_size", base.team_size)
+    team_size_provided = "team_size" in data
+    team_size = _validate_int("team_size", team_size_input, allow_negative=False)
     beam_width = _validate_int("beam_width", data.get("beam_width", base.beam_width), allow_negative=False)
     max_emblems_total = _validate_int(
         "max_emblems_total", data.get("max_emblems_total", base.max_emblems_total), allow_negative=False
@@ -103,8 +132,9 @@ def load_config(path: str | None) -> Config:
         name="emblem_start_counts",
         allow_negative=False,
     )
+    required_champions_raw = data.get("required_champions")
     required_champions = _load_int_map(
-        data.get("required_champions"),
+        required_champions_raw,
         base.required_champions,
         name="required_champions",
         allowed_values={-1, 0, 1},
@@ -127,8 +157,16 @@ def load_config(path: str | None) -> Config:
 
     set_id = str(data.get("set_id", base.set_id))
     mode = str(data.get("mode", base.mode))
-    if mode not in {"bronze", "standard"}:
-        raise ConfigError(f"mode must be 'bronze' or 'standard' (got {mode}).")
+    if mode not in {"bronze", "standard", "ryze"}:
+        raise ConfigError(f"mode must be 'bronze', 'standard', or 'ryze' (got {mode}).")
+
+    team_size = apply_ryze_mode_defaults(
+        mode,
+        required_champions,
+        required_payload=required_champions_raw if required_champions_raw is not None else None,
+        team_size=team_size,
+        team_size_provided=team_size_provided,
+    )
 
     must_have_itemized_tank = _validate_bool(
         "must_have_itemized_tank", data.get("must_have_itemized_tank", base.must_have_itemized_tank)

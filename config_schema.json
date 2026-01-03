@@ -82,8 +82,8 @@
     },
     "mode": {
       "type": "string",
-      "enum": ["bronze", "standard"],
-      "description": "Bronze for Life (bronze) or MetaTFT trait-first (standard) mode."
+      "enum": ["bronze", "standard", "ryze"],
+      "description": "Bronze for Life (bronze), MetaTFT trait-first (standard), or region-trait-focused Ryze mode."
     },
     "must_have_itemized_tank": {
       "type": "boolean",

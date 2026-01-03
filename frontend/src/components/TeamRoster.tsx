@@ -34,6 +34,8 @@ function TeamRoster({ response, mustHaveItemizedTank }: { response: SolverRespon
   const teamPlannerCode = useMemo(() => buildTeamPlannerCode(solution.team), [solution.team]);
   const traitCounts = solution.trait_counts ?? {};
   const traitMetatft = solution.trait_metatft ?? {};
+  const mode = (response.context.mode as 'bronze' | 'standard' | 'ryze' | undefined) ?? 'bronze';
+  const traitLabel = mode === 'ryze' ? 'Region traits' : 'Bronze traits';
 
   useEffect(() => {
     setCopyStatus('idle');
@@ -231,11 +233,11 @@ function TeamRoster({ response, mustHaveItemizedTank }: { response: SolverRespon
   const missingItemsList = Array.from(missingItemImages);
 
   return (
-    <Card>
-      <CardHeader
-        title="Team"
-        subheader={`Team power: ${solution.team_power.toFixed(2)} • Bronze traits: ${solution.bronze_count}`}
-      />
+      <Card>
+        <CardHeader
+          title="Team"
+          subheader={`Team power: ${solution.team_power.toFixed(2)} • ${traitLabel}: ${solution.bronze_count}`}
+        />
       <CardContent>
         <Stack spacing={2}>
           <Box>

@@ -248,6 +248,7 @@ def solve_beam_search_bronze_with_emblems(
     # Emblem helpers
     # ----------------------------
     auto_candidates = sorted([t for t in eligible_traits if t not in hard_emblems])
+    bronze_threshold = max(1, min(6, len(eligible_traits)))
 
     weights = trait_weights or (2.0, 1.0, 0.1)
 
@@ -380,8 +381,8 @@ def solve_beam_search_bronze_with_emblems(
         return penalty
 
     def bronze_piecewise_score(bronze: int) -> float:
-        if bronze < 6:
-            return -(6 - bronze) * 50.0
+        if bronze < bronze_threshold:
+            return -(bronze_threshold - bronze) * 50.0
         if bronze >= 10:
             return 225.0
         mapping = {6: 100.0, 7: 160.0, 8: 200.0, 9: 215.0}
@@ -450,7 +451,7 @@ def solve_beam_search_bronze_with_emblems(
             qt, qc, quality_score, missing_traits = quality_summary(team or [], cnt2)
             penalty = bronze_penalty(team or [], cnt2)
             bronze_score = bronze_piecewise_score(bronze)
-            valid = bronze >= 6 and qt > 0 and qc > 0 and not missing_traits
+            valid = bronze >= bronze_threshold and qt > 0 and qc > 0 and not missing_traits
             key = build_sort_key(
                 valid,
                 missing_required_one,
@@ -628,11 +629,11 @@ def solve_beam_search_bronze_with_emblems(
             qc,
         ) = score_state(team, base_counts, missing_one)
 
-        if bronze + remaining * 3 < 6:
+        if bronze_threshold >= 6 and bronze + remaining * 3 < bronze_threshold:
             return
 
         bronze_key = bronze_score
-        valid = bronze >= 6 and qt > 0 and qc > 0 and not missing_quality_trait
+        valid = bronze >= bronze_threshold and qt > 0 and qc > 0 and not missing_quality_trait
         sort_key = build_sort_key(
             valid,
             missing_one,
@@ -728,11 +729,11 @@ def solve_beam_search_bronze_with_emblems(
                     qc,
                 ) = score_state(new_team, new_counts, new_missing_required_one)
 
-                if bronze + new_remaining_slots * 3 < 6:
+                if bronze_threshold >= 6 and bronze + new_remaining_slots * 3 < bronze_threshold:
                     continue
 
                 bronze_key = bronze_score
-                valid = bronze >= 6 and qt > 0 and qc > 0 and not missing_quality_trait
+                valid = bronze >= bronze_threshold and qt > 0 and qc > 0 and not missing_quality_trait
 
                 new_key = build_sort_key(
                     valid,
@@ -792,11 +793,11 @@ def solve_beam_search_bronze_with_emblems(
             qc,
         ) = score_state(team, base_counts, missing_required_one)
 
-        if bronze + (team_size - _team_slots(team, slot_sizes)) * 3 < 6:
+        if bronze_threshold >= 6 and bronze + (team_size - _team_slots(team, slot_sizes)) * 3 < bronze_threshold:
             continue
 
         bronze_key = bronze_score
-        valid = bronze >= 6 and qt > 0 and qc > 0 and not missing_quality_trait
+        valid = bronze >= bronze_threshold and qt > 0 and qc > 0 and not missing_quality_trait
 
         new_key = build_sort_key(
             valid,
@@ -821,11 +822,17 @@ def solve_beam_search_bronze_with_emblems(
 
     valid_states = [state for state in evaluated_states if state[5]]
     logger.log(
-        f"final evaluation: {len(evaluated_states)} states scored, {len(valid_states)} valid (bronze>=6, quality tank/carry)"
+        f"final evaluation: {len(evaluated_states)} states scored, {len(valid_states)} valid (bronze>={bronze_threshold}, quality tank/carry)"
     )
+    if not valid_states and evaluated_states:
+        fallback_state = max(evaluated_states, key=lambda x: x[3])
+        logger.log(
+            "No teams met the bronze threshold; returning the best available candidate below the target instead."
+        )
+        valid_states = [fallback_state]
     if not valid_states:
         raise RuntimeError(
-            "Beam search produced teams, but none met the Bronze-for-Life validity gates (bronze>=6 with quality tank/carry)."
+            "Beam search produced teams, but none met the Bronze-for-Life validity gates (bronze>=threshold with quality tank/carry)."
         )
 
     best_team, best_base_counts, best_power, _best_key, best_missing_required_one, _ = max(

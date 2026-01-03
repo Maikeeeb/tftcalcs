@@ -40,20 +40,23 @@ function TraitsPanel({
   );
 }
 
-function TraitsSummary({ response }: { response: SolverResponse }) {
-  const { solution } = response;
-  const traitMetatft = solution.trait_metatft ?? {};
-  const traitCountEntries = Object.entries(solution.trait_counts).filter(([, count]) => count > 0);
-  const emblemEntries = Object.entries(solution.emblems).filter(([, count]) => count > 0);
-  return (
-    <Card>
-      <CardHeader title="Traits" subheader="Bronze, active, upgraded, and counts" />
-      <CardContent>
-        <Stack spacing={3}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <TraitsPanel title="Bronze traits" traits={solution.bronze_traits} color="warning" />
-            </Grid>
+  function TraitsSummary({ response }: { response: SolverResponse }) {
+    const { solution } = response;
+    const mode = response.context.mode as 'bronze' | 'standard' | 'ryze' | undefined;
+    const bronzeTitle = mode === 'ryze' ? 'Region traits' : 'Bronze traits';
+    const subheader = mode === 'ryze' ? 'Region, active, upgraded, and counts' : 'Bronze, active, upgraded, and counts';
+    const traitMetatft = solution.trait_metatft ?? {};
+    const traitCountEntries = Object.entries(solution.trait_counts).filter(([, count]) => count > 0);
+    const emblemEntries = Object.entries(solution.emblems).filter(([, count]) => count > 0);
+    return (
+      <Card>
+        <CardHeader title="Traits" subheader={subheader} />
+        <CardContent>
+          <Stack spacing={3}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <TraitsPanel title={bronzeTitle} traits={solution.bronze_traits} color="warning" />
+              </Grid>
             <Grid item xs={12} md={4}>
               <TraitsPanel title="Active traits" traits={solution.active_traits} color="success" />
             </Grid>

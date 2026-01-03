@@ -44,6 +44,22 @@ class SolverRunError extends Error {
 }
 
 const API_BASE = 'http://localhost:8000';
+const RYZE_API_NAME = 'TFT16_Ryze';
+const REGION_TRAITS = [
+  'Bilgewater',
+  'Demacia',
+  'Freljord',
+  'Ionia',
+  'Ixtal',
+  'Noxus',
+  'Piltover',
+  'Shadow Isles',
+  'Shurima',
+  'Targon',
+  'Void',
+  'Yordle',
+  'Zaun',
+] as const;
 
 const fetchJson = async <T,>(path: string): Promise<T> => {
   const res = await fetch(`${API_BASE}${path}`);
@@ -53,9 +69,28 @@ const fetchJson = async <T,>(path: string): Promise<T> => {
   return (await res.json()) as T;
 };
 
+const asNumber = (value: unknown): number | undefined => (typeof value === 'number' ? value : undefined);
+const asRecord = (value: unknown): Record<string, number> | undefined =>
+  value && typeof value === 'object' ? (value as Record<string, number>) : undefined;
+
+const applyRyzeDefaultsToFormData = (data?: ConfigData): ConfigData => {
+  const baseData: ConfigData = { ...(data ?? {}) };
+  const required = { ...(asRecord(data?.required_champions) ?? {}) };
+
+  if (!(RYZE_API_NAME in required)) {
+    required[RYZE_API_NAME] = 1;
+  }
+
+  baseData.required_champions = required;
+  baseData.team_size = asNumber(data?.team_size) ?? 9;
+  baseData.mode = 'ryze';
+
+  return baseData;
+};
+
 function App({ mode, onToggleColorMode }: AppProps) {
   const [formData, setFormData] = useState<ConfigData | undefined>();
-  const [activeMode, setActiveMode] = useState<'bronze' | 'standard'>('bronze');
+  const [activeMode, setActiveMode] = useState<'bronze' | 'standard' | 'ryze'>('bronze');
   const [mustHaveItemizedTank, setMustHaveItemizedTank] = useState(true);
   const formRef = useRef<CoreForm<any, any, any> | null>(null);
 
@@ -65,21 +100,31 @@ function App({ mode, onToggleColorMode }: AppProps) {
   useEffect(() => {
     if (configQuery.data) {
       const modeFromConfig =
-        configQuery.data.mode === 'standard' || configQuery.data.mode === 'bronze'
-          ? (configQuery.data.mode as 'bronze' | 'standard')
+        configQuery.data.mode === 'standard' || configQuery.data.mode === 'bronze' || configQuery.data.mode === 'ryze'
+          ? (configQuery.data.mode as 'bronze' | 'standard' | 'ryze')
           : 'bronze';
       const mustHaveTankFromConfig =
         typeof configQuery.data.must_have_itemized_tank === 'boolean'
           ? (configQuery.data.must_have_itemized_tank as boolean)
           : true;
+      let nextFormData: ConfigData = {
+        ...configQuery.data,
+        mode: modeFromConfig,
+        must_have_itemized_tank: mustHaveTankFromConfig,
+      };
+
+      if (modeFromConfig === 'ryze') {
+        nextFormData = applyRyzeDefaultsToFormData(nextFormData);
+      }
+
       setActiveMode(modeFromConfig);
       setMustHaveItemizedTank(mustHaveTankFromConfig);
-      setFormData({ ...configQuery.data, mode: modeFromConfig, must_have_itemized_tank: mustHaveTankFromConfig });
+      setFormData(nextFormData);
     }
   }, [configQuery.data]);
 
   useEffect(() => {
-    if (formData?.mode === 'standard' || formData?.mode === 'bronze') {
+    if (formData?.mode === 'standard' || formData?.mode === 'bronze' || formData?.mode === 'ryze') {
       setActiveMode(formData.mode);
     }
   }, [formData?.mode]);
@@ -195,9 +240,14 @@ function App({ mode, onToggleColorMode }: AppProps) {
     [],
   );
 
-  const handleModeToggle = (_: MouseEvent<HTMLElement>, value: 'bronze' | 'standard' | null) => {
+  const handleModeToggle = (_: MouseEvent<HTMLElement>, value: 'bronze' | 'standard' | 'ryze' | null) => {
     if (!value) return;
     setActiveMode(value);
+    if (value === 'ryze') {
+      setFormData((prev) => applyRyzeDefaultsToFormData(prev));
+      return;
+    }
+
     setFormData((prev) => ({ ...(prev ?? {}), mode: value }));
   };
 
@@ -219,7 +269,7 @@ function App({ mode, onToggleColorMode }: AppProps) {
         >
           <Box>
             <Typography variant="h4" gutterBottom>
-              {activeMode === 'standard' ? 'Standard mode' : 'Bronze for Life'} UI
+              {activeMode === 'standard' ? 'Standard mode' : activeMode === 'ryze' ? 'Ryze mode' : 'Bronze for Life'} UI
             </Typography>
             <Typography variant="body1" color="text.secondary" paragraph>
               Edit the solver configuration via JSON Schema, then run the solver to view the resulting team, traits, and
@@ -237,9 +287,16 @@ function App({ mode, onToggleColorMode }: AppProps) {
                 size="small"
               >
                 <ToggleButton value="bronze">Bronze for Life</ToggleButton>
+                <ToggleButton value="ryze">Ryze (region traits)</ToggleButton>
                 <ToggleButton value="standard">Standard</ToggleButton>
               </ToggleButtonGroup>
             </Stack>
+            {activeMode === 'ryze' ? (
+              <Alert severity="info" sx={{ mt: 1 }}>
+                Ryze mode counts only origin traits ({REGION_TRAITS.join(', ')}). Ryze is required by default and boards use a
+                level 9 team size unless overridden.
+              </Alert>
+            ) : null}
           </Box>
           <FormControlLabel
             control={<Switch checked={mode === 'dark'} onChange={onToggleColorMode} />}

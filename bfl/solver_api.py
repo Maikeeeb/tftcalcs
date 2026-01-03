@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Mapping, Set
 
 from bfl.config import Config, REPO_ROOT
 from bfl.config_loader import DEFAULT_CONFIG_FILENAME, load_config, validate_config_against_data
@@ -30,6 +30,7 @@ __all__ = [
     "metatft_to_trait_stats",
     "normalize_name",
     "parse_metatft_units",
+    "region_trait_pool",
     "solve_beam_search_bronze_with_emblems",
     "unit_power",
     "trait_power",
@@ -51,6 +52,21 @@ BARON_API_NAME = "TFT16_BaronNashor"
 
 SPECIAL_CHAMPION_SLOT_SIZES = {BARON_API_NAME: 2}
 SPECIAL_TRAIT_VALUE_OVERRIDES = {BARON_API_NAME: {"Void": 2}}
+REGION_TRAITS = (
+    "Bilgewater",
+    "Demacia",
+    "Freljord",
+    "Ionia",
+    "Ixtal",
+    "Noxus",
+    "Piltover",
+    "Shadow Isles",
+    "Shurima",
+    "Targon",
+    "Void",
+    "Yordle",
+    "Zaun",
+)
 
 
 def _resolve_config(config: Config | None, config_path: str | None) -> Config:
@@ -62,6 +78,12 @@ def _resolve_config(config: Config | None, config_path: str | None) -> Config:
         return load_config(str(default_path))
 
     return load_config(None)
+
+
+def region_trait_pool(trait_breakpoints: Mapping[str, object]) -> Set[str]:
+    """Return traits that represent regions and exist in the current set."""
+
+    return {trait for trait in REGION_TRAITS if trait in trait_breakpoints}
 
 
 def _build_requirement_details(
@@ -151,20 +173,27 @@ def run_bfl(config: Config) -> Dict[str, object]:
                 f"Not enough playable units after filtering: {len(champs)} (need {config.team_size})."
             )
 
-        context_details.update(
-            {
-                "champion_count": len(champs),
-                "trait_breakpoint_count": len(trait_bps),
-                "blacklist_traits": sorted(config.blacklist_traits_by_name),
-                "eligible_traits": sorted(eligible_traits),
-                "emblem_start_counts": config.emblem_start_counts,
-                "max_emblems_total": config.max_emblems_total,
-                "mode": config.mode,
-                "seed_verticals": config.seed_verticals,
-                "must_have_itemized_tank": config.must_have_itemized_tank,
-                "tank_candidates": sorted(tank_champions),
-            }
-        )
+        ryze_region_traits = None
+        if config.mode == "ryze":
+            ryze_region_traits = region_trait_pool(trait_bps)
+            eligible_traits = ryze_region_traits
+
+        context_payload: Dict[str, object] = {
+            "champion_count": len(champs),
+            "trait_breakpoint_count": len(trait_bps),
+            "blacklist_traits": sorted(config.blacklist_traits_by_name),
+            "eligible_traits": sorted(eligible_traits),
+            "emblem_start_counts": config.emblem_start_counts,
+            "max_emblems_total": config.max_emblems_total,
+            "mode": config.mode,
+            "seed_verticals": config.seed_verticals,
+            "must_have_itemized_tank": config.must_have_itemized_tank,
+            "tank_candidates": sorted(tank_champions),
+        }
+        if ryze_region_traits is not None:
+            context_payload["region_traits"] = sorted(ryze_region_traits)
+
+        context_details.update(context_payload)
 
         (
             team,

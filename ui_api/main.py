@@ -16,6 +16,7 @@ from bfl.config_loader import (
     ConfigError,
     _load_int_map,
     _validate_int,
+    apply_ryze_mode_defaults,
     _validate_required_champions,
     default_config,
     load_config,
@@ -41,7 +42,9 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
     json_path = Path(payload.get("json_path", base.json_path)).expanduser()
     metatft_txt_path = Path(payload.get("metatft_txt_path", base.metatft_txt_path)).expanduser()
     metatft_traits_path = Path(payload.get("metatft_traits_path", base.metatft_traits_path)).expanduser()
-    team_size = _validate_int("team_size", payload.get("team_size", base.team_size), allow_negative=False)
+    team_size_input = payload.get("team_size", base.team_size)
+    team_size_provided = "team_size" in payload
+    team_size = _validate_int("team_size", team_size_input, allow_negative=False)
     beam_width = _validate_int("beam_width", payload.get("beam_width", base.beam_width), allow_negative=False)
     max_emblems_total = _validate_int(
         "max_emblems_total", payload.get("max_emblems_total", base.max_emblems_total), allow_negative=False
@@ -56,8 +59,9 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
     emblem_start_counts = _load_int_map(
         payload.get("emblem_start_counts"), base.emblem_start_counts, name="emblem_start_counts", allow_negative=False
     )
+    required_champions_raw = payload.get("required_champions")
     required_champions = _load_int_map(
-        payload.get("required_champions"),
+        required_champions_raw,
         base.required_champions,
         name="required_champions",
         allowed_values={-1, 0, 1},
@@ -80,12 +84,20 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
 
     set_id = str(payload.get("set_id", base.set_id))
     mode = str(payload.get("mode", base.mode))
-    if mode not in {"bronze", "standard"}:
-        raise ConfigError("mode must be 'bronze' or 'standard'.")
+    if mode not in {"bronze", "standard", "ryze"}:
+        raise ConfigError("mode must be 'bronze', 'standard', or 'ryze'.")
 
     must_have_itemized_tank = payload.get("must_have_itemized_tank", base.must_have_itemized_tank)
     if not isinstance(must_have_itemized_tank, bool):
         raise ConfigError("must_have_itemized_tank must be a boolean.")
+
+    team_size = apply_ryze_mode_defaults(
+        mode,
+        required_champions,
+        required_payload=required_champions_raw if required_champions_raw is not None else None,
+        team_size=team_size,
+        team_size_provided=team_size_provided,
+    )
 
     config = Config(
         json_path=json_path,

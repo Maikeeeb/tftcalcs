@@ -9,6 +9,7 @@ PACKAGE_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = PACKAGE_ROOT.parent
 UNLOCKABLE_CHAMPIONS_PATH = REPO_ROOT / "frontend" / "src" / "data" / "unlockable_champions.json"
 UNLOCKABLE_CHAMPIONS = tuple(json.loads(UNLOCKABLE_CHAMPIONS_PATH.read_text(encoding="utf-8")))
+RYZE_API_NAME = "TFT16_Ryze"
 
 
 # Traits that should NEVER count for Bronze for Life even if active.

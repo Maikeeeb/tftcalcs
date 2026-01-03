@@ -3,7 +3,7 @@ from dataclasses import replace
 
 import pytest
 
-from bfl.config import default_config
+from bfl.config import RYZE_API_NAME, default_config
 from bfl.config_loader import ConfigError, load_config, validate_config_against_data
 from bfl.set_loader import load_set_data
 
@@ -40,6 +40,26 @@ def test_load_config_rejects_non_iterable_blacklist(tmp_path):
 
     with pytest.raises(ConfigError):
         load_config(str(cfg_path))
+
+
+def test_ryze_mode_defaults_to_required_ryze_and_level_9(tmp_path):
+    cfg_path = tmp_path / "cfg.json"
+    cfg_path.write_text(json.dumps({"mode": "ryze"}))
+
+    cfg = load_config(str(cfg_path))
+
+    assert cfg.team_size == 9
+    assert cfg.required_champions[RYZE_API_NAME] == 1
+
+
+def test_ryze_mode_respects_explicit_overrides(tmp_path):
+    cfg_path = tmp_path / "cfg.json"
+    cfg_path.write_text(json.dumps({"mode": "ryze", "team_size": 8, "required_champions": {RYZE_API_NAME: 0}}))
+
+    cfg = load_config(str(cfg_path))
+
+    assert cfg.team_size == 8
+    assert cfg.required_champions[RYZE_API_NAME] == 0
 
 
 def test_validate_config_against_data_flags_invalid_entries():

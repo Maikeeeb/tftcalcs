@@ -40,10 +40,10 @@ const schema = {
       type: 'object',
       additionalProperties: { type: 'integer' },
     },
-    mode: {
-      type: 'string',
-      enum: ['bronze', 'standard'],
-    },
+  mode: {
+    type: 'string',
+    enum: ['bronze', 'standard', 'ryze'],
+  },
     must_have_itemized_tank: { type: 'boolean' },
   },
 };

@@ -33,6 +33,8 @@ def main(config: Config | None = None, config_path: str | None = None):
     result = run_bfl(cfg)
 
     context = result["context"]
+    mode = context.get("mode", "bronze")
+    region_traits = context.get("region_traits")
     meta = result["meta"]
     solution = result["solution"]
     units = result["units"]
@@ -44,7 +46,14 @@ def main(config: Config | None = None, config_path: str | None = None):
     print(f"Loaded set {context['set_id']}: {context['champion_count']} real units after filtering")
     print(f"Traits with breakpoints: {context['trait_breakpoint_count']}")
     print(f"Blacklisted traits (never count): {context['blacklist_traits']}")
-    print(f"Eligible traits for Bronze for Life: {len(context['eligible_traits'])}")
+    eligible_label = "Eligible traits"
+    if mode == "bronze":
+        eligible_label = "Eligible traits for Bronze for Life"
+    elif mode == "ryze":
+        eligible_label = "Eligible region traits"
+    print(f"{eligible_label}: {len(context['eligible_traits'])}")
+    if mode == "ryze" and region_traits:
+        print(f"Region traits counted toward Ryze's bonus: {sorted(region_traits)}")
     print(f"TEAM_SIZE={context['team_size']}")
     print(f"Hard emblems: {context['emblem_start_counts']}")
     print(f"Auto-emblems allowed (total): {context['max_emblems_total']}")
@@ -66,7 +75,10 @@ def main(config: Config | None = None, config_path: str | None = None):
         )
     else:
         print("MetaTFT weighting disabled (METATFT_PASTE is empty).")
-    print("Optimizing for MAX bronze-active eligible traits...\n")
+    if mode == "ryze":
+        print("Optimizing for MAX active region traits (Ryze mode)...\n")
+    else:
+        print("Optimizing for MAX bronze-active eligible traits...\n")
 
     team = solution["team"]
     emblem_counts = solution["emblems"]
@@ -75,7 +87,12 @@ def main(config: Config | None = None, config_path: str | None = None):
     upgraded_traits = solution["upgraded_traits"]
     used_traits = solution["used_traits"]
 
-    print("=== Result (Bronze for Life + Emblems + Unit Strength) ===")
+    result_title = "Bronze for Life + Emblems + Unit Strength"
+    if mode == "standard":
+        result_title = "Standard mode result (MetaTFT trait focus)"
+    elif mode == "ryze":
+        result_title = "Ryze mode result (region traits prioritized)"
+    print(f"=== Result ({result_title}) ===")
     print(f"Bronze-active eligible trait count: {solution['bronze_count']}")
     if emblem_counts:
         print(f"Emblem starting counts used: {emblem_counts}")

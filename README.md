@@ -8,6 +8,7 @@
 - Integrates MetaTFT stats (win rate, average placement, frequency) as a tie-breaker to prefer stronger lineups.
 - Provides normalization and parsing helpers for MetaTFT unit data, including power calculations for each champion.
 - Includes a command-line entry point (`bfl.bronze_for_life:main`) that prints optimized teams and trait summaries.
+- Adds a Ryze-focused mode that counts only origin/region traits and requires Ryze by default on level 9 boards.
 
 
 ## Tutorial: building Bronze for Life teams
@@ -30,6 +31,17 @@ It reuses the official set data (`en_us.json`) and MetaTFT paste (if present) to
 2. **Two fixed emblems** – hard-code Zaun and Vanquisher emblems to see how the team shifts.
 3. **Auto-select emblems** – let the solver choose up to two emblems to maximize bronze activations.
 4. **Forced units** – lock in units (e.g., `TFT16_Tristana`, `TFT16_Lulu`) while still optimizing the rest of the team.
+
+### Ryze mode (region traits only)
+Ryze's "realm warp" scales with the number of active regions. Enable the Ryze mode by setting `"mode": "ryze"` in your config
+or via the UI toggle. The solver will:
+
+- Treat only the following origin traits as eligible: Bilgewater, Demacia, Freljord, Ionia, Ixtal, Noxus, Piltover, Shadow Isles,
+  Shurima, Targon, Void, Yordle, Zaun.
+- Default to `team_size = 9` (Ryze unlocks at level 9) unless you override it explicitly.
+- Require `TFT16_Ryze` by default unless you explicitly set a different rule for him in `required_champions`.
+
+Bronze-for-Life and Standard modes are unchanged; the Ryze constraints only apply when you select the new mode.
 
 ### Rolling your own setup
 The tutorial script is a good template: it loads set data, builds the MetaTFT power map, and calls `solve_beam_search_bronze_with_emblems` with custom emblem inputs. Modify the `hard_emblems` map or `max_auto_emblems` value to model your own items, or pass `forced_units` (see `bfl/solver.py`) if you need specific champions locked in.
