@@ -38,14 +38,23 @@ def is_tank_item_build(items: Iterable[str] | None) -> bool:
     return _count_tank_items(items) >= (len(items) + 1) // 2
 
 
-def classify_tank_champions(unit_stats: Dict[str, Dict[str, float | List[str]]]) -> Set[str]:
-    """Return champions whose popular items are primarily tank items."""
+def classify_tank_champions(
+    unit_stats: Dict[str, Dict[str, float | List[str]]],
+    champ_cost: Dict[str, int] | None = None,
+) -> Set[str]:
+    """Return champions whose popular items are primarily tank items and cost 4+."""
 
     tanks: Set[str] = set()
     for champ, stats in unit_stats.items():
         items = stats.get("items")
         if not isinstance(items, list):
             continue
+
+        if champ_cost is not None:
+            cost = champ_cost.get(champ)
+            if cost is None or cost < 4:
+                continue
+
         if is_tank_item_build(items):
             tanks.add(champ)
     return tanks

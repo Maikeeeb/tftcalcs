@@ -1,6 +1,7 @@
 import { Stack } from '@mui/material';
 
 import { SolverResponse } from '../types';
+import DebugLogCard from './DebugLogCard';
 import MetaCard from './MetaCard';
 import RequirementsCard from './RequirementsCard';
 import TeamRoster from './TeamRoster';
@@ -13,6 +14,7 @@ function ResultsSection({ response, mustHaveItemizedTank }: { response: SolverRe
       <TraitsSummary response={response} />
       <RequirementsCard response={response} />
       <MetaCard response={response} />
+      <DebugLogCard lines={response.debug_log} />
     </Stack>
   );
 }
