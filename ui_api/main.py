@@ -20,7 +20,7 @@ from bfl.config_loader import (
     default_config,
     load_config,
 )
-from bfl.solver_api import run_bfl
+from bfl.solver_api import SolverError, run_bfl
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = REPO_ROOT / "config_schema.json"
@@ -143,6 +143,11 @@ def run_solver(config: Mapping[str, Any]):
         result = run_bfl(solver_config)
     except ConfigError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except SolverError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": str(exc), "debug_log": exc.debug_log, "context": exc.context},
+        ) from exc
     except Exception as exc:  # pragma: no cover - keep error surface concise
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
