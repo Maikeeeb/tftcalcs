@@ -223,6 +223,12 @@ def solve_beam_search_bronze_with_emblems(
     else:
         quality_threshold = 0.0
 
+    tank_quality_threshold = quality_threshold
+    if tank_champions:
+        max_tank_power = max((power_map.get(ch, 0.0) for ch in tank_champions), default=None)
+        if max_tank_power is not None:
+            tank_quality_threshold = min(quality_threshold, max_tank_power)
+
     def missing_required_one_of(team_set: Set[str]) -> int:
         if not required_one_of:
             return 0
@@ -258,7 +264,8 @@ def solve_beam_search_bronze_with_emblems(
 
     def is_quality_unit(champ: str, counts_with_emblems: Dict[str, int]) -> bool:
         power = power_map.get(champ, 0.0)
-        if power < quality_threshold:
+        threshold = tank_quality_threshold if champ in tank_champions else quality_threshold
+        if power < threshold:
             return False
         champ_traits_list = champ_traits.get(champ, [])
         for trait in champ_traits_list:
@@ -282,7 +289,8 @@ def solve_beam_search_bronze_with_emblems(
                 trait_value_overrides.get(champ, {}).get(trait, 1) > 0 and is_trait_active(counts_with_emblems, trait)
                 for trait in traits
             )
-            if power >= quality_threshold and not activates_trait:
+            threshold = tank_quality_threshold if champ in tank_champions else quality_threshold
+            if power >= threshold and not activates_trait:
                 quality_missing_trait = True
             if not is_quality_unit(champ, counts_with_emblems):
                 continue
@@ -316,7 +324,7 @@ def solve_beam_search_bronze_with_emblems(
 
     def bronze_piecewise_score(bronze: int) -> float:
         if bronze < 6:
-            return float("-inf")
+            return -(6 - bronze) * 50.0
         if bronze >= 10:
             return 225.0
         mapping = {6: 100.0, 7: 160.0, 8: 200.0, 9: 215.0}
@@ -385,12 +393,7 @@ def solve_beam_search_bronze_with_emblems(
             qt, qc, quality_score, missing_traits = quality_summary(team or [], cnt2)
             penalty = bronze_penalty(team or [], cnt2)
             bronze_score = bronze_piecewise_score(bronze)
-            valid = (
-                bronze_score != float("-inf")
-                and qt > 0
-                and qc > 0
-                and not missing_traits
-            )
+            valid = bronze >= 6 and qt > 0 and qc > 0 and not missing_traits
             key = build_sort_key(
                 valid,
                 missing_required_one,
@@ -568,8 +571,8 @@ def solve_beam_search_bronze_with_emblems(
         if bronze + remaining * 3 < 6:
             return
 
-        bronze_key = bronze_score if bronze_score != float("-inf") else -1e9
-        valid = bronze_score != float("-inf") and qt > 0 and qc > 0 and not missing_quality_trait
+        bronze_key = bronze_score
+        valid = bronze >= 6 and qt > 0 and qc > 0 and not missing_quality_trait
         sort_key = build_sort_key(
             valid,
             missing_one,
@@ -661,8 +664,8 @@ def solve_beam_search_bronze_with_emblems(
                 if bronze + new_remaining_slots * 3 < 6:
                     continue
 
-                bronze_key = bronze_score if bronze_score != float("-inf") else -1e9
-                valid = bronze_score != float("-inf") and qt > 0 and qc > 0 and not missing_quality_trait
+                bronze_key = bronze_score
+                valid = bronze >= 6 and qt > 0 and qc > 0 and not missing_quality_trait
 
                 new_key = build_sort_key(
                     valid,
@@ -714,8 +717,8 @@ def solve_beam_search_bronze_with_emblems(
         if bronze + (team_size - _team_slots(team, slot_sizes)) * 3 < 6:
             continue
 
-        bronze_key = bronze_score if bronze_score != float("-inf") else -1e9
-        valid = bronze_score != float("-inf") and qt > 0 and qc > 0 and not missing_quality_trait
+        bronze_key = bronze_score
+        valid = bronze >= 6 and qt > 0 and qc > 0 and not missing_quality_trait
 
         new_key = build_sort_key(
             valid,
