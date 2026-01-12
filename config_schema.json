@@ -93,40 +93,44 @@
       "type": "boolean",
       "description": "If true, pre-seed the beam search with trait-vertical teams to reach far breakpoints."
     },
-    "itemization_components": {
+    "available_components": {
       "type": "array",
       "items": {
         "type": "string"
       },
       "description": "Available item components (names or apiName) for itemization mode."
     },
-    "itemization_completed_items": {
+    "available_completed_items": {
       "type": "array",
       "items": {
         "type": "string"
       },
       "description": "Available completed items (names or apiName) for itemization mode."
     },
-    "itemization_team_traits": {
+    "target_carries": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Optional list of carry candidates (champion apiName) to rank in itemization mode."
+    },
+    "team_traits": {
       "type": "array",
       "items": {
         "type": "string"
       },
       "description": "Traits currently active on the team (used as itemization tie-breakers)."
     },
-    "itemization_needed_traits": {
+    "needed_traits": {
       "type": "array",
       "items": {
         "type": "string"
       },
       "description": "Traits you want to add or reinforce (used as itemization tie-breakers)."
     },
-    "itemization_candidate_champions": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Optional list of carry candidates (champion apiName) to rank in itemization mode."
+    "allow_reforge": {
+      "type": "boolean",
+      "description": "If true, allow completed items to be reforged into another full item for itemization scoring."
     }
   }
 }

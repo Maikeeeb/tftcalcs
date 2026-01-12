@@ -162,6 +162,8 @@ def _score_items(
     completed_counts: Counter[str],
     component_counts: Counter[str],
     compositions: Mapping[str, Tuple[str, str]],
+    *,
+    allow_reforge: bool,
 ) -> Dict[str, object]:
     matched_completed: List[str] = []
     completed_used: Counter[str] = Counter()
@@ -172,6 +174,17 @@ def _score_items(
             matched_completed.append(item)
         else:
             remaining.append(item)
+
+    reforged_items: List[str] = []
+    if allow_reforge:
+        available_reforges = sum(completed_counts.values()) - sum(completed_used.values())
+        if available_reforges > 0:
+            for item in list(remaining):
+                if available_reforges <= 0:
+                    break
+                reforged_items.append(item)
+                remaining.remove(item)
+                available_reforges -= 1
 
     craftable_items: List[str] = []
     partial_items: List[Dict[str, object]] = []
@@ -198,13 +211,15 @@ def _score_items(
                 }
             )
 
-    full_items = len(matched_completed) + len(craftable_items)
+    full_items = len(matched_completed) + len(reforged_items) + len(craftable_items)
     return {
         "full_items": full_items,
         "completed_items": len(matched_completed),
+        "reforged_items": len(reforged_items),
         "craftable_items": len(craftable_items),
         "partial_components": partial_components,
         "matched_completed": matched_completed,
+        "reforged": reforged_items,
         "craftable": craftable_items,
         "partial": partial_items,
     }
@@ -228,21 +243,17 @@ def run_itemization_solver(config: Config) -> Dict[str, object]:
         _validate_preferences(CARRY_ITEM_PREFERENCES, catalog)
 
         available_components = _resolve_items(
-            config.itemization_components, catalog, kind="component"
+            config.available_components, catalog, kind="component"
         )
         available_completed = _resolve_items(
-            config.itemization_completed_items, catalog, kind="completed"
+            config.available_completed_items, catalog, kind="completed"
         )
 
-        team_traits = {str(t) for t in config.itemization_team_traits}
-        needed_traits = {str(t) for t in config.itemization_needed_traits}
+        team_traits = {str(t) for t in config.team_traits}
+        needed_traits = {str(t) for t in config.needed_traits}
 
-        if config.itemization_candidate_champions:
-            candidate_champs = [
-                champ
-                for champ in config.itemization_candidate_champions
-                if champ in champs
-            ]
+        if config.target_carries:
+            candidate_champs = [champ for champ in config.target_carries if champ in champs]
         else:
             candidate_champs = [champ for champ in CARRY_ITEM_PREFERENCES if champ in champs]
 
@@ -254,18 +265,34 @@ def run_itemization_solver(config: Config) -> Dict[str, object]:
         for champ in candidate_champs:
             preferred_items = CARRY_ITEM_PREFERENCES.get(champ, [])
             item_score = _score_items(
-                preferred_items, completed_counts, component_counts, catalog.compositions
+                preferred_items,
+                completed_counts,
+                component_counts,
+                catalog.compositions,
+                allow_reforge=config.allow_reforge,
             )
             traits = champ_traits.get(champ, [])
             trait_set = set(traits)
-            needed_hits = len(trait_set & needed_traits)
-            team_hits = len(trait_set & team_traits)
+            needed_matches = sorted(trait_set & needed_traits)
+            team_matches = sorted(trait_set & team_traits)
+            needed_hits = len(needed_matches)
+            team_hits = len(team_matches)
+            missing_components = sorted(
+                {comp for item in item_score["partial"] for comp in item["missing_components"]}
+            )
             ranked.append(
                 {
                     "champion": champ,
                     "cost": champ_cost.get(champ),
                     "traits": traits,
                     "ideal_items": preferred_items,
+                    "missing_components": missing_components,
+                    "trait_shells": sorted(trait_set),
+                    "team_trait_matches": team_matches,
+                    "needed_trait_matches": needed_matches,
+                    "suggested_slams": sorted(
+                        set(item_score["craftable"]) | set(item_score["reforged"])
+                    ),
                     "score": {
                         **item_score,
                         "needed_trait_hits": needed_hits,
@@ -281,6 +308,7 @@ def run_itemization_solver(config: Config) -> Dict[str, object]:
         key=lambda entry: (
             -entry["score"]["full_items"],
             -entry["score"]["completed_items"],
+            -entry["score"]["reforged_items"],
             -entry["score"]["craftable_items"],
             -entry["score"]["partial_components"],
             -entry["score"]["needed_trait_hits"],
@@ -288,6 +316,12 @@ def run_itemization_solver(config: Config) -> Dict[str, object]:
             entry["champion"],
         )
     )
+
+    item_names = {
+        api: item.get("name", api)
+        for api, item in catalog.items_by_api.items()
+        if api
+    }
 
     return {
         "context": {
@@ -299,6 +333,7 @@ def run_itemization_solver(config: Config) -> Dict[str, object]:
             "needed_traits": sorted(needed_traits),
             "available_components": available_components,
             "available_completed_items": available_completed,
+            "allow_reforge": config.allow_reforge,
         },
         "solution": {
             "ranked_candidates": ranked,
@@ -306,6 +341,7 @@ def run_itemization_solver(config: Config) -> Dict[str, object]:
         "items": {
             "components": sorted(set(available_components)),
             "completed_items": sorted(set(available_completed)),
+            "names_by_api": item_names,
         },
         "debug_log": decision_log,
     }

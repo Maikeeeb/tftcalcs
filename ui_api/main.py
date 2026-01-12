@@ -22,11 +22,14 @@ from bfl.config_loader import (
     default_config,
     load_config,
 )
+from bfl.itemization_solver import CARRY_ITEM_PREFERENCES, load_item_catalog
+from bfl.set_loader import load_set_data
 from bfl.solver_api import SolverError, run_solver
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = REPO_ROOT / "config_schema.json"
 SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+ITEMIZATION_VERSION = 2
 
 app = FastAPI(title="Bronze for Life UI API")
 app.add_middleware(
@@ -92,23 +95,34 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
     if not isinstance(must_have_itemized_tank, bool):
         raise ConfigError("must_have_itemized_tank must be a boolean.")
 
-    itemization_components = _validate_str_list(
-        "itemization_components", payload.get("itemization_components", base.itemization_components)
+    available_components = _validate_str_list(
+        "available_components", payload.get("available_components", base.available_components)
     )
-    itemization_completed_items = _validate_str_list(
-        "itemization_completed_items",
-        payload.get("itemization_completed_items", base.itemization_completed_items),
+    available_completed_items = _validate_str_list(
+        "available_completed_items",
+        payload.get("available_completed_items", base.available_completed_items),
     )
-    itemization_team_traits = _validate_str_list(
-        "itemization_team_traits", payload.get("itemization_team_traits", base.itemization_team_traits)
-    )
-    itemization_needed_traits = _validate_str_list(
-        "itemization_needed_traits", payload.get("itemization_needed_traits", base.itemization_needed_traits)
-    )
-    itemization_candidate_champions = _validate_str_list(
-        "itemization_candidate_champions",
-        payload.get("itemization_candidate_champions", base.itemization_candidate_champions),
-    )
+    target_carries = _validate_str_list("target_carries", payload.get("target_carries", base.target_carries))
+    team_traits = _validate_str_list("team_traits", payload.get("team_traits", base.team_traits))
+    needed_traits = _validate_str_list("needed_traits", payload.get("needed_traits", base.needed_traits))
+    allow_reforge = payload.get("allow_reforge", base.allow_reforge)
+    if not isinstance(allow_reforge, bool):
+        raise ConfigError("allow_reforge must be a boolean.")
+
+    if not available_components and "itemization_components" in payload:
+        available_components = _validate_str_list("itemization_components", payload.get("itemization_components"))
+    if not available_completed_items and "itemization_completed_items" in payload:
+        available_completed_items = _validate_str_list(
+            "itemization_completed_items", payload.get("itemization_completed_items")
+        )
+    if not target_carries and "itemization_candidate_champions" in payload:
+        target_carries = _validate_str_list(
+            "itemization_candidate_champions", payload.get("itemization_candidate_champions")
+        )
+    if not team_traits and "itemization_team_traits" in payload:
+        team_traits = _validate_str_list("itemization_team_traits", payload.get("itemization_team_traits"))
+    if not needed_traits and "itemization_needed_traits" in payload:
+        needed_traits = _validate_str_list("itemization_needed_traits", payload.get("itemization_needed_traits"))
 
     team_size = apply_ryze_mode_defaults(
         mode,
@@ -135,11 +149,12 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
         w_freq=float(weights_raw["w_freq"]),
         mode=mode,
         must_have_itemized_tank=must_have_itemized_tank,
-        itemization_components=itemization_components,
-        itemization_completed_items=itemization_completed_items,
-        itemization_team_traits=itemization_team_traits,
-        itemization_needed_traits=itemization_needed_traits,
-        itemization_candidate_champions=itemization_candidate_champions,
+        available_components=available_components,
+        available_completed_items=available_completed_items,
+        target_carries=target_carries,
+        team_traits=team_traits,
+        needed_traits=needed_traits,
+        allow_reforge=allow_reforge,
     )
 
     try:
@@ -149,6 +164,55 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
 
     _validate_required_champions(config, champs)
     return config
+
+
+def _versioned_config_payload(payload: Mapping[str, Any]) -> Config:
+    if not isinstance(payload, Mapping):
+        raise ConfigError("Payload must be an object.")
+    version = payload.get("version")
+    if version != ITEMIZATION_VERSION:
+        raise ConfigError(f"Expected payload version {ITEMIZATION_VERSION}.")
+    config = payload.get("config")
+    if not isinstance(config, Mapping):
+        raise ConfigError("Payload must include a 'config' object.")
+    return _config_from_payload(config)
+
+
+def _itemization_reference_data(config: Config) -> dict[str, object]:
+    catalog = load_item_catalog(config.json_path)
+    set_data, _, champ_traits, _, _, _, _ = load_set_data(config.json_path, config.set_id)
+    champ_name_map = {
+        champ.get("apiName"): champ.get("name", champ.get("apiName"))
+        for champ in set_data.get("champions", [])
+        if champ.get("apiName")
+    }
+    components = [
+        {"apiName": api, "name": catalog.items_by_api[api].get("name", api)}
+        for api in sorted(catalog.component_api_names)
+    ]
+    completed = [
+        {
+            "apiName": api,
+            "name": catalog.items_by_api[api].get("name", api),
+            "components": list(catalog.compositions.get(api, ())),
+        }
+        for api in sorted(catalog.craftable_api_names)
+    ]
+    carry_pool = [
+        {
+            "apiName": champ,
+            "name": champ_name_map.get(champ, champ),
+            "traits": champ_traits.get(champ, []),
+        }
+        for champ in sorted(set(CARRY_ITEM_PREFERENCES) & set(champ_traits))
+    ]
+    traits = sorted({trait for traits in champ_traits.values() for trait in traits})
+    return {
+        "components": components,
+        "completed_items": completed,
+        "target_carries": carry_pool,
+        "traits": traits,
+    }
 
 
 @app.get("/schema")
@@ -188,3 +252,54 @@ def run_solver(config: Mapping[str, Any]):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return result
+
+
+@app.get("/v2/itemization/schema")
+def get_itemization_schema():
+    """Return the JSON schema for itemization configuration."""
+
+    return {"version": ITEMIZATION_VERSION, "schema": SCHEMA}
+
+
+@app.get("/v2/itemization/config")
+def get_itemization_config():
+    """Return the default itemization configuration."""
+
+    config = load_config(None)
+    config.mode = "itemization"
+    return {"version": ITEMIZATION_VERSION, "config": config.to_dict()}
+
+
+@app.get("/v2/itemization/data")
+def get_itemization_reference():
+    """Return reference data for itemization UI controls."""
+
+    config = load_config(None)
+    return {"version": ITEMIZATION_VERSION, "data": _itemization_reference_data(config)}
+
+
+@app.post("/v2/itemization/run")
+def run_itemization(payload: Mapping[str, Any]):
+    """Validate a versioned payload and execute the itemization solver."""
+
+    try:
+        solver_config = _versioned_config_payload(payload)
+        solver_config.mode = "itemization"
+        validate(instance=solver_config.to_dict(), schema=SCHEMA)
+        result = run_solver(solver_config)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid configuration for version {ITEMIZATION_VERSION}: {exc.message}",
+        ) from exc
+    except ConfigError as exc:
+        raise HTTPException(status_code=400, detail=f"Version {ITEMIZATION_VERSION} config error: {exc}") from exc
+    except SolverError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": str(exc), "debug_log": exc.debug_log, "context": exc.context},
+        ) from exc
+    except Exception as exc:  # pragma: no cover - keep error surface concise
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return {"version": ITEMIZATION_VERSION, "result": result}

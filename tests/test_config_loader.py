@@ -68,8 +68,8 @@ def test_itemization_mode_accepts_item_inputs(tmp_path):
         json.dumps(
             {
                 "mode": "itemization",
-                "itemization_components": ["B.F. Sword"],
-                "itemization_completed_items": ["Infinity Edge"],
+                "available_components": ["B.F. Sword"],
+                "available_completed_items": ["Infinity Edge"],
             }
         )
     )
@@ -77,8 +77,28 @@ def test_itemization_mode_accepts_item_inputs(tmp_path):
     cfg = load_config(str(cfg_path))
 
     assert cfg.mode == "itemization"
-    assert cfg.itemization_components == ["B.F. Sword"]
-    assert cfg.itemization_completed_items == ["Infinity Edge"]
+    assert cfg.available_components == ["B.F. Sword"]
+    assert cfg.available_completed_items == ["Infinity Edge"]
+
+
+def test_itemization_mode_accepts_legacy_fields(tmp_path):
+    cfg_path = tmp_path / "cfg.json"
+    cfg_path.write_text(
+        json.dumps(
+            {
+                "mode": "itemization",
+                "itemization_components": ["B.F. Sword"],
+                "itemization_completed_items": ["Infinity Edge"],
+                "itemization_candidate_champions": ["TFT16_Jinx"],
+            }
+        )
+    )
+
+    cfg = load_config(str(cfg_path))
+
+    assert cfg.available_components == ["B.F. Sword"]
+    assert cfg.available_completed_items == ["Infinity Edge"]
+    assert cfg.target_carries == ["TFT16_Jinx"]
 
 
 def test_validate_config_against_data_flags_invalid_entries():

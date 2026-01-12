@@ -12,12 +12,12 @@ This document summarizes the codebase structure, runtime data flow, and entry po
 - **Set + MetaTFT ingestion (`set_loader.py`, `metatft.py`, `champion_registry.py`)** normalizes Riot set data, builds champion → trait maps, classifies eligible traits, and converts MetaTFT pastes into unit/trait power stats. Tank candidates are detected from item builds to enforce the optional “must have itemized tank” constraint.
 - **Trait helpers (`traits.py`)** add champion trait counts, apply starting emblem offsets, and mark eligible traits used by the solver.
 - **Solver core (`solver.py`)** implements the beam-search Bronze-for-Life optimizer with emblem modeling, required champion/trait checks, vertical seeding, and quality heuristics (piecewise bronze score, carry/tank thresholds, fake-bronze penalties). It exposes `solve_beam_search_bronze_with_emblems` for programmatic use plus helper utilities such as `build_required_team` and `feasibility_check`.
-- **Itemization solver (`itemization_solver.py`)** ranks carry candidates by how close they are to preferred item builds and breaks ties with team/needed trait fit. It loads item data from `en_us.json` and resolves user-provided component/completed item inputs.
+- **Itemization solver (`itemization_solver.py`)** ranks carry candidates by how close they are to preferred item builds and breaks ties with team/needed trait fit. It loads item data from `en_us.json`, resolves available components/completed items, and supports optional reforging heuristics.
 - **Public API (`solver_api.py`)** orchestrates one end-to-end solve: it loads set/MetaTFT data, builds power maps and trait stats, validates config, and calls either the Bronze-for-Life solver or the itemization ranking solver based on mode. Structured results include context, meta weighting details, trait counts, and requirement satisfaction. Errors include a decision log for debugging.
 - **CLI entrypoint (`bronze_for_life.py`)** resolves config from CLI arguments or `config.json`, runs `run_bfl`, and prints team composition, bronze/upgraded trait breakdowns, emblem usage, and ineligible traits to stdout for quick inspection.
 
 ## UI API (`ui_api/main.py`)
-- FastAPI service exposing three routes: `/schema` (returns the JSON schema), `/config` (returns default config), and `/run` (validates a posted config and executes the solver). Requests are validated via `jsonschema`, domain-checked with `Config` helpers, and errors surface debug logs when available.
+- FastAPI service exposing three routes: `/schema` (returns the JSON schema), `/config` (returns default config), and `/run` (validates a posted config and executes the solver). Versioned itemization routes live under `/v2/itemization/*` and serve reference data, config, and solver execution for the itemization UI.
 - CORS is enabled for the Vite dev server, so the React frontend can post solver runs locally without extra setup.
 
 ## Frontend (`frontend/`)

@@ -152,6 +152,7 @@ def _print_itemization_result(result: dict[str, object]) -> None:
     print(f"Available completed items: {context.get('available_completed_items', [])}")
     print(f"Team traits: {context.get('team_traits', [])}")
     print(f"Needed traits: {context.get('needed_traits', [])}")
+    print(f"Allow reforging: {context.get('allow_reforge', False)}")
     print()
 
     ranked = solution.get("ranked_candidates", [])

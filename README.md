@@ -54,11 +54,12 @@ and completed items in `config.json` and set `"mode": "itemization"`. The solver
 
 Relevant config fields:
 
-- `itemization_components`: component items you currently have (names or apiName).
-- `itemization_completed_items`: completed items already built (names or apiName).
-- `itemization_team_traits`: traits already active on your team (tie-breaker).
-- `itemization_needed_traits`: traits you want to add or reinforce (tie-breaker).
-- `itemization_candidate_champions`: optional list of champion apiName values to rank.
+- `available_components`: component items you currently have (names or apiName).
+- `available_completed_items`: completed items already built (names or apiName).
+- `team_traits`: traits already active on your team (tie-breaker).
+- `needed_traits`: traits you want to add or reinforce (tie-breaker).
+- `target_carries`: optional list of champion apiName values to rank.
+- `allow_reforge`: whether completed items can count as reforged into another full item for scoring.
 
 ### Rolling your own setup
 The tutorial script is a good template: it loads set data, builds the MetaTFT power map, and calls `solve_beam_search_bronze_with_emblems` with custom emblem inputs. Modify the `hard_emblems` map or `max_auto_emblems` value to model your own items, or pass `forced_units` (see `bfl/solver.py`) if you need specific champions locked in.
@@ -114,3 +115,5 @@ The repository now ships with a lightweight FastAPI backend and a Vite + React +
    ```
    The Vite server prints a local URL—by default `http://localhost:5173`.
 6. **Open the UI.** Visit `http://localhost:5173` in your browser. The page will load the JSON schema and default solver config from the API, let you edit every field via a form, and offer a **Run solver** button. Keep both the API and Vite servers running while you experiment.
+
+The UI now includes a dedicated **Itemization** tab that calls the versioned `/v2/itemization/*` API routes. Use that tab to enter your item inventory, select target carries, and view the closest builds without changing the comp finder configuration.
