@@ -24,7 +24,7 @@ from bfl.config_loader import (
 )
 from bfl.itemization_solver import CARRY_ITEM_PREFERENCES, load_item_catalog
 from bfl.set_loader import load_set_data
-from bfl.solver_api import SolverError, run_solver
+from bfl.solver_api import SolverError, run_solver as solve_config
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = REPO_ROOT / "config_schema.json"
@@ -166,6 +166,12 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
     return config
 
 
+def _normalize_config_payload(payload: Mapping[str, Any] | Config) -> Mapping[str, Any]:
+    if isinstance(payload, Config):
+        return payload.to_dict()
+    return payload
+
+
 def _versioned_config_payload(payload: Mapping[str, Any]) -> Config:
     if not isinstance(payload, Mapping):
         raise ConfigError("Payload must be an object.")
@@ -173,6 +179,8 @@ def _versioned_config_payload(payload: Mapping[str, Any]) -> Config:
     if version != ITEMIZATION_VERSION:
         raise ConfigError(f"Expected payload version {ITEMIZATION_VERSION}.")
     config = payload.get("config")
+    if isinstance(config, Config):
+        config = config.to_dict()
     if not isinstance(config, Mapping):
         raise ConfigError("Payload must include a 'config' object.")
     return _config_from_payload(config)
@@ -230,17 +238,18 @@ def get_default_config():
 
 
 @app.post("/run")
-def run_solver(config: Mapping[str, Any]):
+def run_solver_endpoint(config: Mapping[str, Any]):
     """Validate the provided config and execute the solver."""
 
     try:
-        validate(instance=config, schema=SCHEMA)
+        payload = _normalize_config_payload(config)
+        validate(instance=payload, schema=SCHEMA)
     except ValidationError as exc:
         raise HTTPException(status_code=400, detail=f"Invalid configuration: {exc.message}") from exc
 
     try:
-        solver_config = _config_from_payload(config)
-        result = run_solver(solver_config)
+        solver_config = _config_from_payload(payload)
+        result = solve_config(solver_config)
     except ConfigError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except SolverError as exc:
@@ -291,7 +300,7 @@ def run_itemization(payload: Mapping[str, Any]):
         validate(instance=raw_config, schema=SCHEMA)
         solver_config = _versioned_config_payload(payload)
         solver_config.mode = "itemization"
-        result = run_solver(solver_config)
+        result = solve_config(solver_config)
     except ValidationError as exc:
         raise HTTPException(
             status_code=400,

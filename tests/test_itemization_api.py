@@ -3,7 +3,8 @@ import pytest
 fastapi = pytest.importorskip("fastapi")
 TestClient = pytest.importorskip("fastapi.testclient").TestClient
 
-from ui_api.main import app
+from bfl.config import default_config
+from ui_api.main import app, run_solver_endpoint
 
 
 def test_itemization_v2_run_endpoint():
@@ -28,3 +29,14 @@ def test_itemization_v2_run_endpoint():
     assert body["version"] == 2
     assert "result" in body
     assert body["result"]["solution"]["ranked_candidates"]
+
+
+def test_run_solver_accepts_config_object():
+    config = default_config()
+    config.mode = "itemization"
+    config.available_components = ["Needlessly Large Rod", "Needlessly Large Rod"]
+    config.target_carries = ["TFT16_Ahri"]
+
+    result = run_solver_endpoint(config)
+
+    assert result["solution"]["ranked_candidates"]
