@@ -9,6 +9,7 @@
 - Provides normalization and parsing helpers for MetaTFT unit data, including power calculations for each champion.
 - Includes a command-line entry point (`bfl.bronze_for_life:main`) that prints optimized teams and trait summaries.
 - Adds a Ryze-focused mode that counts only origin/region traits and requires Ryze by default on level 9 boards.
+- Adds an itemization ranking mode that scores carry candidates by closeness to preferred items and trait fit.
 
 
 ## Tutorial: building Bronze for Life teams
@@ -42,6 +43,22 @@ or via the UI toggle. The solver will:
 - Require `TFT16_Ryze` by default unless you explicitly set a different rule for him in `required_champions`.
 
 Bronze-for-Life and Standard modes are unchanged; the Ryze constraints only apply when you select the new mode.
+
+### Itemization mode (closest carries by item fit)
+Itemization mode ranks carry candidates by how close they are to their ideal item builds. Provide available components
+and completed items in `config.json` and set `"mode": "itemization"`. The solver will:
+
+- Load item data from `en_us.json`.
+- Resolve your available components and completed items by name or apiName.
+- Score carry candidates by completed/craftable ideal items, then break ties with needed and existing team traits.
+
+Relevant config fields:
+
+- `itemization_components`: component items you currently have (names or apiName).
+- `itemization_completed_items`: completed items already built (names or apiName).
+- `itemization_team_traits`: traits already active on your team (tie-breaker).
+- `itemization_needed_traits`: traits you want to add or reinforce (tie-breaker).
+- `itemization_candidate_champions`: optional list of champion apiName values to rank.
 
 ### Rolling your own setup
 The tutorial script is a good template: it loads set data, builds the MetaTFT power map, and calls `solve_beam_search_bronze_with_emblems` with custom emblem inputs. Modify the `hard_emblems` map or `max_auto_emblems` value to model your own items, or pass `forced_units` (see `bfl/solver.py`) if you need specific champions locked in.

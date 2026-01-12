@@ -208,6 +208,11 @@ class Config:
     mode: str = "bronze"
     must_have_itemized_tank: bool = True
     seed_verticals: bool = True
+    itemization_components: list[str] = field(default_factory=list)
+    itemization_completed_items: list[str] = field(default_factory=list)
+    itemization_team_traits: list[str] = field(default_factory=list)
+    itemization_needed_traits: list[str] = field(default_factory=list)
+    itemization_candidate_champions: list[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict:
         return {
@@ -228,6 +233,11 @@ class Config:
             "mode": self.mode,
             "must_have_itemized_tank": self.must_have_itemized_tank,
             "seed_verticals": self.seed_verticals,
+            "itemization_components": list(self.itemization_components),
+            "itemization_completed_items": list(self.itemization_completed_items),
+            "itemization_team_traits": list(self.itemization_team_traits),
+            "itemization_needed_traits": list(self.itemization_needed_traits),
+            "itemization_candidate_champions": list(self.itemization_candidate_champions),
         }
 
 
@@ -250,4 +260,9 @@ def default_config() -> Config:
         mode="bronze",
         must_have_itemized_tank=True,
         seed_verticals=True,
+        itemization_components=[],
+        itemization_completed_items=[],
+        itemization_team_traits=[],
+        itemization_needed_traits=[],
+        itemization_candidate_champions=[],
     )

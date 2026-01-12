@@ -18,6 +18,7 @@ from bfl.metatft import (
     trait_power,
     unit_power,
 )
+from bfl.itemization_solver import ItemizationError, run_itemization_solver
 from bfl.set_loader import load_set_data
 from bfl.solver import solve_beam_search_bronze_with_emblems
 from bfl.traits import apply_emblem_starts, classify_traits
@@ -37,6 +38,7 @@ __all__ = [
     "apply_emblem_starts",
     "classify_traits",
     "run_bfl",
+    "run_solver",
 ]
 
 
@@ -290,3 +292,14 @@ def run_bfl(config: Config) -> Dict[str, object]:
         "debug_log": decision_log,
     }
 
+
+def run_solver(config: Config) -> Dict[str, object]:
+    """Execute the requested solver mode and return a structured result."""
+
+    if config.mode == "itemization":
+        try:
+            return run_itemization_solver(config)
+        except ItemizationError as exc:
+            raise SolverError(str(exc), exc.debug_log, exc.context) from exc
+
+    return run_bfl(config)

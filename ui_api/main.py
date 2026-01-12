@@ -16,12 +16,13 @@ from bfl.config_loader import (
     ConfigError,
     _load_int_map,
     _validate_int,
+    _validate_str_list,
     apply_ryze_mode_defaults,
     _validate_required_champions,
     default_config,
     load_config,
 )
-from bfl.solver_api import SolverError, run_bfl
+from bfl.solver_api import SolverError, run_solver
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = REPO_ROOT / "config_schema.json"
@@ -84,12 +85,30 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
 
     set_id = str(payload.get("set_id", base.set_id))
     mode = str(payload.get("mode", base.mode))
-    if mode not in {"bronze", "standard", "ryze"}:
-        raise ConfigError("mode must be 'bronze', 'standard', or 'ryze'.")
+    if mode not in {"bronze", "standard", "ryze", "itemization"}:
+        raise ConfigError("mode must be 'bronze', 'standard', 'ryze', or 'itemization'.")
 
     must_have_itemized_tank = payload.get("must_have_itemized_tank", base.must_have_itemized_tank)
     if not isinstance(must_have_itemized_tank, bool):
         raise ConfigError("must_have_itemized_tank must be a boolean.")
+
+    itemization_components = _validate_str_list(
+        "itemization_components", payload.get("itemization_components", base.itemization_components)
+    )
+    itemization_completed_items = _validate_str_list(
+        "itemization_completed_items",
+        payload.get("itemization_completed_items", base.itemization_completed_items),
+    )
+    itemization_team_traits = _validate_str_list(
+        "itemization_team_traits", payload.get("itemization_team_traits", base.itemization_team_traits)
+    )
+    itemization_needed_traits = _validate_str_list(
+        "itemization_needed_traits", payload.get("itemization_needed_traits", base.itemization_needed_traits)
+    )
+    itemization_candidate_champions = _validate_str_list(
+        "itemization_candidate_champions",
+        payload.get("itemization_candidate_champions", base.itemization_candidate_champions),
+    )
 
     team_size = apply_ryze_mode_defaults(
         mode,
@@ -116,6 +135,11 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
         w_freq=float(weights_raw["w_freq"]),
         mode=mode,
         must_have_itemized_tank=must_have_itemized_tank,
+        itemization_components=itemization_components,
+        itemization_completed_items=itemization_completed_items,
+        itemization_team_traits=itemization_team_traits,
+        itemization_needed_traits=itemization_needed_traits,
+        itemization_candidate_champions=itemization_candidate_champions,
     )
 
     try:
@@ -152,7 +176,7 @@ def run_solver(config: Mapping[str, Any]):
 
     try:
         solver_config = _config_from_payload(config)
-        result = run_bfl(solver_config)
+        result = run_solver(solver_config)
     except ConfigError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except SolverError as exc:

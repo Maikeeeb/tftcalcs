@@ -62,6 +62,25 @@ def test_ryze_mode_respects_explicit_overrides(tmp_path):
     assert cfg.required_champions[RYZE_API_NAME] == 0
 
 
+def test_itemization_mode_accepts_item_inputs(tmp_path):
+    cfg_path = tmp_path / "cfg.json"
+    cfg_path.write_text(
+        json.dumps(
+            {
+                "mode": "itemization",
+                "itemization_components": ["B.F. Sword"],
+                "itemization_completed_items": ["Infinity Edge"],
+            }
+        )
+    )
+
+    cfg = load_config(str(cfg_path))
+
+    assert cfg.mode == "itemization"
+    assert cfg.itemization_components == ["B.F. Sword"]
+    assert cfg.itemization_completed_items == ["Infinity Edge"]
+
+
 def test_validate_config_against_data_flags_invalid_entries():
     base = default_config()
     _, champs, _, trait_bps, _, _, _ = load_set_data(base.json_path, base.set_id)

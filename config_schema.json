@@ -82,8 +82,8 @@
     },
     "mode": {
       "type": "string",
-      "enum": ["bronze", "standard", "ryze"],
-      "description": "Bronze for Life (bronze), MetaTFT trait-first (standard), or region-trait-focused Ryze mode."
+      "enum": ["bronze", "standard", "ryze", "itemization"],
+      "description": "Bronze for Life (bronze), MetaTFT trait-first (standard), region-trait-focused Ryze mode, or itemization ranking."
     },
     "must_have_itemized_tank": {
       "type": "boolean",
@@ -92,6 +92,41 @@
     "seed_verticals": {
       "type": "boolean",
       "description": "If true, pre-seed the beam search with trait-vertical teams to reach far breakpoints."
+    },
+    "itemization_components": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Available item components (names or apiName) for itemization mode."
+    },
+    "itemization_completed_items": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Available completed items (names or apiName) for itemization mode."
+    },
+    "itemization_team_traits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Traits currently active on the team (used as itemization tie-breakers)."
+    },
+    "itemization_needed_traits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Traits you want to add or reinforce (used as itemization tie-breakers)."
+    },
+    "itemization_candidate_champions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Optional list of carry candidates (champion apiName) to rank in itemization mode."
     }
   }
 }
