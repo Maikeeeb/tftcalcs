@@ -8,7 +8,7 @@ from bfl.solver_api import (
     metatft_to_unit_stats,
     normalize_name,
     parse_metatft_units,
-    run_bfl,
+    run_solver,
     solve_beam_search_bronze_with_emblems,
     unit_power,
     _resolve_config,
@@ -30,10 +30,13 @@ __all__ = [
 
 def main(config: Config | None = None, config_path: str | None = None):
     cfg = _resolve_config(config, config_path)
-    result = run_bfl(cfg)
+    result = run_solver(cfg)
 
     context = result["context"]
     mode = context.get("mode", "bronze")
+    if mode == "itemization":
+        _print_itemization_result(result)
+        return
     region_traits = context.get("region_traits")
     meta = result["meta"]
     solution = result["solution"]
@@ -138,6 +141,30 @@ def main(config: Config | None = None, config_path: str | None = None):
             if trait_freq.get(t, 0) < 2:
                 reason.append("exclusive")
             print(f" - {t}: teamCount={counts.get(t, 0)} traitFreq={trait_freq.get(t)} ({', '.join(reason)})")
+
+
+def _print_itemization_result(result: dict[str, object]) -> None:
+    context = result["context"]
+    solution = result["solution"]
+
+    print(f"Loaded set {context['set_id']}: itemization mode")
+    print(f"Available components: {context.get('available_components', [])}")
+    print(f"Available completed items: {context.get('available_completed_items', [])}")
+    print(f"Team traits: {context.get('team_traits', [])}")
+    print(f"Needed traits: {context.get('needed_traits', [])}")
+    print(f"Allow reforging: {context.get('allow_reforge', False)}")
+    print()
+
+    ranked = solution.get("ranked_candidates", [])
+    print("=== Itemization ranking (closest builds first) ===")
+    for entry in ranked:
+        score = entry["score"]
+        print(
+            f"- {entry['champion']} (cost={entry.get('cost')}): "
+            f"full_items={score['full_items']} completed={score['completed_items']} "
+            f"craftable={score['craftable_items']} partial_components={score['partial_components']} "
+            f"needed_traits={score['needed_trait_hits']} team_traits={score['team_trait_hits']}"
+        )
 
 
 if __name__ == "__main__":
