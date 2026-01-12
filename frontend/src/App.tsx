@@ -11,6 +11,8 @@ import {
   FormControlLabel,
   Stack,
   Switch,
+  Tab,
+  Tabs,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -26,6 +28,7 @@ import ResultsSection from './components/ResultsSection';
 import Loader from './components/Loader';
 import DebugLogCard from './components/DebugLogCard';
 import RootObjectFieldTemplate from './components/RootObjectFieldTemplate';
+import ItemizationPage from './components/ItemizationPage';
 import { AppProps, ConfigData, SolverResponse } from './types';
 import championCosts from './data/champion_costs.json';
 import unlockableChampions from './data/unlockable_champions.json';
@@ -92,6 +95,7 @@ function App({ mode, onToggleColorMode }: AppProps) {
   const [formData, setFormData] = useState<ConfigData | undefined>();
   const [activeMode, setActiveMode] = useState<'bronze' | 'standard' | 'ryze'>('bronze');
   const [mustHaveItemizedTank, setMustHaveItemizedTank] = useState(true);
+  const [activeTab, setActiveTab] = useState<'comp' | 'itemization'>('comp');
   const formRef = useRef<CoreForm<any, any, any> | null>(null);
 
   const schemaQuery = useQuery({ queryKey: ['schema'], queryFn: () => fetchJson<Record<string, unknown>>('/schema') });
@@ -236,6 +240,12 @@ function App({ mode, onToggleColorMode }: AppProps) {
       mode: { 'ui:widget': 'hidden' },
       metatft_traits_path: { 'ui:widget': 'hidden' },
       must_have_itemized_tank: { 'ui:widget': 'hidden' },
+      available_components: { 'ui:widget': 'hidden' },
+      available_completed_items: { 'ui:widget': 'hidden' },
+      target_carries: { 'ui:widget': 'hidden' },
+      team_traits: { 'ui:widget': 'hidden' },
+      needed_traits: { 'ui:widget': 'hidden' },
+      allow_reforge: { 'ui:widget': 'hidden' },
     }),
     [],
   );
@@ -261,125 +271,164 @@ function App({ mode, onToggleColorMode }: AppProps) {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Stack spacing={3}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
-          spacing={2}
-        >
-          <Box>
-            <Typography variant="h4" gutterBottom>
-              {activeMode === 'standard' ? 'Standard mode' : activeMode === 'ryze' ? 'Ryze mode' : 'Bronze for Life'} UI
-            </Typography>
-            <Typography variant="body1" color="text.secondary" paragraph>
-              Edit the solver configuration via JSON Schema, then run the solver to view the resulting team, traits, and
-              requirements.
-            </Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                Mode
+        <Stack spacing={2}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            spacing={2}
+          >
+            <Box>
+              <Typography variant="h4" gutterBottom>
+                TFT Calculator UI
               </Typography>
-              <ToggleButtonGroup
-                color="primary"
-                value={activeMode}
-                exclusive
-                onChange={handleModeToggle}
-                size="small"
-              >
-                <ToggleButton value="bronze">Bronze for Life</ToggleButton>
-                <ToggleButton value="ryze">Ryze (region traits)</ToggleButton>
-                <ToggleButton value="standard">Standard</ToggleButton>
-              </ToggleButtonGroup>
-            </Stack>
-            {activeMode === 'ryze' ? (
-              <Alert severity="info" sx={{ mt: 1 }}>
-                Ryze mode counts only origin traits ({REGION_TRAITS.join(', ')}). Ryze is required by default and boards use a
-                level 9 team size unless overridden.
-              </Alert>
-            ) : null}
-          </Box>
-          <FormControlLabel
-            control={<Switch checked={mode === 'dark'} onChange={onToggleColorMode} />}
-            label={mode === 'dark' ? 'Dark mode' : 'Light mode'}
-          />
+              <Typography variant="body1" color="text.secondary" paragraph>
+                Switch between the comp finder and itemization tooling without changing the Bronze solver configuration.
+              </Typography>
+            </Box>
+            <FormControlLabel
+              control={<Switch checked={mode === 'dark'} onChange={onToggleColorMode} />}
+              label={mode === 'dark' ? 'Dark mode' : 'Light mode'}
+            />
+          </Stack>
+          <Tabs
+            value={activeTab}
+            onChange={(_, value) => setActiveTab(value)}
+            textColor="primary"
+            indicatorColor="primary"
+          >
+            <Tab value="comp" label="Comp finder" />
+            <Tab value="itemization" label="Itemization" />
+          </Tabs>
         </Stack>
 
-        <Card>
-          <CardHeader title="Solver configuration" />
-          <CardContent>
-            {isLoading && <Loader />}
-            {hasError && (
-              <Alert severity="error">Failed to load schema or default config. Please ensure the API is running.</Alert>
-            )}
-            {!isLoading && !hasError && schemaQuery.data && formData ? (
-              <Form
-                ref={formRef}
-                schema={schemaQuery.data}
-                formData={formData}
-                onChange={(event) => setFormData({ ...event.formData, must_have_itemized_tank: mustHaveItemizedTank })}
-                onSubmit={(event) =>
-                  runMutation.mutate({
-                    ...event.formData,
-                    must_have_itemized_tank: mustHaveItemizedTank,
-                  })
-                }
-                validator={validator}
-                templates={templates}
-                fields={fields}
-                uiSchema={uiSchema}
-                liveValidate
-              >
-                <></>
-              </Form>
-            ) : null}
-            {runMutation.error ? (
-              <Alert severity="error" sx={{ mt: 2 }}>
-                {(runMutation.error as Error).message}
-              </Alert>
-            ) : null}
-            {debugLogLines?.length ? (
-              <Box mt={2}>
-                <DebugLogCard lines={debugLogLines} />
-              </Box>
-            ) : null}
-            <Box
-              mt={3}
-              display="flex"
+        {activeTab === 'comp' ? (
+          <>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
               justifyContent="space-between"
-              alignItems="center"
-              flexDirection={{ xs: 'column', sm: 'row' }}
-              gap={1.5}
+              alignItems={{ xs: 'flex-start', sm: 'center' }}
+              spacing={2}
             >
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={mustHaveItemizedTank}
-                    onChange={(event) => {
-                      setMustHaveItemizedTank(event.target.checked);
-                      setFormData((prev) => ({
-                        ...(prev ?? {}),
-                        must_have_itemized_tank: event.target.checked,
-                      }));
-                    }}
+              <Box>
+                <Typography variant="h4" gutterBottom>
+                  {activeMode === 'standard'
+                    ? 'Standard mode'
+                    : activeMode === 'ryze'
+                      ? 'Ryze mode'
+                      : 'Bronze for Life'}{' '}
+                  UI
+                </Typography>
+                <Typography variant="body1" color="text.secondary" paragraph>
+                  Edit the solver configuration via JSON Schema, then run the solver to view the resulting team, traits,
+                  and requirements.
+                </Typography>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Mode
+                  </Typography>
+                  <ToggleButtonGroup
+                    color="primary"
+                    value={activeMode}
+                    exclusive
+                    onChange={handleModeToggle}
+                    size="small"
+                  >
+                    <ToggleButton value="bronze">Bronze for Life</ToggleButton>
+                    <ToggleButton value="ryze">Ryze (region traits)</ToggleButton>
+                    <ToggleButton value="standard">Standard</ToggleButton>
+                  </ToggleButtonGroup>
+                </Stack>
+                {activeMode === 'ryze' ? (
+                  <Alert severity="info" sx={{ mt: 1 }}>
+                    Ryze mode counts only origin traits ({REGION_TRAITS.join(', ')}). Ryze is required by default and
+                    boards use a level 9 team size unless overridden.
+                  </Alert>
+                ) : null}
+              </Box>
+            </Stack>
+            <Card>
+              <CardHeader title="Solver configuration" />
+              <CardContent>
+                {isLoading && <Loader />}
+                {hasError && (
+                  <Alert severity="error">Failed to load schema or default config. Please ensure the API is running.</Alert>
+                )}
+                {!isLoading && !hasError && schemaQuery.data && formData ? (
+                  <Form
+                    ref={formRef}
+                    schema={schemaQuery.data}
+                    formData={formData}
+                    onChange={(event) =>
+                      setFormData({ ...event.formData, must_have_itemized_tank: mustHaveItemizedTank })
+                    }
+                    onSubmit={(event) =>
+                      runMutation.mutate({
+                        ...event.formData,
+                        must_have_itemized_tank: mustHaveItemizedTank,
+                      })
+                    }
+                    validator={validator}
+                    templates={templates}
+                    fields={fields}
+                    uiSchema={uiSchema}
+                    liveValidate
+                  >
+                    <></>
+                  </Form>
+                ) : null}
+                {runMutation.error ? (
+                  <Alert severity="error" sx={{ mt: 2 }}>
+                    {(runMutation.error as Error).message}
+                  </Alert>
+                ) : null}
+                {debugLogLines?.length ? (
+                  <Box mt={2}>
+                    <DebugLogCard lines={debugLogLines} />
+                  </Box>
+                ) : null}
+                <Box
+                  mt={3}
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  flexDirection={{ xs: 'column', sm: 'row' }}
+                  gap={1.5}
+                >
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={mustHaveItemizedTank}
+                        onChange={(event) => {
+                          setMustHaveItemizedTank(event.target.checked);
+                          setFormData((prev) => ({
+                            ...(prev ?? {}),
+                            must_have_itemized_tank: event.target.checked,
+                          }));
+                        }}
+                      />
+                    }
+                    label="Must have itemized tank"
                   />
-                }
-                label="Must have itemized tank"
-              />
-              <Button
-                variant="contained"
-                onClick={handleRunClick}
-                disabled={!formData || runMutation.isPending}
-                endIcon={runMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
-              >
-                {runMutation.isPending ? 'Running…' : 'Run solver'}
-              </Button>
-            </Box>
-          </CardContent>
-        </Card>
+                  <Button
+                    variant="contained"
+                    onClick={handleRunClick}
+                    disabled={!formData || runMutation.isPending}
+                    endIcon={runMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+                  >
+                    {runMutation.isPending ? 'Running…' : 'Run solver'}
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
 
-        {runMutation.data ? (
-          <ResultsSection response={runMutation.data} mustHaveItemizedTank={mustHaveItemizedTank} />
-        ) : null}
+            {runMutation.data ? (
+              <ResultsSection response={runMutation.data} mustHaveItemizedTank={mustHaveItemizedTank} />
+            ) : null}
+          </>
+        ) : (
+          <ItemizationPage />
+        )}
       </Stack>
     </Container>
   );

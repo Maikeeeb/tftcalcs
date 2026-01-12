@@ -33,6 +33,14 @@ def _validate_bool(name: str, value) -> bool:
     raise ConfigError(f"{name} must be a boolean (got {type(value).__name__}).")
 
 
+def _validate_str_list(name: str, value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return [str(item) for item in value]
+    raise ConfigError(f"{name} must be a list of strings.")
+
+
 def _load_int_map(
     raw: Mapping | None,
     defaults: Dict[str, int],
@@ -157,8 +165,10 @@ def load_config(path: str | None) -> Config:
 
     set_id = str(data.get("set_id", base.set_id))
     mode = str(data.get("mode", base.mode))
-    if mode not in {"bronze", "standard", "ryze"}:
-        raise ConfigError(f"mode must be 'bronze', 'standard', or 'ryze' (got {mode}).")
+    if mode not in {"bronze", "standard", "ryze", "itemization"}:
+        raise ConfigError(
+            f"mode must be 'bronze', 'standard', 'ryze', or 'itemization' (got {mode})."
+        )
 
     team_size = apply_ryze_mode_defaults(
         mode,
@@ -172,6 +182,32 @@ def load_config(path: str | None) -> Config:
         "must_have_itemized_tank", data.get("must_have_itemized_tank", base.must_have_itemized_tank)
     )
     seed_verticals = _validate_bool("seed_verticals", data.get("seed_verticals", base.seed_verticals))
+    available_components = _validate_str_list(
+        "available_components", data.get("available_components", base.available_components)
+    )
+    available_completed_items = _validate_str_list(
+        "available_completed_items",
+        data.get("available_completed_items", base.available_completed_items),
+    )
+    target_carries = _validate_str_list("target_carries", data.get("target_carries", base.target_carries))
+    team_traits = _validate_str_list("team_traits", data.get("team_traits", base.team_traits))
+    needed_traits = _validate_str_list("needed_traits", data.get("needed_traits", base.needed_traits))
+    allow_reforge = _validate_bool("allow_reforge", data.get("allow_reforge", base.allow_reforge))
+
+    if not available_components and "itemization_components" in data:
+        available_components = _validate_str_list("itemization_components", data.get("itemization_components"))
+    if not available_completed_items and "itemization_completed_items" in data:
+        available_completed_items = _validate_str_list(
+            "itemization_completed_items", data.get("itemization_completed_items")
+        )
+    if not target_carries and "itemization_candidate_champions" in data:
+        target_carries = _validate_str_list(
+            "itemization_candidate_champions", data.get("itemization_candidate_champions")
+        )
+    if not team_traits and "itemization_team_traits" in data:
+        team_traits = _validate_str_list("itemization_team_traits", data.get("itemization_team_traits"))
+    if not needed_traits and "itemization_needed_traits" in data:
+        needed_traits = _validate_str_list("itemization_needed_traits", data.get("itemization_needed_traits"))
 
     config = Config(
         json_path=json_path,
@@ -191,6 +227,12 @@ def load_config(path: str | None) -> Config:
         mode=mode,
         must_have_itemized_tank=must_have_itemized_tank,
         seed_verticals=seed_verticals,
+        available_components=available_components,
+        available_completed_items=available_completed_items,
+        target_carries=target_carries,
+        team_traits=team_traits,
+        needed_traits=needed_traits,
+        allow_reforge=allow_reforge,
     )
 
     try:
@@ -230,6 +272,20 @@ def validate_config_against_data(
     invalid_blacklist = [t for t in config.blacklist_traits_by_name if t not in trait_set]
     if invalid_blacklist:
         raise ConfigError(f"Blacklisted traits not found in set data: {sorted(invalid_blacklist)}")
+
+    invalid_team_traits = [t for t in config.team_traits if t not in trait_set]
+    if invalid_team_traits:
+        raise ConfigError(f"Team traits not found in set data: {sorted(invalid_team_traits)}")
+
+    invalid_needed_traits = [t for t in config.needed_traits if t not in trait_set]
+    if invalid_needed_traits:
+        raise ConfigError(f"Needed traits not found in set data: {sorted(invalid_needed_traits)}")
+
+    invalid_candidates = [
+        champ for champ in config.target_carries if champ not in champ_set
+    ]
+    if invalid_candidates:
+        raise ConfigError(f"Target carries not found in set data: {sorted(invalid_candidates)}")
 
     negative_emblems = {t: v for t, v in config.emblem_start_counts.items() if v < 0}
     if negative_emblems:

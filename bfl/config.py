@@ -208,6 +208,12 @@ class Config:
     mode: str = "bronze"
     must_have_itemized_tank: bool = True
     seed_verticals: bool = True
+    available_components: list[str] = field(default_factory=list)
+    available_completed_items: list[str] = field(default_factory=list)
+    target_carries: list[str] = field(default_factory=list)
+    team_traits: list[str] = field(default_factory=list)
+    needed_traits: list[str] = field(default_factory=list)
+    allow_reforge: bool = False
 
     def to_dict(self) -> Dict:
         return {
@@ -228,6 +234,12 @@ class Config:
             "mode": self.mode,
             "must_have_itemized_tank": self.must_have_itemized_tank,
             "seed_verticals": self.seed_verticals,
+            "available_components": list(self.available_components),
+            "available_completed_items": list(self.available_completed_items),
+            "target_carries": list(self.target_carries),
+            "team_traits": list(self.team_traits),
+            "needed_traits": list(self.needed_traits),
+            "allow_reforge": self.allow_reforge,
         }
 
 
@@ -250,4 +262,10 @@ def default_config() -> Config:
         mode="bronze",
         must_have_itemized_tank=True,
         seed_verticals=True,
+        available_components=[],
+        available_completed_items=[],
+        target_carries=[],
+        team_traits=[],
+        needed_traits=[],
+        allow_reforge=False,
     )
