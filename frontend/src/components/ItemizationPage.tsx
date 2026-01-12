@@ -7,6 +7,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  Chip,
   CircularProgress,
   FormControlLabel,
   Stack,
@@ -19,7 +20,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import ItemizationResults from './ItemizationResults';
 import Loader from './Loader';
 import DebugLogCard from './DebugLogCard';
-import { ItemizationConfig, ItemizationReference, ItemizationRunResponse } from '../types';
+import { ItemOption, ItemizationConfig, ItemizationReference, ItemizationRunResponse } from '../types';
 
 const API_BASE = 'http://localhost:8000';
 const ITEMIZATION_VERSION = 2;
@@ -40,6 +41,83 @@ const normalizeConfig = (config: Partial<ItemizationConfig> | undefined): Itemiz
   needed_traits: config?.needed_traits ?? [],
   allow_reforge: config?.allow_reforge ?? false,
 });
+
+const buildCounts = (items: string[]) =>
+  items.reduce<Record<string, number>>((acc, item) => {
+    acc[item] = (acc[item] ?? 0) + 1;
+    return acc;
+  }, {});
+
+const InventoryPicker = ({
+  label,
+  options,
+  values,
+  onChange,
+}: {
+  label: string;
+  options: ItemOption[];
+  values: string[];
+  onChange: (next: string[]) => void;
+}) => {
+  const [selection, setSelection] = useState<ItemOption | null>(null);
+  const counts = useMemo(() => buildCounts(values), [values]);
+  const nameMap = useMemo(
+    () =>
+      options.reduce<Record<string, string>>((acc, option) => {
+        acc[option.apiName] = option.name;
+        return acc;
+      }, {}),
+    [options],
+  );
+
+  const handleAdd = () => {
+    if (!selection) return;
+    onChange([...values, selection.apiName]);
+    setSelection(null);
+  };
+
+  const handleRemoveOne = (apiName: string) => {
+    const index = values.indexOf(apiName);
+    if (index === -1) return;
+    const next = [...values];
+    next.splice(index, 1);
+    onChange(next);
+  };
+
+  return (
+    <Stack spacing={1.5}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+        <Autocomplete
+          value={selection}
+          options={options}
+          getOptionLabel={(option) => option.name}
+          onChange={(_, value) => setSelection(value)}
+          renderInput={(params) => <TextField {...params} label={label} />}
+          fullWidth
+        />
+        <Button variant="outlined" onClick={handleAdd} disabled={!selection}>
+          Add
+        </Button>
+      </Stack>
+      <Stack direction="row" spacing={1} flexWrap="wrap">
+        {Object.entries(counts).length ? (
+          Object.entries(counts).map(([apiName, count]) => (
+            <Chip
+              key={apiName}
+              label={`${nameMap[apiName] ?? apiName} ×${count}`}
+              onDelete={() => handleRemoveOne(apiName)}
+              size="small"
+            />
+          ))
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            No items selected yet.
+          </Typography>
+        )}
+      </Stack>
+    </Stack>
+  );
+};
 
 const ItemizationPage = () => {
   const [config, setConfig] = useState<ItemizationConfig>(normalizeConfig(undefined));
@@ -111,31 +189,17 @@ const ItemizationPage = () => {
           )}
           {!isLoading && !hasError && reference ? (
             <Stack spacing={3}>
-              <Autocomplete
-                multiple
+              <InventoryPicker
+                label="Available components"
                 options={reference.components}
-                getOptionLabel={(option) => option.name}
-                value={reference.components.filter((item) => config.available_components.includes(item.apiName))}
-                onChange={(_, value) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    available_components: value.map((item) => item.apiName),
-                  }))
-                }
-                renderInput={(params) => <TextField {...params} label="Available components" />}
+                values={config.available_components}
+                onChange={(next) => setConfig((prev) => ({ ...prev, available_components: next }))}
               />
-              <Autocomplete
-                multiple
+              <InventoryPicker
+                label="Available completed items"
                 options={reference.completed_items}
-                getOptionLabel={(option) => option.name}
-                value={reference.completed_items.filter((item) => config.available_completed_items.includes(item.apiName))}
-                onChange={(_, value) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    available_completed_items: value.map((item) => item.apiName),
-                  }))
-                }
-                renderInput={(params) => <TextField {...params} label="Available completed items" />}
+                values={config.available_completed_items}
+                onChange={(next) => setConfig((prev) => ({ ...prev, available_completed_items: next }))}
               />
               <Autocomplete
                 multiple
@@ -149,20 +213,6 @@ const ItemizationPage = () => {
                   }))
                 }
                 renderInput={(params) => <TextField {...params} label="Target carries (optional)" />}
-              />
-              <Autocomplete
-                multiple
-                options={reference.traits}
-                value={config.team_traits}
-                onChange={(_, value) => setConfig((prev) => ({ ...prev, team_traits: value }))}
-                renderInput={(params) => <TextField {...params} label="Current team traits" />}
-              />
-              <Autocomplete
-                multiple
-                options={reference.traits}
-                value={config.needed_traits}
-                onChange={(_, value) => setConfig((prev) => ({ ...prev, needed_traits: value }))}
-                renderInput={(params) => <TextField {...params} label="Needed traits" />}
               />
               <FormControlLabel
                 control={

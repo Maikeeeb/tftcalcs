@@ -283,9 +283,14 @@ def run_itemization(payload: Mapping[str, Any]):
     """Validate a versioned payload and execute the itemization solver."""
 
     try:
+        if not isinstance(payload, Mapping):
+            raise ConfigError("Payload must be an object.")
+        raw_config = payload.get("config")
+        if not isinstance(raw_config, Mapping):
+            raise ConfigError("Payload must include a 'config' object.")
+        validate(instance=raw_config, schema=SCHEMA)
         solver_config = _versioned_config_payload(payload)
         solver_config.mode = "itemization"
-        validate(instance=solver_config.to_dict(), schema=SCHEMA)
         result = run_solver(solver_config)
     except ValidationError as exc:
         raise HTTPException(
