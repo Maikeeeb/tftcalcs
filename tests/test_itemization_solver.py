@@ -62,3 +62,19 @@ def test_itemization_fixture_bf_gloves_prefers_jinx():
     ranked = result["solution"]["ranked_candidates"]
 
     assert ranked[0]["champion"] == fixture["expected_top_carry"]
+
+
+def test_itemization_normalizes_tutorial_component_items():
+    config = default_config()
+    config.mode = "itemization"
+    config.available_components = [
+        "TFTTutorial_Item_NeedlesslyLargeRod",
+        "TFTTutorial_Item_NeedlesslyLargeRod",
+    ]
+    config.target_carries = ["TFT16_Ahri"]
+
+    result = run_itemization_solver(config)
+    ranked = result["solution"]["ranked_candidates"]
+
+    assert ranked[0]["score"]["craftable_items"] == 1
+    assert "TFT_Item_RabadonsDeathcap" in ranked[0]["score"]["craftable"]

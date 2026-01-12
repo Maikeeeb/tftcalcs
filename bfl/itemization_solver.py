@@ -57,6 +57,8 @@ class ItemCatalog:
     component_api_names: set[str]
     craftable_api_names: set[str]
     compositions: Dict[str, Tuple[str, str]]
+    component_aliases: Dict[str, str]
+    craftable_aliases: Dict[str, str]
 
 
 def _normalize_key(value: str) -> str:
@@ -90,18 +92,47 @@ def load_item_catalog(path: Path | str) -> ItemCatalog:
     components_by_key: Dict[str, Mapping[str, object]] = {}
     craftable_by_key: Dict[str, Mapping[str, object]] = {}
     compositions: Dict[str, Tuple[str, str]] = {}
+
+    def _prefer_standard_item(existing: Mapping[str, object] | None, candidate: Mapping[str, object]) -> bool:
+        if existing is None:
+            return True
+        existing_api = str(existing.get("apiName", ""))
+        candidate_api = str(candidate.get("apiName", ""))
+        if existing_api.startswith("TFTTutorial_") and not candidate_api.startswith("TFTTutorial_"):
+            return True
+        return False
     for item in items:
         api = item.get("apiName")
         name = item.get("name")
         if not api or not name:
             continue
+        normalized_name = _normalize_key(name)
         if api in component_api_names:
-            components_by_key.setdefault(_normalize_key(name), item)
+            if _prefer_standard_item(components_by_key.get(normalized_name), item):
+                components_by_key[normalized_name] = item
         if api in craftable_api_names:
-            craftable_by_key.setdefault(_normalize_key(name), item)
+            if _prefer_standard_item(craftable_by_key.get(normalized_name), item):
+                craftable_by_key[normalized_name] = item
             comps = item.get("composition") or []
             if len(comps) == 2:
                 compositions[api] = (comps[0], comps[1])
+
+    component_aliases: Dict[str, str] = {}
+    craftable_aliases: Dict[str, str] = {}
+    for item in items:
+        api = item.get("apiName")
+        name = item.get("name")
+        if not api or not name:
+            continue
+        normalized_name = _normalize_key(name)
+        if api.startswith("TFTTutorial_") and api in component_api_names:
+            preferred = components_by_key.get(normalized_name)
+            if preferred and preferred.get("apiName") != api:
+                component_aliases[api] = str(preferred.get("apiName"))
+        if api.startswith("TFTTutorial_") and api in craftable_api_names:
+            preferred = craftable_by_key.get(normalized_name)
+            if preferred and preferred.get("apiName") != api:
+                craftable_aliases[api] = str(preferred.get("apiName"))
 
     return ItemCatalog(
         items_by_api=items_by_api,
@@ -110,6 +141,8 @@ def load_item_catalog(path: Path | str) -> ItemCatalog:
         component_api_names=component_api_names,
         craftable_api_names=craftable_api_names,
         compositions=compositions,
+        component_aliases=component_aliases,
+        craftable_aliases=craftable_aliases,
     )
 
 
@@ -134,6 +167,11 @@ def _resolve_item(
         raise ItemizationError(f"Item '{raw_value}' is not a component.")
     if kind == "completed" and api_name not in catalog.craftable_api_names:
         raise ItemizationError(f"Item '{raw_value}' is not a craftable completed item.")
+
+    if kind == "component" and api_name in catalog.component_aliases:
+        api_name = catalog.component_aliases[api_name]
+    if kind == "completed" and api_name in catalog.craftable_aliases:
+        api_name = catalog.craftable_aliases[api_name]
 
     return api_name
 

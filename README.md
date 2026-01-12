@@ -50,6 +50,7 @@ and completed items in `config.json` and set `"mode": "itemization"`. The solver
 
 - Load item data from `en_us.json`.
 - Resolve your available components and completed items by name or apiName.
+- Normalize tutorial item apiName values (e.g., `TFTTutorial_Item_*`) to their standard counterparts.
 - Score carry candidates by completed/craftable ideal items, then break ties with needed and existing team traits.
 
 Relevant config fields:
