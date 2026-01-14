@@ -40,7 +40,7 @@ function TraitsPanel({
   );
 }
 
-  function TraitsSummary({ response }: { response: SolverResponse }) {
+function TraitsSummary({ response }: { response: SolverResponse }) {
     const { solution } = response;
     const mode = response.context.mode as 'bronze' | 'standard' | 'ryze' | undefined;
     const bronzeTitle = mode === 'ryze' ? 'Region traits' : 'Bronze traits';

@@ -160,4 +160,150 @@ describe('App', () => {
     expect(roster).toBeTruthy();
     expect(within(roster as HTMLElement).getByText(/Cost: 1/)).toBeInTheDocument();
   });
+
+  it('switches between bronze, standard, and ryze modes', async () => {
+    const fetchMock = createFetchMock();
+    renderApp();
+    await waitForElementToBeRemoved(() => screen.queryByText('Loading…'));
+
+    const bronzeButton = screen.getByRole('button', { name: 'Bronze for Life' });
+    const standardButton = screen.getByRole('button', { name: 'Standard' });
+    const ryzeButton = screen.getByRole('button', { name: 'Ryze (region traits)' });
+
+    await userEvent.click(bronzeButton);
+    await waitFor(() => expect(screen.getByText('Bronze for Life UI')).toBeInTheDocument());
+
+    await userEvent.click(ryzeButton);
+    await waitFor(() => {
+      expect(screen.getByText('Ryze mode UI')).toBeInTheDocument();
+      expect(screen.getByText(/Ryze mode counts only origin traits/)).toBeInTheDocument();
+    });
+
+    await userEvent.click(standardButton);
+    await waitFor(() => expect(screen.getByText('Standard mode UI')).toBeInTheDocument());
+  });
+
+  it('switches between comp and itemization tabs', async () => {
+    const fetchMock = createFetchMock();
+    renderApp();
+    await waitForElementToBeRemoved(() => screen.queryByText('Loading…'));
+
+    const itemizationTab = screen.getByRole('tab', { name: 'Itemization' });
+    await userEvent.click(itemizationTab);
+
+    await waitFor(() => {
+      expect(screen.getByText('Itemization finder')).toBeInTheDocument();
+    });
+
+    const compTab = screen.getByRole('tab', { name: 'Comp finder' });
+    await userEvent.click(compTab);
+
+    await waitFor(() => {
+      expect(screen.getByText('Standard mode UI')).toBeInTheDocument();
+    });
+  });
+
+  it('displays error when API fails to load', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('Network error'));
+    vi.stubGlobal('fetch', fetchMock);
+    renderApp();
+
+    // Wait for error to appear (React Query will retry, so we need to wait)
+    await waitFor(
+      () => {
+        expect(screen.getByText(/Failed to load schema or default config/)).toBeInTheDocument();
+      },
+      { timeout: 10000 },
+    );
+  }, 15000);
+
+  it('displays solver error with debug log', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/schema')) {
+        return new Response(JSON.stringify(schema), { status: 200 });
+      }
+      if (url.endsWith('/config')) {
+        return new Response(JSON.stringify(defaultConfig), { status: 200 });
+      }
+      if (url.endsWith('/run')) {
+        return new Response(
+          JSON.stringify({
+            detail: {
+              error: 'Solver failed',
+              debug_log: ['Debug line 1', 'Debug line 2'],
+            },
+          }),
+          { status: 500 },
+        );
+      }
+      throw new Error(`Unexpected request to ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderApp();
+
+    await waitForElementToBeRemoved(() => screen.queryByText('Loading…'));
+    await userEvent.click(screen.getByRole('button', { name: 'Run solver' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Solver failed/)).toBeInTheDocument();
+      expect(screen.getByText('Solver debug log')).toBeInTheDocument();
+    });
+  });
+
+  it('toggles dark mode', async () => {
+    const fetchMock = createFetchMock();
+    const onToggleColorMode = vi.fn();
+    const client = new QueryClient();
+    render(
+      <QueryClientProvider client={client}>
+        <ThemeProvider theme={createTheme({ palette: { mode: 'dark' } })}>
+          <App mode="dark" onToggleColorMode={onToggleColorMode} />
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitForElementToBeRemoved(() => screen.queryByText('Loading…'));
+
+    const modeSwitch = screen.getByLabelText('Dark mode');
+    await userEvent.click(modeSwitch);
+
+    expect(onToggleColorMode).toHaveBeenCalled();
+  });
+
+  it('shows loading state during solver run', async () => {
+    let resolveRun: (value: any) => void;
+    const runPromise = new Promise<SolverResponse>((resolve) => {
+      resolveRun = resolve;
+    });
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/schema')) {
+        return new Response(JSON.stringify(schema), { status: 200 });
+      }
+      if (url.endsWith('/config')) {
+        return new Response(JSON.stringify(defaultConfig), { status: 200 });
+      }
+      if (url.endsWith('/run')) {
+        await runPromise;
+        return new Response(JSON.stringify(solverResponse), { status: 200 });
+      }
+      throw new Error(`Unexpected request to ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderApp();
+
+    await waitForElementToBeRemoved(() => screen.queryByText('Loading…'));
+    const runButton = screen.getByRole('button', { name: 'Run solver' });
+    await userEvent.click(runButton);
+
+    expect(screen.getByText('Running…')).toBeInTheDocument();
+    expect(runButton).toBeDisabled();
+
+    resolveRun!(solverResponse);
+    await waitFor(() => {
+      expect(screen.queryByText('Running…')).not.toBeInTheDocument();
+    });
+  });
 });
