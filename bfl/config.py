@@ -48,114 +48,29 @@ DEFAULT_EMBLEM_START_COUNTS: Dict[str, int] = {
     "Zaun": 0,
 }
 
-DEFAULT_REQUIRED_CHAMPIONS: Dict[str, int] = {
-    "TFT16_Tristana": 0,
-    "TFT16_Lulu": 0,
-    "TFT16_Teemo": 0,
-    "TFT16_Rumble": 0,
-    "TFT16_Nautilus": 0,
-    "TFT16_TwistedFate": 0,
-    "TFT16_Gangplank": 0,
-    "TFT16_Illaoi": 0,
-    "TFT16_MissFortune": 0,
-    "TFT16_Sion": 0,
-    "TFT16_Briar": 0,
-    "TFT16_Draven": 0,
-    "TFT16_Ambessa": 0,
-    "TFT16_Zoe": 0,
-    "TFT16_Leona": 0,
-    "TFT16_Aphelios": 0,
-    "TFT16_Taric": 0,
-    "TFT16_JarvanIV": 0,
-    "TFT16_Sona": 0,
-    "TFT16_Garen": 0,
-    "TFT16_Lux": 0,
-    "TFT16_Anivia": 0,
-    "TFT16_Ashe": 0,
-    "TFT16_Braum": 0,
-    "TFT16_Lissandra": 0,
-    "TFT16_Milio": 0,
-    "TFT16_Neeko": 0,
-    "TFT16_Jinx": 0,
-    "TFT16_Caitlyn": 0,
-    "TFT16_Vi": 0,
-    "TFT16_Seraphine": 0,
-    "TFT16_Yasuo": 0,
-    "TFT16_Ahri": 0,
-    "TFT16_Wukong": 0,
-    "TFT16_Shen": 0,
-    "TFT16_Malzahar": 0,
-    "TFT16_RekSai": 0,
-    "TFT16_ChoGath": 0,
-    "TFT16_KogMaw": 0,
-    "TFT16_Annie": 0,
-    "TFT16_AnnieTibbers": 0,
-    "TFT16_Ornn": 0,
-    "TFT16_Kindred": 0,
-    "TFT16_Azir": 0,
-    "TFT16_Zilean": 0,
-    "TFT16_Fiddlesticks": 0,
-    "TFT16_Shyvana": 0,
-    "TFT16_Galio": 0,
-    "TFT16_TahmKench": 0,
-    "TFT16_Sejuani": 0,
-    "TFT16_Sett": 0,
-    "TFT16_Brock": 0,
-    "TFT16_THex": 0,
-    "TFT16_BelVeth": 0,
-    "TFT16_Singed": 0,
-    "TFT16_AurelionSol": 0,
-    "TFT16_Veigar": 0,
-    "TFT16_BaronNashor": 0,
-    "TFT16_Darius": 0,
-    "TFT16_Yone": 0,
-    "TFT16_Warwick": 0,
-    "TFT16_Fizz": 0,
-    "TFT16_Poppy": 0,
-    "TFT16_Kennen": 0,
-    "TFT16_Ziggs": 0,
-    "TFT16_Aatrox": 0,
-    "TFT16_Volibear": 0,
-    "TFT16_Jhin": 0,
-    "TFT16_Sylas": 0,
-    "TFT16_Ryze": 0,
-    "TFT16_Nidalee": 0,
-    "TFT16_Tryndamere": 0,
-    "TFT16_RiftHerald": 0,
-    "TFT16_Mel": 0,
-    "TFT16_Graves": 0,
-    "TFT16_Skarner": 0,
-    "TFT16_Diana": 0,
-    "TFT16_Kaisa": 0,
-    "TFT16_Renekton": 0,
-    "TFT16_Nasus": 0,
-    "TFT16_Xerath": 0,
-    "TFT16_Thresh": 0,
-    "TFT16_Gwen": 0,
-    "TFT16_Kalista": 0,
-    "TFT16_Leblanc": 0,
-    "TFT16_Viego": 0,
-    "TFT16_Ekko": 0,
-    "TFT16_Bard": 0,
-    "TFT16_Vayne": 0,
-    "TFT16_Yunara": 0,
-    "TFT16_Swain": 0,
-    "TFT16_XinZhao": 0,
-    "TFT16_Yorick": 0,
-    "TFT16_Orianna": 0,
-    "TFT16_Qiyana": 0,
-    "TFT16_Loris": 0,
-    "TFT16_Blitzcrank": 0,
-    "TFT16_DrMundo": 0,
-    "TFT16_Zaahen": 0,
-    "TFT16_Lucian": 0,
-    "TFT16_Kobuko": 0,
-}
 
-for unlockable in UNLOCKABLE_CHAMPIONS:
-    if unlockable not in DEFAULT_REQUIRED_CHAMPIONS:
-        raise ValueError(f"Unlockable champion not found in defaults: {unlockable}")
-    DEFAULT_REQUIRED_CHAMPIONS[unlockable] = -1
+def _generate_default_required_champions() -> Dict[str, int]:
+    """Generate default required champions dict from en_us.json."""
+    # Import here to avoid circular import (champion_registry depends on config)
+    from bfl.set_loader import load_set_data
+
+    # Use default paths - same as default_config uses
+    json_path = REPO_ROOT / "en_us.json"
+    set_id = "16"
+
+    _, champions, *_ = load_set_data(json_path, set_id)
+    result = {champ: 0 for champ in champions}
+
+    # Apply unlockable logic
+    for unlockable in UNLOCKABLE_CHAMPIONS:
+        if unlockable not in result:
+            raise ValueError(f"Unlockable champion not found in champions: {unlockable}")
+        result[unlockable] = -1
+
+    return result
+
+
+DEFAULT_REQUIRED_CHAMPIONS: Dict[str, int] = _generate_default_required_champions()
 
 # Set value to N (>=1) to enforce a minimum final trait count (after emblems).
 DEFAULT_REQUIRED_TRAITS_MIN: Dict[str, int] = {
@@ -191,6 +106,58 @@ DEFAULT_REQUIRED_TRAITS_MIN: Dict[str, int] = {
 
 @dataclass
 class Config:
+    """Configuration for the Bronze for Life solver.
+
+    Attributes
+    ----------
+    json_path : Path
+        Path to the Riot set data JSON file (e.g., en_us.json).
+    set_id : str
+        Set identifier within the JSON file (e.g., "16" for Set 16).
+    metatft_txt_path : Path
+        Path to MetaTFT unit stats paste file.
+    metatft_traits_path : Path
+        Path to MetaTFT trait stats paste file.
+    team_size : int
+        Maximum number of unit slots on the team.
+    beam_width : int
+        Width of the beam search (number of states to keep per iteration).
+    blacklist_traits_by_name : Set[str]
+        Traits that should never count for Bronze for Life even if active.
+    emblem_start_counts : Dict[str, int]
+        Fixed emblem counts per trait (e.g., {"Zaun": 1} means +1 Zaun from emblems).
+    max_emblems_total : int
+        Maximum number of additional emblems the solver can auto-assign.
+    required_champions : Dict[str, int]
+        Champion requirements: 1 = required, -1 = banned, 0 = no constraint.
+    required_traits_min : Dict[str, int]
+        Minimum trait counts required (after emblems are applied).
+    w_win : float
+        Weight for win rate in MetaTFT power calculations.
+    w_avg : float
+        Weight for average placement in MetaTFT power calculations.
+    w_freq : float
+        Weight for frequency/play rate in MetaTFT power calculations.
+    mode : str
+        Solver mode: "bronze", "standard", "ryze", or "itemization".
+    must_have_itemized_tank : bool
+        Whether the team must include at least one tank champion (cost 4+ with tank items).
+    seed_verticals : bool
+        Whether to seed beam search with vertical-focused teams.
+    available_components : list[str]
+        Available component items for itemization mode (by name or apiName).
+    available_completed_items : list[str]
+        Available completed items for itemization mode (by name or apiName).
+    target_carries : list[str]
+        Champion apiNames to rank in itemization mode (empty = all eligible carries).
+    team_traits : list[str]
+        Traits already active on the team (tie-breaker for itemization).
+    needed_traits : list[str]
+        Traits to add or reinforce (tie-breaker for itemization).
+    allow_reforge : bool
+        Whether completed items can count as reforged into another item for scoring.
+    """
+
     json_path: Path
     set_id: str
     metatft_txt_path: Path
@@ -244,6 +211,14 @@ class Config:
 
 
 def default_config() -> Config:
+    """Return a Config instance with default values.
+
+    Returns
+    -------
+    Config
+        Configuration object with default paths, team size 9, beam width 700,
+        bronze mode, and default MetaTFT weights.
+    """
     return Config(
         json_path=REPO_ROOT / "en_us.json",
         set_id="16",

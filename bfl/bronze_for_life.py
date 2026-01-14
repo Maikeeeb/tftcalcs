@@ -29,6 +29,23 @@ __all__ = [
 
 
 def main(config: Config | None = None, config_path: str | None = None):
+    """Entry point for the Bronze for Life CLI.
+
+    Executes the solver with the provided configuration and prints formatted
+    results to stdout. Supports bronze, standard, ryze, and itemization modes.
+
+    Parameters
+    ----------
+    config : Config | None, optional
+        Configuration object to use. If None, loads from config_path or defaults.
+    config_path : str | None, optional
+        Path to config.json file. If None and config is None, uses default config.
+
+    Returns
+    -------
+    None
+        Prints results to stdout and returns None.
+    """
     cfg = _resolve_config(config, config_path)
     result = run_solver(cfg)
 
@@ -140,7 +157,9 @@ def main(config: Config | None = None, config_path: str | None = None):
                 reason.append("blacklisted")
             if trait_freq.get(t, 0) < 2:
                 reason.append("exclusive")
-            print(f" - {t}: teamCount={counts.get(t, 0)} traitFreq={trait_freq.get(t)} ({', '.join(reason)})")
+            print(
+                f" - {t}: teamCount={counts.get(t, 0)} traitFreq={trait_freq.get(t)} ({', '.join(reason)})"
+            )
 
 
 def _print_itemization_result(result: dict[str, object]) -> None:

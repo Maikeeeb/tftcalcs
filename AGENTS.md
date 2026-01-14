@@ -127,6 +127,11 @@ When tradeoffs occur, prefer decisions in this order:
 
 - Add or update tests in `/tests/` so future updates don't accidentally harm old features
 - When changing scoring behavior, add at least one test that encodes the intended tradeoff
+- Tests must pass before committing code changes
+- Coverage must remain at or above 90% for `bfl/` and `ui_api/` packages
+- Pre-commit hooks enforce code style (black, flake8, mypy) - ensure all hooks pass
+- Run `pytest --cov` to verify coverage before submitting changes
+- Integration tests in `tests/integration/` exercise the complete stack (UI → API → Solver)
 
 ## Anti-Patterns (Avoid)
 
@@ -185,5 +190,3 @@ When tradeoffs occur, prefer decisions in this order:
 - If a change reveals a missing rule or invariant:
     - Propose adding it to this document
 - This file should evolve as the project’s intent becomes clearer
-
-

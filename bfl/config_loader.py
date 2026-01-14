@@ -15,7 +15,9 @@ class ConfigError(ValueError):
 DEFAULT_CONFIG_FILENAME = "config.json"
 
 
-def _validate_int(name: str, value, *, allow_negative: bool = False, allowed_values: Set[int] | None = None) -> int:
+def _validate_int(
+    name: str, value, *, allow_negative: bool = False, allowed_values: Set[int] | None = None
+) -> int:
     if not isinstance(value, int):
         raise ConfigError(f"{name} must be an integer (got {type(value).__name__}).")
     if allowed_values is not None:
@@ -118,14 +120,20 @@ def load_config(path: str | None) -> Config:
 
     json_path = Path(data.get("json_path", base.json_path)).expanduser()
     metatft_txt_path = Path(data.get("metatft_txt_path", base.metatft_txt_path)).expanduser()
-    metatft_traits_path = Path(data.get("metatft_traits_path", base.metatft_traits_path)).expanduser()
+    metatft_traits_path = Path(
+        data.get("metatft_traits_path", base.metatft_traits_path)
+    ).expanduser()
 
     team_size_input = data.get("team_size", base.team_size)
     team_size_provided = "team_size" in data
     team_size = _validate_int("team_size", team_size_input, allow_negative=False)
-    beam_width = _validate_int("beam_width", data.get("beam_width", base.beam_width), allow_negative=False)
+    beam_width = _validate_int(
+        "beam_width", data.get("beam_width", base.beam_width), allow_negative=False
+    )
     max_emblems_total = _validate_int(
-        "max_emblems_total", data.get("max_emblems_total", base.max_emblems_total), allow_negative=False
+        "max_emblems_total",
+        data.get("max_emblems_total", base.max_emblems_total),
+        allow_negative=False,
     )
 
     blacklist_raw = data.get("blacklist_traits_by_name", base.blacklist_traits_by_name)
@@ -181,7 +189,9 @@ def load_config(path: str | None) -> Config:
     must_have_itemized_tank = _validate_bool(
         "must_have_itemized_tank", data.get("must_have_itemized_tank", base.must_have_itemized_tank)
     )
-    seed_verticals = _validate_bool("seed_verticals", data.get("seed_verticals", base.seed_verticals))
+    seed_verticals = _validate_bool(
+        "seed_verticals", data.get("seed_verticals", base.seed_verticals)
+    )
     available_components = _validate_str_list(
         "available_components", data.get("available_components", base.available_components)
     )
@@ -189,13 +199,19 @@ def load_config(path: str | None) -> Config:
         "available_completed_items",
         data.get("available_completed_items", base.available_completed_items),
     )
-    target_carries = _validate_str_list("target_carries", data.get("target_carries", base.target_carries))
+    target_carries = _validate_str_list(
+        "target_carries", data.get("target_carries", base.target_carries)
+    )
     team_traits = _validate_str_list("team_traits", data.get("team_traits", base.team_traits))
-    needed_traits = _validate_str_list("needed_traits", data.get("needed_traits", base.needed_traits))
+    needed_traits = _validate_str_list(
+        "needed_traits", data.get("needed_traits", base.needed_traits)
+    )
     allow_reforge = _validate_bool("allow_reforge", data.get("allow_reforge", base.allow_reforge))
 
     if not available_components and "itemization_components" in data:
-        available_components = _validate_str_list("itemization_components", data.get("itemization_components"))
+        available_components = _validate_str_list(
+            "itemization_components", data.get("itemization_components")
+        )
     if not available_completed_items and "itemization_completed_items" in data:
         available_completed_items = _validate_str_list(
             "itemization_completed_items", data.get("itemization_completed_items")
@@ -205,9 +221,13 @@ def load_config(path: str | None) -> Config:
             "itemization_candidate_champions", data.get("itemization_candidate_champions")
         )
     if not team_traits and "itemization_team_traits" in data:
-        team_traits = _validate_str_list("itemization_team_traits", data.get("itemization_team_traits"))
+        team_traits = _validate_str_list(
+            "itemization_team_traits", data.get("itemization_team_traits")
+        )
     if not needed_traits and "itemization_needed_traits" in data:
-        needed_traits = _validate_str_list("itemization_needed_traits", data.get("itemization_needed_traits"))
+        needed_traits = _validate_str_list(
+            "itemization_needed_traits", data.get("itemization_needed_traits")
+        )
 
     config = Config(
         json_path=json_path,
@@ -248,6 +268,23 @@ def load_config(path: str | None) -> Config:
 
 
 def save_config(config: Config, path: str):
+    """Save configuration to a JSON file.
+
+    Creates parent directories if needed and writes the config in JSON format
+    with indentation and sorted keys.
+
+    Parameters
+    ----------
+    config : Config
+        Configuration object to save.
+    path : str
+        File path where the configuration will be written.
+
+    Raises
+    ------
+    OSError
+        If the file cannot be written (e.g., permission denied).
+    """
     cfg_path = Path(path)
     cfg_path.parent.mkdir(parents=True, exist_ok=True)
     with cfg_path.open("w", encoding="utf-8") as f:
@@ -257,6 +294,28 @@ def save_config(config: Config, path: str):
 def validate_config_against_data(
     config: Config, champions: Iterable[str], trait_breakpoints: Mapping[str, object]
 ) -> None:
+    """Validate configuration against loaded set data.
+
+    Checks that all referenced champions, traits, and constraints are valid
+    according to the provided set data. Raises ConfigError if any invalid
+    references are found.
+
+    Parameters
+    ----------
+    config : Config
+        Configuration to validate.
+    champions : Iterable[str]
+        List of valid champion apiNames from set data.
+    trait_breakpoints : Mapping[str, object]
+        Dictionary of trait names to breakpoint data from set data.
+
+    Raises
+    ------
+    ConfigError
+        If any required champions, traits, or other config values are invalid
+        (not found in set data, negative when not allowed, or zero/negative
+        team_size/beam_width).
+    """
     _validate_required_champions(config, champions)
     champ_set = set(champions)
     trait_set = set(trait_breakpoints)
@@ -281,9 +340,7 @@ def validate_config_against_data(
     if invalid_needed_traits:
         raise ConfigError(f"Needed traits not found in set data: {sorted(invalid_needed_traits)}")
 
-    invalid_candidates = [
-        champ for champ in config.target_carries if champ not in champ_set
-    ]
+    invalid_candidates = [champ for champ in config.target_carries if champ not in champ_set]
     if invalid_candidates:
         raise ConfigError(f"Target carries not found in set data: {sorted(invalid_candidates)}")
 

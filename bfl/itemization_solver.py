@@ -51,6 +51,31 @@ CARRY_ITEM_PREFERENCES: Dict[str, List[str]] = {
 
 @dataclass(frozen=True)
 class ItemCatalog:
+    """Catalog of TFT items with lookup capabilities.
+
+    Provides mappings for resolving item names to apiNames and accessing
+    item data including components, craftable items, and compositions.
+
+    Attributes
+    ----------
+    items_by_api : Dict[str, Mapping[str, object]]
+        Mapping from item apiName to full item data.
+    components_by_key : Dict[str, Mapping[str, object]]
+        Mapping from normalized component name to component item data.
+    craftable_by_key : Dict[str, Mapping[str, object]]
+        Mapping from normalized craftable item name to item data.
+    component_api_names : set[str]
+        Set of all component item apiNames.
+    craftable_api_names : set[str]
+        Set of all craftable item apiNames.
+    compositions : Dict[str, Tuple[str, str]]
+        Mapping from craftable item apiName to tuple of component apiNames.
+    component_aliases : Dict[str, str]
+        Mapping from tutorial component apiNames to standard apiNames.
+    craftable_aliases : Dict[str, str]
+        Mapping from tutorial craftable apiNames to standard apiNames.
+    """
+
     items_by_api: Dict[str, Mapping[str, object]]
     components_by_key: Dict[str, Mapping[str, object]]
     craftable_by_key: Dict[str, Mapping[str, object]]
@@ -66,6 +91,22 @@ def _normalize_key(value: str) -> str:
 
 
 def load_item_catalog(path: Path | str) -> ItemCatalog:
+    """Load item catalog from Riot's set data JSON file.
+
+    Parses the items section of the set data file and builds lookup structures
+    for components, craftable items, and their relationships. Handles tutorial
+    item aliases by mapping them to standard item apiNames.
+
+    Parameters
+    ----------
+    path : Path | str
+        Path to the Riot set data JSON file (e.g., en_us.json).
+
+    Returns
+    -------
+    ItemCatalog
+        Catalog object with all item lookup structures populated.
+    """
     with Path(path).open("r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -76,8 +117,7 @@ def load_item_catalog(path: Path | str) -> ItemCatalog:
     component_api_names = {
         item["apiName"]
         for item in items
-        if item.get("apiName")
-        and "component" in set(item.get("tags") or [])
+        if item.get("apiName") and "component" in set(item.get("tags") or [])
     }
 
     craftable_api_names = {
@@ -93,7 +133,9 @@ def load_item_catalog(path: Path | str) -> ItemCatalog:
     craftable_by_key: Dict[str, Mapping[str, object]] = {}
     compositions: Dict[str, Tuple[str, str]] = {}
 
-    def _prefer_standard_item(existing: Mapping[str, object] | None, candidate: Mapping[str, object]) -> bool:
+    def _prefer_standard_item(
+        existing: Mapping[str, object] | None, candidate: Mapping[str, object]
+    ) -> bool:
         if existing is None:
             return True
         existing_api = str(existing.get("apiName", ""))
@@ -101,6 +143,7 @@ def load_item_catalog(path: Path | str) -> ItemCatalog:
         if existing_api.startswith("TFTTutorial_") and not candidate_api.startswith("TFTTutorial_"):
             return True
         return False
+
     for item in items:
         api = item.get("apiName")
         name = item.get("name")
@@ -146,9 +189,7 @@ def load_item_catalog(path: Path | str) -> ItemCatalog:
     )
 
 
-def _resolve_item(
-    raw_value: str, catalog: ItemCatalog, *, kind: str
-) -> str:
+def _resolve_item(raw_value: str, catalog: ItemCatalog, *, kind: str) -> str:
     if raw_value in catalog.items_by_api:
         api_name = raw_value
     else:
@@ -176,9 +217,7 @@ def _resolve_item(
     return api_name
 
 
-def _resolve_items(
-    values: Iterable[str], catalog: ItemCatalog, *, kind: str
-) -> List[str]:
+def _resolve_items(values: Iterable[str], catalog: ItemCatalog, *, kind: str) -> List[str]:
     resolved = []
     for value in values:
         resolved.append(_resolve_item(str(value), catalog, kind=kind))
@@ -245,7 +284,9 @@ def _score_items(
                 {
                     "item": item,
                     "components_hit": components_hit,
-                    "missing_components": [comp for comp in components if remaining_components[comp] == 0],
+                    "missing_components": [
+                        comp for comp in components if remaining_components[comp] == 0
+                    ],
                 }
             )
 
@@ -355,11 +396,7 @@ def run_itemization_solver(config: Config) -> Dict[str, object]:
         )
     )
 
-    item_names = {
-        api: item.get("name", api)
-        for api, item in catalog.items_by_api.items()
-        if api
-    }
+    item_names = {api: item.get("name", api) for api, item in catalog.items_by_api.items() if api}
 
     return {
         "context": {

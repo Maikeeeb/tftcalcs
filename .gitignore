@@ -2,3 +2,15 @@ __pycache__/
 *.pyc
 frontend/node_modules
 frontend/dist
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Pre-commit
+.pre-commit-config.yaml.bak

@@ -4,7 +4,21 @@ from typing import Dict, Iterable, List, Set
 
 
 def normalize_name(s: str) -> str:
-    # Lowercase, remove spaces/punctuation for matching
+    """Normalize a string for matching by removing spaces and punctuation.
+
+    Converts to lowercase and removes all non-alphanumeric characters to
+    enable fuzzy matching of names.
+
+    Parameters
+    ----------
+    s : str
+        String to normalize.
+
+    Returns
+    -------
+    str
+        Normalized string (lowercase, alphanumeric only).
+    """
     return re.sub(r"[^a-z0-9]+", "", s.lower())
 
 
@@ -32,6 +46,21 @@ def _count_tank_items(items: Iterable[str] | None) -> int:
 
 
 def is_tank_item_build(items: Iterable[str] | None) -> bool:
+    """Check if an item build is primarily tank-focused.
+
+    A build is considered tank-focused if at least half of the items
+    (rounded up) are tank items.
+
+    Parameters
+    ----------
+    items : Iterable[str] | None
+        List of item names to check.
+
+    Returns
+    -------
+    bool
+        True if the build is primarily tank items, False otherwise.
+    """
     items = list(items or [])
     if not items:
         return False
@@ -71,7 +100,9 @@ class TraitStat:
     freq: float
 
 
-def best_trait_stat(trait: str, count: int, trait_stats: Dict[str, List[TraitStat]]) -> TraitStat | None:
+def best_trait_stat(
+    trait: str, count: int, trait_stats: Dict[str, List[TraitStat]]
+) -> TraitStat | None:
     """Return the strongest MetaTFT breakpoint satisfied for ``trait``.
 
     Used for surfacing the most relevant MetaTFT values for a trait given the
@@ -90,6 +121,26 @@ def best_trait_stat(trait: str, count: int, trait_stats: Dict[str, List[TraitSta
 
 
 def parse_metatft_units(text: str) -> Dict[str, Dict[str, float | List[str]]]:
+    """Parse MetaTFT unit paste data into a structured dictionary.
+
+    Parses the MetaTFT unit table copy-paste format and extracts unit stats
+    including average placement, win rate, frequency, tier, and popular items.
+
+    Parameters
+    ----------
+    text : str
+        Raw MetaTFT unit paste text.
+
+    Returns
+    -------
+    Dict[str, Dict[str, float | List[str]]]
+        Dictionary mapping unit names to their stats. Each unit dict contains:
+        - "avg": average placement (float)
+        - "win": win rate (float, 0-1)
+        - "freq": play frequency (float, 0-1)
+        - "tier": tier letter (str)
+        - "items": list of popular item names (List[str])
+    """
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     out: Dict[str, Dict[str, float | List[str]]] = {}
 
@@ -190,9 +241,21 @@ def parse_metatft_units(text: str) -> Dict[str, Dict[str, float | List[str]]]:
 
 
 def build_name_to_api_map(set_data) -> Dict[str, str]:
-    """
-    Builds mapping from normalized display name -> apiName using your en_us.json set data.
-    Tries 'name', 'characterName', and apiName tail.
+    """Build mapping from normalized display name to apiName.
+
+    Creates a mapping that allows fuzzy matching of unit names to their
+    apiName identifiers. Tries multiple name fields: 'name', 'characterName',
+    and the tail of the apiName (e.g., "Aatrox" from "TFT16_Aatrox").
+
+    Parameters
+    ----------
+    set_data : dict
+        Set data dictionary from en_us.json containing champions list.
+
+    Returns
+    -------
+    Dict[str, str]
+        Mapping from normalized display names to champion apiNames.
     """
     m: Dict[str, str] = {}
     for ch in set_data["champions"]:
@@ -214,9 +277,24 @@ def build_name_to_api_map(set_data) -> Dict[str, str]:
 
 
 def metatft_to_unit_stats(paste: str, set_data) -> Dict[str, Dict[str, float | List[str]]]:
-    """
-    Converts the MetaTFT paste into a dict keyed by apiName:
-      { "TFT16_Aatrox": {"avg":..., "win":..., "freq":...}, ... }
+    """Convert MetaTFT unit paste to dictionary keyed by champion apiName.
+
+    Parses the MetaTFT paste and maps unit names to their apiName identifiers
+    using set data. Filters out items that match champion names to avoid
+    confusion.
+
+    Parameters
+    ----------
+    paste : str
+        Raw MetaTFT unit paste text.
+    set_data : dict
+        Set data dictionary from en_us.json.
+
+    Returns
+    -------
+    Dict[str, Dict[str, float | List[str]]]
+        Dictionary mapping champion apiNames to their stats. Each entry
+        contains "avg", "win", "freq", "tier", and "items" keys.
     """
     paste = paste.strip()
     if not paste:
@@ -234,13 +312,15 @@ def metatft_to_unit_stats(paste: str, set_data) -> Dict[str, Dict[str, float | L
         if not api:
             missed.append(name)
             continue
-        filtered_items = [
-            item for item in stats.get("items", []) if normalize_name(item) not in champion_keys
-        ]
+        items_value = stats.get("items", [])
+        items_list = items_value if isinstance(items_value, list) else []
+        filtered_items = [item for item in items_list if normalize_name(item) not in champion_keys]
         unit_stats[api] = {**stats, "items": filtered_items}
 
     if missed:
-        print(f"Warning: couldn't map {len(missed)} units from MetaTFT paste (first 15): {missed[:15]}")
+        print(
+            f"Warning: couldn't map {len(missed)} units from MetaTFT paste (first 15): {missed[:15]}"
+        )
 
     print(f"Loaded MetaTFT stats for {len(unit_stats)} units.")
     return unit_stats
@@ -271,8 +351,29 @@ def unit_power(
     w_avg: float = 1.0,
     w_freq: float = 0.1,
 ) -> float:
-    """
+    """Calculate power score for a unit.
+
+    Returns a weighted score combining win rate, average placement, and
+    play frequency. Higher scores indicate stronger unit performance.
     Bigger is better.
+
+    Parameters
+    ----------
+    api : str
+        Champion apiName to score.
+    unit_stats : Dict[str, Dict[str, float]]
+        Dictionary mapping champion apiNames to their stats (avg, win, freq).
+    w_win : float, optional
+        Weight for win rate (default: 2.0).
+    w_avg : float, optional
+        Weight for average placement (default: 1.0).
+    w_freq : float, optional
+        Weight for play frequency (default: 0.1).
+
+    Returns
+    -------
+    float
+        Power score for the unit. Returns 0.0 if unit not found in stats.
     """
     s = unit_stats.get(api)
     if not s:
@@ -285,6 +386,18 @@ def unit_power(
 
 
 def load_metatft_txt(path: str) -> str:
+    """Load MetaTFT paste text from a file.
+
+    Parameters
+    ----------
+    path : str
+        Path to the MetaTFT paste file.
+
+    Returns
+    -------
+    str
+        File contents as a string. Returns empty string if file not found.
+    """
     try:
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
@@ -367,9 +480,23 @@ def parse_metatft_traits(text: str) -> Dict[str, List[TraitStat]]:
 
 
 def metatft_to_trait_stats(paste: str, set_data) -> Dict[str, List[TraitStat]]:
-    """
-    Converts the MetaTFT trait paste into a dict keyed by trait name as it
-    appears in the set data. Unknown traits are ignored.
+    """Convert MetaTFT trait paste to dictionary keyed by trait name.
+
+    Parses the MetaTFT trait paste and maps trait names to their identifiers
+    as they appear in set data. Unknown traits are ignored.
+
+    Parameters
+    ----------
+    paste : str
+        Raw MetaTFT trait paste text.
+    set_data : dict
+        Set data dictionary from en_us.json.
+
+    Returns
+    -------
+    Dict[str, List[TraitStat]]
+        Dictionary mapping trait names to lists of TraitStat objects,
+        sorted by required count (lowest to highest).
     """
 
     paste = paste.strip()
@@ -406,8 +533,31 @@ def trait_power(
     w_avg: float = 1.0,
     w_freq: float = 0.1,
 ) -> float:
-    """
-    Returns a score for the highest breakpoint satisfied for ``trait``.
+    """Calculate power score for a trait at the given count.
+
+    Returns a weighted score based on the highest breakpoint satisfied for
+    the trait. Higher scores indicate stronger trait performance.
+
+    Parameters
+    ----------
+    trait : str
+        Trait name to score.
+    count : int
+        Current trait count on the team.
+    trait_stats : Dict[str, List[TraitStat]]
+        Dictionary mapping trait names to their breakpoint stats.
+    w_win : float, optional
+        Weight for win rate (default: 2.0).
+    w_avg : float, optional
+        Weight for average placement (default: 1.0).
+    w_freq : float, optional
+        Weight for play frequency (default: 0.1).
+
+    Returns
+    -------
+    float
+        Power score for the trait. Returns 0.0 if trait not found or
+        no breakpoint satisfied.
     """
 
     stats = trait_stats.get(trait)

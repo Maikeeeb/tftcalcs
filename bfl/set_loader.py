@@ -17,6 +17,33 @@ def load_set_data(
     Set[str],
     Dict[str, int],
 ]:
+    """Load and parse TFT set data from Riot's JSON format.
+
+    Extracts champions, traits, breakpoints, and eligibility information from
+    the official set data file. Filters out non-playable units and determines
+    which traits are eligible for Bronze for Life.
+
+    Parameters
+    ----------
+    path : str | Path
+        Path to the Riot set data JSON file (e.g., en_us.json).
+    set_id : str
+        Set identifier within the JSON file (e.g., "16" for Set 16).
+    blacklist_traits : Optional[Set[str]]
+        Traits to exclude from eligibility even if they meet other criteria.
+
+    Returns
+    -------
+    Tuple[Dict, List[str], Dict[str, List[str]], Dict[str, List[int]], Dict[str, int], Set[str], Dict[str, int]]
+        Tuple containing:
+        - Set data dictionary (raw JSON for the set)
+        - List of champion apiNames
+        - Mapping of champion apiName to trait lists
+        - Mapping of trait names to sorted breakpoint lists
+        - Mapping of champion apiName to cost
+        - Set of eligible trait names (2+ champions, has breakpoints, not blacklisted)
+        - Mapping of trait names to frequency (how many champions have the trait)
+    """
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -28,11 +55,7 @@ def load_set_data(
     trait_bps: Dict[str, List[int]] = {}
     for tr in set_data["traits"]:
         name = tr["name"]
-        bps = sorted(
-            e["minUnits"]
-            for e in tr.get("effects", [])
-            if e.get("minUnits") is not None
-        )
+        bps = sorted(e["minUnits"] for e in tr.get("effects", []) if e.get("minUnits") is not None)
         if bps:
             trait_bps[name] = bps
 
@@ -98,8 +121,7 @@ def load_set_data(
     # - has breakpoints
     # - not blacklisted
     eligible_traits: Set[str] = {
-        t for t, f in trait_freq.items()
-        if f >= 2 and t in trait_bps and t not in blacklist
+        t for t, f in trait_freq.items() if f >= 2 and t in trait_bps and t not in blacklist
     }
 
     return set_data, champs, champ_traits, trait_bps, champ_cost, eligible_traits, dict(trait_freq)

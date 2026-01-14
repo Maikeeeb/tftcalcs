@@ -118,3 +118,148 @@ The repository now ships with a lightweight FastAPI backend and a Vite + React +
 6. **Open the UI.** Visit `http://localhost:5173` in your browser. The page will load the JSON schema and default solver config from the API, let you edit every field via a form, and offer a **Run solver** button. Keep both the API and Vite servers running while you experiment.
 
 The UI now includes a dedicated **Itemization** tab that calls the versioned `/v2/itemization/*` API routes. Use that tab to enter your item inventory, select target carries, and view the closest builds without changing the comp finder configuration.
+
+## API Documentation
+
+The FastAPI backend automatically generates OpenAPI/Swagger documentation. When the API server is running, you can access:
+
+- **Swagger UI**: `http://localhost:8000/docs` - Interactive API documentation with try-it-out functionality
+- **ReDoc**: `http://localhost:8000/redoc` - Alternative API documentation interface
+
+### Main Endpoints
+
+#### Solver Configuration Endpoints
+
+- **`GET /schema`** - Get the JSON schema for solver configuration
+  - Returns the schema used for validating configuration payloads
+  - Useful for UI form generation and validation
+
+- **`GET /config`** - Get the default solver configuration
+  - Returns a complete configuration object with all default values
+  - Can be used as a starting point for custom configurations
+
+- **`POST /run`** - Execute the solver with a provided configuration
+  - Accepts a JSON payload matching the schema from `/schema`
+  - Returns solver results including team composition, trait counts, and metadata
+  - Example:
+    ```bash
+    curl -X POST "http://localhost:8000/run" \
+      -H "Content-Type: application/json" \
+      -d '{"team_size": 9, "mode": "bronze"}'
+    ```
+
+#### Itemization Endpoints (v2)
+
+- **`GET /v2/itemization/schema`** - Get the itemization schema
+  - Returns versioned schema information for itemization mode
+
+- **`GET /v2/itemization/config`** - Get default itemization configuration
+  - Returns a versioned payload with default itemization settings
+  - Includes mode set to "itemization"
+
+- **`GET /v2/itemization/data`** - Get reference data for itemization UI
+  - Returns available components, completed items, target carries, and traits
+  - Useful for populating UI dropdowns and autocomplete fields
+
+- **`POST /v2/itemization/run`** - Execute the itemization solver
+  - Accepts a versioned payload with itemization configuration
+  - Returns ranked carry candidates with item completion scores
+  - Example:
+    ```bash
+    curl -X POST "http://localhost:8000/v2/itemization/run" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "version": 2,
+        "config": {
+          "available_components": ["TFT_Item_BFSword", "TFT_Item_RecurveBow"],
+          "target_carries": ["TFT16_Jinx", "TFT16_Caitlyn"]
+        }
+      }'
+    ```
+
+### CORS Configuration
+
+The API is configured to accept requests from `http://localhost:5173` (the default Vite dev server port) to support the frontend development workflow. For production deployments, update the CORS settings in `ui_api/main.py`.
+
+### Error Handling
+
+All endpoints return appropriate HTTP status codes:
+- `200` - Success
+- `400` - Bad Request (invalid configuration or validation errors)
+- `500` - Internal Server Error (solver execution failures)
+
+Error responses include detailed error messages and, for solver errors, debug logs and context information.
+
+## Development and Testing
+
+### Setting up the development environment
+
+1. **Install development dependencies.** After setting up your Python environment, install the development packages:
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
+2. **Install pre-commit hooks** (optional but recommended):
+   ```bash
+   pre-commit install
+   ```
+   This will automatically run code quality checks (black, flake8, mypy) before each commit.
+
+### Running tests
+
+Run all tests with pytest:
+```bash
+pytest
+```
+
+Run tests with coverage reporting:
+```bash
+pytest --cov
+```
+
+View a detailed HTML coverage report:
+```bash
+pytest --cov
+# Then open htmlcov/index.html in your browser
+```
+
+The project targets **90% code coverage** for `bfl/` and `ui_api/` packages. Coverage reports are generated in multiple formats:
+- Terminal output showing missing lines
+- HTML report in `htmlcov/` directory
+- XML report in `coverage.xml` (for CI/CD integration)
+
+### Test markers
+
+Tests are organized with markers for easy filtering:
+
+- `@pytest.mark.unit` - Unit tests for individual functions/modules
+- `@pytest.mark.integration` - Integration tests that exercise multiple components
+- `@pytest.mark.slow` - Tests that take a long time to run
+- `@pytest.mark.api` - Tests that require the FastAPI server
+- `@pytest.mark.ui` - Tests that require the React frontend
+
+Run specific test categories:
+```bash
+pytest -m unit          # Run only unit tests
+pytest -m integration   # Run only integration tests
+pytest -m "not slow"    # Skip slow tests
+```
+
+### Code quality tools
+
+- **black**: Code formatter (enforced via pre-commit hooks)
+- **flake8**: Linter for PEP 8 compliance
+- **mypy**: Static type checker
+- **pre-commit**: Git hooks for automated quality checks
+
+Run pre-commit checks manually on all files:
+```bash
+pre-commit run --all-files
+```
+
+### Integration tests
+
+Integration tests are located in `tests/integration/` and cover:
+- FastAPI endpoint testing (`test_api_flow.py`)
+- End-to-end UI → API → Solver flow (`test_e2e.py`)
+- Solver API integration (`test_solver_api.py`)

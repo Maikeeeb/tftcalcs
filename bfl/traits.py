@@ -30,6 +30,23 @@ def add_champion_traits(
 
 
 def apply_emblem_starts(counts: Dict[str, int], emblem_counts: Dict[str, int]) -> Dict[str, int]:
+    """Apply emblem counts to base trait counts.
+
+    Adds emblem contributions to trait counts. Returns a new dictionary
+    with the combined counts.
+
+    Parameters
+    ----------
+    counts : Dict[str, int]
+        Base trait counts from champions.
+    emblem_counts : Dict[str, int]
+        Additional counts from emblems per trait.
+
+    Returns
+    -------
+    Dict[str, int]
+        Combined trait counts after applying emblems.
+    """
     out = defaultdict(int, counts)
     for t, v in emblem_counts.items():
         out[t] += v
@@ -44,6 +61,36 @@ def classify_traits(
     emblem_counts: Dict[str, int],
     trait_value_overrides: Optional[Dict[str, Dict[str, int]]] = None,
 ) -> Tuple[Dict[str, int], List[str], List[str], List[str], List[str]]:
+    """Classify traits into bronze, active, and upgraded categories.
+
+    Computes trait counts from the team and emblems, then categorizes eligible
+    traits based on their breakpoints.
+
+    Parameters
+    ----------
+    team : List[str]
+        List of champion apiNames on the team.
+    champ_traits : Dict[str, List[str]]
+        Mapping of champion apiName to their trait list.
+    trait_bps : Dict[str, List[int]]
+        Mapping of trait names to sorted breakpoint lists.
+    eligible_traits : Set[str]
+        Traits that are eligible for Bronze for Life (appear on 2+ champions).
+    emblem_counts : Dict[str, int]
+        Additional counts from emblems per trait.
+    trait_value_overrides : Optional[Dict[str, Dict[str, int]]]
+        Optional per-champion overrides for trait contribution values.
+
+    Returns
+    -------
+    Tuple[Dict[str, int], List[str], List[str], List[str], List[str]]
+        Tuple containing:
+        - Effective trait counts (after emblems)
+        - Bronze traits (at first breakpoint only)
+        - Active traits (any breakpoint)
+        - Upgraded traits (second breakpoint or higher)
+        - All traits used by the team (sorted)
+    """
     # base counts from team
     cnt = defaultdict(int)
     for c in team:

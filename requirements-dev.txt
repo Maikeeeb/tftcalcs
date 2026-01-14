@@ -1,0 +1,18 @@
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.12.0
+httpx>=0.24.0  # Required for FastAPI TestClient
+
+# Code Quality
+black>=24.0.0
+flake8>=6.1.0
+mypy>=1.8.0
+isort>=5.13.0
+
+# Pre-commit
+pre-commit>=3.5.0
+
+# Type stubs
+types-all
