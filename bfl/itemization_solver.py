@@ -8,6 +8,7 @@ from typing import Dict, Iterable, List, Mapping, Tuple
 
 from bfl.config import Config
 from bfl.config_loader import validate_config_against_data
+from bfl.io_utils import retry_file_operation
 from bfl.set_loader import load_set_data
 
 
@@ -107,8 +108,13 @@ def load_item_catalog(path: Path | str) -> ItemCatalog:
     ItemCatalog
         Catalog object with all item lookup structures populated.
     """
-    with Path(path).open("r", encoding="utf-8") as f:
-        data = json.load(f)
+
+    @retry_file_operation()
+    def _load_file():
+        with Path(path).open("r", encoding="utf-8") as f:
+            return json.load(f)
+
+    data = _load_file()
 
     raw_items = data.get("items", [])
     items = sorted(raw_items, key=lambda item: item.get("apiName", ""))

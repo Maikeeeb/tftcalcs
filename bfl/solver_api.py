@@ -20,6 +20,7 @@ from bfl.metatft import (
     trait_power,
     unit_power,
 )
+from bfl.data_cache import cached_load_metatft_txt, cached_load_set_data
 from bfl.itemization_solver import ItemizationError, run_itemization_solver
 from bfl.set_loader import load_set_data
 from bfl.solver import solve_beam_search_bronze_with_emblems
@@ -162,7 +163,7 @@ def run_bfl(config: Config) -> Dict[str, object]:
 
     try:
         set_data, champs, champ_traits, trait_bps, champ_cost, eligible_traits, trait_freq = (
-            load_set_data(config.json_path, config.set_id, config.blacklist_traits_by_name)
+            cached_load_set_data(config.json_path, config.set_id, config.blacklist_traits_by_name)
         )
 
         validate_config_against_data(config, champs, trait_bps)
@@ -170,7 +171,7 @@ def run_bfl(config: Config) -> Dict[str, object]:
             f"Config validated: {len(champs)} champions, {len(trait_bps)} trait breakpoints"
         )
 
-        metatft_text = load_metatft_txt(str(config.metatft_txt_path))
+        metatft_text = cached_load_metatft_txt(str(config.metatft_txt_path))
         unit_stats = metatft_to_unit_stats(metatft_text, set_data)
         tank_champions = classify_tank_champions(unit_stats, champ_cost)
         tank_champion_filter = tank_champions if config.must_have_itemized_tank else None
@@ -180,7 +181,7 @@ def run_bfl(config: Config) -> Dict[str, object]:
                 "Must-have tank requirement enabled, but no tank champions could be identified from MetaTFT data."
             )
 
-        trait_text = load_metatft_txt(str(config.metatft_traits_path))
+        trait_text = cached_load_metatft_txt(str(config.metatft_traits_path))
         trait_stats = metatft_to_trait_stats(trait_text, set_data)
 
         power_map = {

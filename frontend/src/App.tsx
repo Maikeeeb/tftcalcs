@@ -29,6 +29,7 @@ import Loader from './components/Loader';
 import DebugLogCard from './components/DebugLogCard';
 import RootObjectFieldTemplate from './components/RootObjectFieldTemplate';
 import ItemizationPage from './components/ItemizationPage';
+import ErrorBoundary from './components/ErrorBoundary';
 import { AppProps, ConfigData, SolverResponse } from './types';
 import championCosts from './data/champion_costs.json';
 import unlockableChampions from './data/unlockable_champions.json';
@@ -216,8 +217,9 @@ function App({ mode, onToggleColorMode }: AppProps) {
   const hasError = schemaQuery.error || configQuery.error;
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Stack spacing={3}>
+    <ErrorBoundary>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Stack spacing={3}>
         <Stack spacing={2}>
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
@@ -376,8 +378,9 @@ function App({ mode, onToggleColorMode }: AppProps) {
         ) : (
           <ItemizationPage />
         )}
-      </Stack>
-    </Container>
+        </Stack>
+      </Container>
+    </ErrorBoundary>
   );
 }
 

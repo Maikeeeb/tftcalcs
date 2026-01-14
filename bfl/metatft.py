@@ -398,9 +398,15 @@ def load_metatft_txt(path: str) -> str:
     str
         File contents as a string. Returns empty string if file not found.
     """
-    try:
+    from bfl.io_utils import retry_file_operation
+
+    @retry_file_operation(retryable_exceptions=(IOError, OSError, PermissionError))
+    def _load_file():
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
+
+    try:
+        return _load_file()
     except FileNotFoundError:
         print(f"MetaTFT file not found: {path}")
         return ""

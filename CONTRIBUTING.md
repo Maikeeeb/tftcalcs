@@ -18,24 +18,36 @@ Thank you for your interest in contributing! This document provides guidelines f
    cd tftcalcs
    ```
 
-2. **Create and activate a virtual environment:**
+2. **Set up the development environment:**
+   
+   **Option A: Using Makefile (Unix/macOS/WSL):**
    ```bash
+   make setup
+   # Then activate the virtual environment:
+   source .venv/bin/activate
+   make install-deps
+   ```
+   
+   **Option B: Manual setup:**
+   ```bash
+   # Create and activate a virtual environment
    python -m venv .venv
    # On Windows:
    .venv\Scripts\activate
    # On macOS/Linux:
    source .venv/bin/activate
-   ```
-
-3. **Install production dependencies:**
-   ```bash
+   
+   # Install production dependencies
    pip install -r requirements.txt
-   ```
-
-4. **Install development dependencies:**
-   ```bash
+   
+   # Install development dependencies
    pip install -r requirements-dev.txt
+   
+   # Install frontend dependencies
+   cd frontend && npm install && cd ..
    ```
+   
+   **Note:** Windows users without `make` can use the manual setup (Option B) or install `make` via Chocolatey or use WSL.
 
 ### Frontend Setup
 
@@ -75,13 +87,37 @@ To run hooks manually on all files:
 pre-commit run --all-files
 ```
 
+## Using Makefile
+
+The project includes a `Makefile` with convenient shortcuts for common tasks. On Unix/macOS/WSL, you can use:
+
+- `make setup` - Set up development environment
+- `make test` - Run all tests (backend and frontend)
+- `make test-backend` - Run only backend tests
+- `make test-frontend` - Run only frontend tests
+- `make lint` - Run linting checks
+- `make format` - Format code
+- `make dev-backend` - Start FastAPI server
+- `make dev-frontend` - Start Vite dev server
+- `make clean` - Remove build artifacts
+
+See `make help` for a full list of available targets.
+
 ## Testing
 
 ### Running Tests
 
-Run all tests:
+**Using Makefile:**
 ```bash
-pytest
+make test              # Run all tests
+make test-backend      # Backend only
+make test-frontend     # Frontend only
+```
+
+**Manual commands:**
+```bash
+pytest                 # Run backend tests
+pytest --cov           # With coverage
 ```
 
 Run tests with coverage reporting:

@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+from bfl.io_utils import retry_file_operation
+
 
 def load_set_data(
     path: str | Path,
@@ -44,8 +46,14 @@ def load_set_data(
         - Set of eligible trait names (2+ champions, has breakpoints, not blacklisted)
         - Mapping of trait names to frequency (how many champions have the trait)
     """
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+
+    # Use retry logic for file I/O operations
+    @retry_file_operation()
+    def _load_file():
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    data = _load_file()
 
     blacklist = set(blacklist_traits) if blacklist_traits is not None else set()
 

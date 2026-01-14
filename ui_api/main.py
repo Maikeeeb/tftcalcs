@@ -12,15 +12,19 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from jsonschema import ValidationError, validate
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from bfl.champion_registry import list_playable_champions
 from bfl.config import Config
 from bfl.config_loader import (
     ConfigError,
     _load_int_map,
+    _validate_file_path,
     _validate_int,
     _validate_str_list,
     apply_ryze_mode_defaults,
@@ -46,7 +50,16 @@ ITEMIZATION_VERSION = 2
 _cors_origins_env = os.getenv("CORS_ORIGINS", "http://localhost:5173")
 CORS_ORIGINS = [origin.strip() for origin in _cors_origins_env.split(",") if origin.strip()]
 
+# Rate limiting configuration
+_rate_limit_requests = int(os.getenv("RATE_LIMIT_REQUESTS", "100"))
+_rate_limit_window = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
+# Format: "100/minute" or "100/60second" - slowapi accepts both
+_rate_limit_string = f"{_rate_limit_requests}/{_rate_limit_window}second"
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(title="Bronze for Life UI API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -97,11 +110,17 @@ app.add_middleware(RequestLoggingMiddleware)
 def _config_from_payload(payload: Mapping[str, Any]) -> Config:
     base = default_config()
 
-    json_path = Path(payload.get("json_path", base.json_path)).expanduser()
-    metatft_txt_path = Path(payload.get("metatft_txt_path", base.metatft_txt_path)).expanduser()
-    metatft_traits_path = Path(
+    json_path_raw = Path(payload.get("json_path", base.json_path)).expanduser()
+    metatft_txt_path_raw = Path(payload.get("metatft_txt_path", base.metatft_txt_path)).expanduser()
+    metatft_traits_path_raw = Path(
         payload.get("metatft_traits_path", base.metatft_traits_path)
     ).expanduser()
+
+    # Validate and sanitize paths
+    json_path = _validate_file_path(json_path_raw, must_exist=True)
+    metatft_txt_path = _validate_file_path(metatft_txt_path_raw, must_exist=False)
+    metatft_traits_path = _validate_file_path(metatft_traits_path_raw, must_exist=False)
+
     team_size_input = payload.get("team_size", base.team_size)
     team_size_provided = "team_size" in payload
     team_size = _validate_int("team_size", team_size_input, allow_negative=False)
@@ -299,21 +318,24 @@ def _itemization_reference_data(config: Config) -> dict[str, object]:
 
 
 @app.get("/schema")
-def get_schema():
+@limiter.limit(_rate_limit_string)
+def get_schema(request: Request):
     """Return the JSON schema for solver configuration."""
 
     return SCHEMA
 
 
 @app.get("/config")
-def get_default_config():
+@limiter.limit(_rate_limit_string)
+def get_default_config(request: Request):
     """Return the default solver configuration."""
 
     return load_config(None).to_dict()
 
 
 @app.post("/run")
-def run_solver_endpoint(config: Mapping[str, Any]):
+@limiter.limit(_rate_limit_string)
+def run_solver_endpoint(request: Request, config: Mapping[str, Any]):
     """Validate the provided config and execute the solver."""
 
     try:
@@ -349,14 +371,16 @@ def run_solver_endpoint(config: Mapping[str, Any]):
 
 
 @app.get("/v2/itemization/schema")
-def get_itemization_schema():
+@limiter.limit(_rate_limit_string)
+def get_itemization_schema(request: Request):
     """Return the JSON schema for itemization configuration."""
 
     return {"version": ITEMIZATION_VERSION, "schema": SCHEMA}
 
 
 @app.get("/v2/itemization/config")
-def get_itemization_config():
+@limiter.limit(_rate_limit_string)
+def get_itemization_config(request: Request):
     """Return the default itemization configuration."""
 
     config = load_config(None)
@@ -365,7 +389,8 @@ def get_itemization_config():
 
 
 @app.get("/v2/itemization/data")
-def get_itemization_reference():
+@limiter.limit(_rate_limit_string)
+def get_itemization_reference(request: Request):
     """Return reference data for itemization UI controls."""
 
     config = load_config(None)
@@ -373,7 +398,8 @@ def get_itemization_reference():
 
 
 @app.post("/v2/itemization/run")
-def run_itemization(payload: Mapping[str, Any]):
+@limiter.limit(_rate_limit_string)
+def run_itemization(request: Request, payload: Mapping[str, Any]):
     """Validate a versioned payload and execute the itemization solver."""
 
     try:

@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+import os
+import logging
 from pathlib import Path
 from typing import Dict, Iterable, Mapping, Set
 
-from bfl.config import Config, RYZE_API_NAME, default_config
+from bfl.config import Config, RYZE_API_NAME, REPO_ROOT, default_config
 from bfl.champion_registry import list_playable_champions
+from bfl.io_utils import retry_file_operation
+
+logger = logging.getLogger(__name__)
 
 
 class ConfigError(ValueError):
@@ -13,6 +18,68 @@ class ConfigError(ValueError):
 
 
 DEFAULT_CONFIG_FILENAME = "config.json"
+
+
+def _validate_file_path(
+    path: Path, allowed_base: Path | None = None, must_exist: bool = True
+) -> Path:
+    """Validate and sanitize a file path to prevent directory traversal attacks.
+
+    Parameters
+    ----------
+    path : Path
+        The path to validate (can be relative or absolute).
+    allowed_base : Path | None
+        Base directory that the path must be within. If None, uses REPO_ROOT.
+        Can be overridden via ALLOWED_DATA_BASE environment variable.
+    must_exist : bool
+        Whether the path must exist (default: True).
+
+    Returns
+    -------
+    Path
+        Resolved, validated path.
+
+    Raises
+    ------
+    ConfigError
+        If path is outside allowed base directory or doesn't exist when required.
+    """
+    # Determine allowed base directory
+    if allowed_base is None:
+        env_base = os.getenv("ALLOWED_DATA_BASE")
+        if env_base:
+            allowed_base = Path(env_base).resolve()
+        else:
+            allowed_base = REPO_ROOT.resolve()
+
+    allowed_base = allowed_base.resolve()
+
+    # Resolve the input path (handles relative paths, symlinks, etc.)
+    try:
+        resolved_path = path.expanduser().resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ConfigError(f"Invalid path: {path} - {exc}") from exc
+
+    # Check if resolved path is within allowed base
+    try:
+        resolved_path.relative_to(allowed_base)
+    except ValueError:
+        # Path is outside allowed base - potential directory traversal attack
+        logger.warning(
+            f"Suspicious path attempt: {path} resolved to {resolved_path} "
+            f"(outside allowed base: {allowed_base})"
+        )
+        raise ConfigError(
+            f"Path {path} is outside allowed directory {allowed_base}. "
+            "This may be a directory traversal attempt."
+        ) from None
+
+    # Check if path exists if required
+    if must_exist and not resolved_path.exists():
+        raise ConfigError(f"Path does not exist: {resolved_path}")
+
+    return resolved_path
 
 
 def _validate_int(
@@ -112,17 +179,26 @@ def load_config(path: str | None) -> Config:
     if not cfg_path.exists():
         raise ConfigError(f"Configuration file not found: {cfg_path}")
 
-    with cfg_path.open("r", encoding="utf-8") as f:
-        try:
-            data = json.load(f)
-        except json.JSONDecodeError as exc:
-            raise ConfigError(f"Invalid JSON in {cfg_path}: {exc}") from exc
+    @retry_file_operation()
+    def _load_config_file():
+        with cfg_path.open("r", encoding="utf-8") as f:
+            return json.load(f)
 
-    json_path = Path(data.get("json_path", base.json_path)).expanduser()
-    metatft_txt_path = Path(data.get("metatft_txt_path", base.metatft_txt_path)).expanduser()
-    metatft_traits_path = Path(
+    try:
+        data = _load_config_file()
+    except json.JSONDecodeError as exc:
+        raise ConfigError(f"Invalid JSON in {cfg_path}: {exc}") from exc
+
+    json_path_raw = Path(data.get("json_path", base.json_path)).expanduser()
+    metatft_txt_path_raw = Path(data.get("metatft_txt_path", base.metatft_txt_path)).expanduser()
+    metatft_traits_path_raw = Path(
         data.get("metatft_traits_path", base.metatft_traits_path)
     ).expanduser()
+
+    # Validate and sanitize paths
+    json_path = _validate_file_path(json_path_raw, must_exist=True)
+    metatft_txt_path = _validate_file_path(metatft_txt_path_raw, must_exist=False)
+    metatft_traits_path = _validate_file_path(metatft_traits_path_raw, must_exist=False)
 
     team_size_input = data.get("team_size", base.team_size)
     team_size_provided = "team_size" in data

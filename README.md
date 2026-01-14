@@ -123,9 +123,16 @@ The UI now includes a dedicated **Itemization** tab that calls the versioned `/v
 
 You can customize the API and frontend configuration using environment variables. Copy `.env.example` to `.env` in the repository root and `frontend/.env.example` to `frontend/.env` to customize settings:
 
-- **Backend**: Set `CORS_ORIGINS` to configure allowed origins (comma-separated)
-- **Frontend**: Set `VITE_API_BASE_URL` to point to a different API server
-- **Logging**: Configure `LOG_LEVEL` and `LOG_FORMAT` for backend logging
+- **Backend**: 
+  - `CORS_ORIGINS` - Configure allowed origins (comma-separated)
+  - `LOG_LEVEL` - Logging level (DEBUG, INFO, WARNING, ERROR)
+  - `LOG_FORMAT` - Log format (json or simple)
+  - `RATE_LIMIT_REQUESTS` - Requests per window (default: 100)
+  - `RATE_LIMIT_WINDOW` - Rate limit window in seconds (default: 60)
+  - `FILE_IO_MAX_RETRIES` - Maximum retry attempts for file operations (default: 3)
+  - `FILE_IO_BACKOFF_BASE` - Base delay in seconds for exponential backoff (default: 0.1)
+- **Frontend**: 
+  - `VITE_API_BASE_URL` - Base URL for the backend API (default: http://localhost:8000)
 
 See `.env.example` files for all available options and defaults.
 
