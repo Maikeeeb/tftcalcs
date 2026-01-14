@@ -118,6 +118,35 @@ When tradeoffs occur, prefer decisions in this order:
 - Prefer explicit, readable logic over clever optimizations
 - Avoid introducing new dependencies unless necessary
 
+## Pre-Commit Requirements
+
+All code must pass pre-commit hooks before committing. The following standards are enforced:
+
+### Code Formatting (Black)
+- **Line length:** Maximum 100 characters per line
+- Black will auto-format code, but agents should write code that follows this limit
+- Run `black --line-length=100` to format code before committing
+
+### File Standards
+- Files must end with a newline character
+- No trailing whitespace allowed
+- YAML, JSON, and TOML files must be valid
+- No merge conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`)
+- Large files (>500KB) will be blocked
+
+### Type Checking (MyPy)
+- MyPy runs with relaxed settings to allow gradual typing
+- Current settings: `--ignore-missing-imports`, `--no-strict-optional`, `--allow-untyped-calls`, `--allow-untyped-defs`
+- Several error codes are disabled (assignment, index, attr-defined, operator, call-arg, var-annotated, arg-type, call-overload)
+- While strict typing is not enforced, agents should still write type-safe code when possible
+
+### Best Practices for Agents
+- Write code that will pass Black formatting (100 char line limit)
+- Ensure files end with newlines
+- Remove trailing whitespace
+- Validate JSON/YAML syntax if creating or modifying these files
+- Test that `pre-commit run --all-files` passes before considering code complete
+
 ## Documentation
 
 - Add or update references in `/docs/` and `readme.md`
@@ -129,7 +158,7 @@ When tradeoffs occur, prefer decisions in this order:
 - When changing scoring behavior, add at least one test that encodes the intended tradeoff
 - Tests must pass before committing code changes
 - Coverage must remain at or above 90% for `bfl/` and `ui_api/` packages
-- Pre-commit hooks enforce code style (black, flake8, mypy) - ensure all hooks pass
+- See "Pre-Commit Requirements" section for code style standards enforced by pre-commit hooks
 - Run `pytest --cov` to verify coverage before submitting changes
 - Integration tests in `tests/integration/` exercise the complete stack (UI → API → Solver)
 
