@@ -91,6 +91,113 @@ def _normalize_key(value: str) -> str:
     return "".join(ch for ch in value.lower() if ch.isalnum())
 
 
+def _prefer_standard_item(
+    existing: Mapping[str, object] | None, candidate: Mapping[str, object]
+) -> bool:
+    """Check if candidate should replace existing item (prefer non-tutorial items)."""
+    if existing is None:
+        return True
+    existing_api = str(existing.get("apiName", ""))
+    candidate_api = str(candidate.get("apiName", ""))
+    if existing_api.startswith("TFTTutorial_") and not candidate_api.startswith("TFTTutorial_"):
+        return True
+    return False
+
+
+def _build_component_api_names(items: List[Mapping[str, object]]) -> set[str]:
+    """Build set of component item API names."""
+    return {
+        str(item["apiName"])
+        for item in items
+        if item.get("apiName") and "component" in set(item.get("tags") or [])
+    }
+
+
+def _build_craftable_api_names(
+    items: List[Mapping[str, object]], component_api_names: set[str]
+) -> set[str]:
+    """Build set of craftable item API names."""
+    return {
+        str(item["apiName"])
+        for item in items
+        if item.get("apiName")
+        and isinstance(item.get("composition"), list)
+        and len(item.get("composition")) == 2
+        and set(item.get("composition", [])) <= component_api_names
+    }
+
+
+def _build_items_by_key(
+    items: List[Mapping[str, object]],
+    component_api_names: set[str],
+    craftable_api_names: set[str],
+) -> Tuple[Dict[str, Mapping[str, object]], Dict[str, Mapping[str, object]]]:
+    """Build components_by_key and craftable_by_key dictionaries."""
+    components_by_key: Dict[str, Mapping[str, object]] = {}
+    craftable_by_key: Dict[str, Mapping[str, object]] = {}
+
+    for item in items:
+        api = item.get("apiName")
+        name = item.get("name")
+        if not api or not name:
+            continue
+        normalized_name = _normalize_key(name)
+        if api in component_api_names:
+            if _prefer_standard_item(components_by_key.get(normalized_name), item):
+                components_by_key[normalized_name] = item
+        if api in craftable_api_names:
+            if _prefer_standard_item(craftable_by_key.get(normalized_name), item):
+                craftable_by_key[normalized_name] = item
+
+    return components_by_key, craftable_by_key
+
+
+def _build_compositions(
+    items: List[Mapping[str, object]], craftable_api_names: set[str]
+) -> Dict[str, Tuple[str, str]]:
+    """Build compositions dictionary mapping craftable items to their components."""
+    compositions: Dict[str, Tuple[str, str]] = {}
+    for item in items:
+        api = item.get("apiName")
+        if api not in craftable_api_names:
+            continue
+        comps = item.get("composition") or []
+        if len(comps) == 2:
+            compositions[api] = (comps[0], comps[1])
+    return compositions
+
+
+def _build_aliases(
+    items: List[Mapping[str, object]],
+    component_api_names: set[str],
+    craftable_api_names: set[str],
+    components_by_key: Dict[str, Mapping[str, object]],
+    craftable_by_key: Dict[str, Mapping[str, object]],
+) -> Tuple[Dict[str, str], Dict[str, str]]:
+    """Build component and craftable alias dictionaries."""
+    component_aliases: Dict[str, str] = {}
+    craftable_aliases: Dict[str, str] = {}
+
+    for item in items:
+        api = item.get("apiName")
+        name = item.get("name")
+        if not api or not name:
+            continue
+        if not api.startswith("TFTTutorial_"):
+            continue
+        normalized_name = _normalize_key(name)
+        if api in component_api_names:
+            preferred = components_by_key.get(normalized_name)
+            if preferred and preferred.get("apiName") != api:
+                component_aliases[api] = str(preferred.get("apiName"))
+        if api in craftable_api_names:
+            preferred = craftable_by_key.get(normalized_name)
+            if preferred and preferred.get("apiName") != api:
+                craftable_aliases[api] = str(preferred.get("apiName"))
+
+    return component_aliases, craftable_aliases
+
+
 def load_item_catalog(path: Path | str) -> ItemCatalog:
     """Load item catalog from Riot's set data JSON file.
 
@@ -120,68 +227,15 @@ def load_item_catalog(path: Path | str) -> ItemCatalog:
     items = sorted(raw_items, key=lambda item: item.get("apiName", ""))
     items_by_api = {item.get("apiName"): item for item in items if item.get("apiName")}
 
-    component_api_names = {
-        item["apiName"]
-        for item in items
-        if item.get("apiName") and "component" in set(item.get("tags") or [])
-    }
-
-    craftable_api_names = {
-        item["apiName"]
-        for item in items
-        if item.get("apiName")
-        and isinstance(item.get("composition"), list)
-        and len(item.get("composition")) == 2
-        and set(item.get("composition", [])) <= component_api_names
-    }
-
-    components_by_key: Dict[str, Mapping[str, object]] = {}
-    craftable_by_key: Dict[str, Mapping[str, object]] = {}
-    compositions: Dict[str, Tuple[str, str]] = {}
-
-    def _prefer_standard_item(
-        existing: Mapping[str, object] | None, candidate: Mapping[str, object]
-    ) -> bool:
-        if existing is None:
-            return True
-        existing_api = str(existing.get("apiName", ""))
-        candidate_api = str(candidate.get("apiName", ""))
-        if existing_api.startswith("TFTTutorial_") and not candidate_api.startswith("TFTTutorial_"):
-            return True
-        return False
-
-    for item in items:
-        api = item.get("apiName")
-        name = item.get("name")
-        if not api or not name:
-            continue
-        normalized_name = _normalize_key(name)
-        if api in component_api_names:
-            if _prefer_standard_item(components_by_key.get(normalized_name), item):
-                components_by_key[normalized_name] = item
-        if api in craftable_api_names:
-            if _prefer_standard_item(craftable_by_key.get(normalized_name), item):
-                craftable_by_key[normalized_name] = item
-            comps = item.get("composition") or []
-            if len(comps) == 2:
-                compositions[api] = (comps[0], comps[1])
-
-    component_aliases: Dict[str, str] = {}
-    craftable_aliases: Dict[str, str] = {}
-    for item in items:
-        api = item.get("apiName")
-        name = item.get("name")
-        if not api or not name:
-            continue
-        normalized_name = _normalize_key(name)
-        if api.startswith("TFTTutorial_") and api in component_api_names:
-            preferred = components_by_key.get(normalized_name)
-            if preferred and preferred.get("apiName") != api:
-                component_aliases[api] = str(preferred.get("apiName"))
-        if api.startswith("TFTTutorial_") and api in craftable_api_names:
-            preferred = craftable_by_key.get(normalized_name)
-            if preferred and preferred.get("apiName") != api:
-                craftable_aliases[api] = str(preferred.get("apiName"))
+    component_api_names = _build_component_api_names(items)
+    craftable_api_names = _build_craftable_api_names(items, component_api_names)
+    components_by_key, craftable_by_key = _build_items_by_key(
+        items, component_api_names, craftable_api_names
+    )
+    compositions = _build_compositions(items, craftable_api_names)
+    component_aliases, craftable_aliases = _build_aliases(
+        items, component_api_names, craftable_api_names, components_by_key, craftable_by_key
+    )
 
     return ItemCatalog(
         items_by_api=items_by_api,
