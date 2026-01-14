@@ -44,6 +44,22 @@ or via the UI toggle. The solver will:
 
 Bronze-for-Life and Standard modes are unchanged; the Ryze constraints only apply when you select the new mode.
 
+### Standard mode (MetaTFT trait-first optimization)
+Standard mode optimizes for **MetaTFT trait scores** as the primary objective, prioritizing teams with the highest combined trait statistics rather than maximizing bronze trait count. Enable standard mode by setting `"mode": "standard"` in your config or via the UI toggle.
+
+Standard mode differs from bronze mode in its optimization focus:
+- **Primary objective**: MetaTFT trait scores (win rate, average placement, frequency) rather than bronze count
+- **Trait statistics**: Trait stats from `data/metatft_traits.txt` heavily influence team ranking
+- **When to use**: When you want trait-first optimization based on MetaTFT statistics rather than maximizing bronze traits
+
+Standard mode still respects the same validity gates and quality anchors as bronze mode:
+- Requires at least 6 bronze traits (validity gate)
+- Requires at least one quality tank and one quality carry
+- Respects trait minimums and required champions
+- Quality units must activate at least one trait
+
+The main difference is in ranking: standard mode prioritizes teams with higher MetaTFT trait scores, while bronze mode prioritizes teams with more bronze traits.
+
 ### Itemization mode (closest carries by item fit)
 Itemization mode ranks carry candidates by how close they are to their ideal item builds. Provide available components
 and completed items in `config.json` and set `"mode": "itemization"`. The solver will:
@@ -79,6 +95,8 @@ Key fields mirror the previous module-level constants:
 - **Emblems**: `emblem_start_counts` declares fixed emblem counts; `max_emblems_total` lets the solver auto-assign up to N additional emblems.
 - **Trait filtering**: `blacklist_traits_by_name` excludes traits from Bronze for Life even if active.
 - **MetaTFT weighting**: `w_win`, `w_avg`, `w_freq` adjust how strongly live stats influence tie-breaks.
+- **Vertical seeding**: `seed_verticals` (default: `true`) pre-seeds the beam search with trait-vertical teams targeting the highest reachable breakpoints. This helps the solver consider far-off breakpoints (e.g., Void 9) even when early partial teams look weak. Disable if you want a more focused search.
+- **Tank requirement**: `must_have_itemized_tank` (default: `true`) requires at least one champion whose preferred items (from MetaTFT data) are tank items. If no tank champions are identified from MetaTFT data, all quality units count as both tanks and carries. This is separate from the quality tank requirement in Bronze-for-Life scoring.
 
 Edit `config.json` (or save a new file via `save_config`) then re-run `python -m bfl.bronze_for_life` or the tutorial script. The solver will keep the same defaults when no JSON is supplied.
 
@@ -197,6 +215,24 @@ The FastAPI backend automatically generates OpenAPI/Swagger documentation. When 
 ### CORS Configuration
 
 The API is configured to accept requests from `http://localhost:5173` (the default Vite dev server port) by default. For production deployments or custom configurations, you can set the `CORS_ORIGINS` environment variable to a comma-separated list of allowed origins. See `.env.example` for configuration examples.
+
+### Rate Limiting
+
+All API endpoints are rate-limited to prevent abuse. Default limits are 100 requests per 60 seconds per IP address. Configure via environment variables:
+
+- `RATE_LIMIT_REQUESTS` - Number of requests allowed (default: 100)
+- `RATE_LIMIT_WINDOW` - Time window in seconds (default: 60)
+
+When rate limit is exceeded, the API returns HTTP 429 (Too Many Requests). See `.env.example` for configuration examples.
+
+### Request Logging
+
+The API automatically logs all HTTP requests and responses with timing information. Configure logging via environment variables:
+
+- `LOG_LEVEL` - Logging level: DEBUG, INFO, WARNING, ERROR (default: INFO)
+- `LOG_FORMAT` - Format: "json" for structured JSON logs or "simple" for human-readable logs (default: simple)
+
+Logs include request method, path, status code, and duration. See `.env.example` for configuration examples.
 
 ### Error Handling
 

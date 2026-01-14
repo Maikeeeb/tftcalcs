@@ -31,6 +31,8 @@ This captures “6 is mandatory, 7–8 are big gains, 9+ are nice-to-have”.
 ## Quality anchors
 
 - A **quality unit** is any champion whose MetaTFT-derived power is above the 7th-best unit in the pool **and** that has at least one active trait.
+- **Quality threshold calculation**: Power values of all playable champions are sorted in descending order. The threshold is set to the power of the 7th-best unit (or the 6th if fewer than 7 units exist). This ensures roughly the top 6-7 units qualify as "quality."
+- **Tank quality threshold**: If tank champions are identified from MetaTFT data, the tank threshold is set to the minimum of the carry threshold and the maximum tank power. This allows tanks to qualify even if they're slightly below the general quality threshold.
 - Tanks are identified from MetaTFT item builds; if no tank labels exist, all quality units count as tanks *and* carries for feasibility.
 - The scorer requires at least one quality tank and one quality carry; their combined power forms the primary quality score.
 - Quality units with no active traits mark the state invalid (they violate the “activate at least one trait” rule).
@@ -47,3 +49,5 @@ For each bronze-tier trait whose contributing units are all below the quality th
 ## Emblem selection
 
 Auto-emblem selection now mirrors the same validity/quality rules. Emblems that break validity (dropping below 6 bronze or losing a quality anchor) are rejected in favor of those that strengthen quality or bronze counts.
+
+**Emblem selection algorithm**: The `choose_best_emblems` function uses a greedy selection algorithm. Starting with fixed emblems (`emblem_start_counts`), it iteratively evaluates each candidate emblem from `auto_candidates` and selects the one that maximizes the team's overall score. The evaluation considers bronze count, trait scores, quality units, requirement satisfaction, and validity gates. Emblems that would break validity (drop below 6 bronze or lose quality anchors) are rejected. The algorithm respects `max_emblems_total` to limit total emblem count.

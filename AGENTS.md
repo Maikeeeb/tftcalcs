@@ -270,8 +270,59 @@ git status  # Should not show reports/ files
 
 ## Documentation
 
-- Add or update references in `/docs/` and `readme.md`
-- Keep algorithm intent documented, not just behavior
+### When to Update README.md
+
+Update `README.md` when changes affect **user-facing aspects** of the project:
+
+- **User-facing features**: New modes, CLI options, or capabilities that users interact with
+- **Setup/installation**: Changes to dependencies, environment setup, or prerequisites
+- **Usage instructions**: New config fields, API endpoints, or workflow changes
+- **Entry points**: Changes to how users run the tool (CLI commands, API routes)
+- **Configuration**: New config fields or schema changes (also update `schemas/config_schema.json`)
+
+**Examples:**
+- Adding a new solver mode
+- Changing CLI arguments or command syntax
+- Adding new API endpoints
+- Updating environment variable requirements
+- Changing tutorial examples or quickstart instructions
+
+### When to Update docs/
+
+Update files in `docs/` when changes affect **technical implementation details**:
+
+- **Algorithm behavior**: Changes to scoring, search logic, or decision-making (per "Change Discipline" section: "Any change that alters solver behavior must be documented")
+- **Architecture**: Structural changes to code organization, data flow, or module responsibilities
+- **Technical details**: Implementation specifics that explain how/why something works
+- **Mode-specific behavior**: Changes to Bronze-for-Life, Ryze mode, or Itemization mode logic
+
+**Examples:**
+- Modifying bronze scoring thresholds or piecewise functions
+- Changing quality unit definitions or constraints
+- Updating beam search logic or pruning rules
+- Adding new constraints or validity checks
+- Refactoring that changes data flow between modules
+
+### Decision Matrix
+
+| Change Type | README.md | docs/ | Both |
+|------------|-----------|-------|------|
+| New solver mode | ✅ | ✅ | ✅ |
+| Algorithm behavior change | ❌ | ✅ | ❌ |
+| New config field | ✅ | ❌ | ❌ |
+| API endpoint addition | ✅ | ❌ | ❌ |
+| Scoring formula change | ❌ | ✅ | ❌ |
+| Architecture refactor | ❌ | ✅ | ❌ |
+| Bug fix (no behavior change) | ❌ | ❌ | ❌ |
+| UI feature addition | ✅ | ❌ | ❌ |
+
+### Documentation Best Practices
+
+1. **Document intent, not just behavior**: Explain why decisions were made, not just what changed
+2. **Update docs alongside code**: Don't defer documentation; update it in the same commit
+3. **Keep examples current**: If you change behavior, update tutorial examples and code samples
+4. **Cross-reference appropriately**: Link between README.md and docs/ when relevant
+5. **Maintain consistency**: Follow existing documentation patterns and structure
 
 ## Testing
 
