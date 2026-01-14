@@ -8,7 +8,9 @@ from bfl.config import default_config
 def _build_inputs(toy_set_data):
     champs = [c["apiName"] for c in toy_set_data["champions"]]
     champ_traits = {c["apiName"]: c["traits"] for c in toy_set_data["champions"]}
-    trait_bps = {t["name"]: sorted(e["minUnits"] for e in t["effects"]) for t in toy_set_data["traits"]}
+    trait_bps = {
+        t["name"]: sorted(e["minUnits"] for e in t["effects"]) for t in toy_set_data["traits"]
+    }
     eligible = {"X", "Y", "Z"}
     power_map = {c: 0.0 for c in champs}
     return champs, champ_traits, trait_bps, eligible, power_map

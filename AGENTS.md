@@ -40,7 +40,7 @@
 
 ## Configuration
 
-- Configuration files live in `config.json` and `config_schema.json`
+- Configuration files live in `config.json` and `schemas/config_schema.json`
 - Configuration helpers are in `bfl/config_loader.py`
 - Do NOT rename or remove config keys without updating the schema and tutorial
 
@@ -53,8 +53,8 @@
 
 ## Data Awareness
 
-- Check `en_us.json` and the MetaTFT text files
-  (`metatft_units.txt`, `metatft_traits.txt`) when making data-related changes
+- Check `data/en_us.json` and the MetaTFT text files
+  (`data/metatft_units.txt`, `data/metatft_traits.txt`) when making data-related changes
 - Do not hardcode trait or unit names that already exist in these files
 
 ---

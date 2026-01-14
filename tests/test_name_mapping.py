@@ -6,7 +6,11 @@ def test_build_name_to_api_map_handles_apiname_tail_and_punctuation():
         "champions": [
             {"apiName": "TFT16_ChoGath", "name": "Cho'Gath", "characterName": "Cho'Gath"},
             {"apiName": "TFT16_THex", "name": "T-Hex", "characterName": "T-Hex"},
-            {"apiName": "TFT16_LucianSenna", "name": "Lucian & Senna", "characterName": "Lucian & Senna"},
+            {
+                "apiName": "TFT16_LucianSenna",
+                "name": "Lucian & Senna",
+                "characterName": "Lucian & Senna",
+            },
         ]
     }
     m = build_name_to_api_map(set_data)

@@ -3,7 +3,7 @@
 ## Features
 
 - Optimizes "Bronze for Life" trait activations using a beam-search solver that respects team size limits and trait blacklists.
-- Loads official TFT set data from `en_us.json` with helper utilities for champions, traits, and breakpoints.
+- Loads official TFT set data from `data/en_us.json` with helper utilities for champions, traits, and breakpoints.
 - Supports emblem modeling, including fixed starting emblems and optional automatic emblem assignment with configurable caps.
 - Integrates MetaTFT stats (win rate, average placement, frequency) as a tie-breaker to prefer stronger lineups.
 - Provides normalization and parsing helpers for MetaTFT unit data, including power calculations for each champion.
@@ -19,7 +19,7 @@ Use the library or CLI to explore different emblem setups.
 ```bash
 python -m bfl.bronze_for_life
 ```
-This runs the bundled solver with the default config: no emblems, MetaTFT weights if `metatft_units.txt` is present, and a team size of 9.
+This runs the bundled solver with the default config: no emblems, MetaTFT weights if `data/metatft_units.txt` is present, and a team size of 9.
 
 ### Guided examples
 An executable walk-through lives in `examples/bronze_for_life_tutorial.py`.
@@ -27,7 +27,7 @@ Run it from the repo root:
 ```bash
 python examples/bronze_for_life_tutorial.py
 ```
-It reuses the official set data (`en_us.json`) and MetaTFT paste (if present) to show four scenarios:
+It reuses the official set data (`data/en_us.json`) and MetaTFT paste (if present) to show four scenarios:
 1. **No emblems** – pure Bronze for Life optimization.
 2. **Two fixed emblems** – hard-code Zaun and Vanquisher emblems to see how the team shifts.
 3. **Auto-select emblems** – let the solver choose up to two emblems to maximize bronze activations.
@@ -48,7 +48,7 @@ Bronze-for-Life and Standard modes are unchanged; the Ryze constraints only appl
 Itemization mode ranks carry candidates by how close they are to their ideal item builds. Provide available components
 and completed items in `config.json` and set `"mode": "itemization"`. The solver will:
 
-- Load item data from `en_us.json`.
+- Load item data from `data/en_us.json`.
 - Resolve your available components and completed items by name or apiName.
 - Normalize tutorial item apiName values (e.g., `TFTTutorial_Item_*`) to their standard counterparts.
 - Score carry candidates by completed/craftable ideal items, then break ties with needed and existing team traits.
@@ -70,7 +70,7 @@ Defaults now live in a JSON-serializable `Config` object (see `bfl/config.py`). 
 
 - `load_config(path)` – parse JSON (or return defaults when `path` is `None`).
 - `save_config(config, path)` – write a config back to disk.
-- `config_schema.json` – documents the expected JSON structure for UI validation.
+- `schemas/config_schema.json` – documents the expected JSON structure for UI validation.
 
 Key fields mirror the previous module-level constants:
 
@@ -83,7 +83,7 @@ Key fields mirror the previous module-level constants:
 Edit `config.json` (or save a new file via `save_config`) then re-run `python -m bfl.bronze_for_life` or the tutorial script. The solver will keep the same defaults when no JSON is supplied.
 
 ### How a UI could integrate
-A UI only needs to read and write `config.json` (or another path of its choosing) using the helpers in `bfl/config_loader.py`. Load the current settings with `load_config(path)`, surface the fields in your UI, then persist any changes with `save_config(config, path)`. To validate user input client-side, point your UI at `config_schema.json` for the expected shapes and types. The solver entry points will keep honoring defaults when the file is absent, so a UI can safely omit fields it does not expose.
+A UI only needs to read and write `config.json` (or another path of its choosing) using the helpers in `bfl/config_loader.py`. Load the current settings with `load_config(path)`, surface the fields in your UI, then persist any changes with `save_config(config, path)`. To validate user input client-side, point your UI at `schemas/config_schema.json` for the expected shapes and types. The solver entry points will keep honoring defaults when the file is absent, so a UI can safely omit fields it does not expose.
 
 ## Running the Bronze for Life UI
 The repository now ships with a lightweight FastAPI backend and a Vite + React + TypeScript frontend. Follow these steps even if you have never used JavaScript or React before:

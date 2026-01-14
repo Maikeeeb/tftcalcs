@@ -50,6 +50,7 @@ class SolverError(RuntimeError):
         self.debug_log = debug_log
         self.context = context
 
+
 BARON_API_NAME = "TFT16_BaronNashor"
 
 SPECIAL_CHAMPION_SLOT_SIZES = {BARON_API_NAME: 2}
@@ -149,8 +150,8 @@ def run_bfl(config: Config) -> Dict[str, object]:
     context_details: Dict[str, object] = {"config": config.to_dict()}
 
     try:
-        set_data, champs, champ_traits, trait_bps, champ_cost, eligible_traits, trait_freq = load_set_data(
-            config.json_path, config.set_id, config.blacklist_traits_by_name
+        set_data, champs, champ_traits, trait_bps, champ_cost, eligible_traits, trait_freq = (
+            load_set_data(config.json_path, config.set_id, config.blacklist_traits_by_name)
         )
 
         validate_config_against_data(config, champs, trait_bps)
@@ -168,7 +169,9 @@ def run_bfl(config: Config) -> Dict[str, object]:
         trait_text = load_metatft_txt(str(config.metatft_traits_path))
         trait_stats = metatft_to_trait_stats(trait_text, set_data)
 
-        power_map = {c: unit_power(c, unit_stats, config.w_win, config.w_avg, config.w_freq) for c in champs}
+        power_map = {
+            c: unit_power(c, unit_stats, config.w_win, config.w_avg, config.w_freq) for c in champs
+        }
 
         if len(champs) < config.team_size:
             raise RuntimeError(

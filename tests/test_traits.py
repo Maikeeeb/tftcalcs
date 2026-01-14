@@ -1,8 +1,11 @@
 from bfl.bronze_for_life import classify_traits
 
+
 def test_classify_traits_bronze_vs_upgraded(toy_set_data):
     champ_traits = {c["apiName"]: c["traits"] for c in toy_set_data["champions"]}
-    trait_bps = {t["name"]: sorted(e["minUnits"] for e in t["effects"]) for t in toy_set_data["traits"]}
+    trait_bps = {
+        t["name"]: sorted(e["minUnits"] for e in t["effects"]) for t in toy_set_data["traits"]
+    }
 
     eligible = {"X", "Y", "Z"}  # W is exclusive, Targon blacklisted in real code
 
@@ -19,7 +22,9 @@ def test_classify_traits_bronze_vs_upgraded(toy_set_data):
 
 def test_classify_traits_with_emblem_start(toy_set_data):
     champ_traits = {c["apiName"]: c["traits"] for c in toy_set_data["champions"]}
-    trait_bps = {t["name"]: sorted(e["minUnits"] for e in t["effects"]) for t in toy_set_data["traits"]}
+    trait_bps = {
+        t["name"]: sorted(e["minUnits"] for e in t["effects"]) for t in toy_set_data["traits"]
+    }
 
     eligible = {"X", "Y", "Z"}
 

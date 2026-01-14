@@ -1,4 +1,4 @@
-import rawMapping from '../../tft_set16_teamplanner_mapping.json';
+import rawMapping from '../../utils/tft_set16_teamplanner_mapping.json';
 
 export type TeamPlannerCodeResult = {
   code: string | null;

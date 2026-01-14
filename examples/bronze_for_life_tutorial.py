@@ -43,7 +43,9 @@ def prepare_context():
 
     metatft_text = load_metatft_txt(str(CONFIG.metatft_txt_path))
     unit_stats = metatft_to_unit_stats(metatft_text, set_data)
-    power_map = {c: unit_power(c, unit_stats, CONFIG.w_win, CONFIG.w_avg, CONFIG.w_freq) for c in champs}
+    power_map = {
+        c: unit_power(c, unit_stats, CONFIG.w_win, CONFIG.w_avg, CONFIG.w_freq) for c in champs
+    }
 
     return {
         "champs": champs,

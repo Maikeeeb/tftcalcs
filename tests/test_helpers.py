@@ -1,9 +1,11 @@
 from bfl.bronze_for_life import normalize_name, apply_emblem_starts, unit_power
 
+
 def test_normalize_name():
     assert normalize_name("Lucian & Senna") == "luciansenna"
     assert normalize_name("Cho'Gath") == "chogath"
     assert normalize_name("T-Hex") == "thex"
+
 
 def test_apply_emblem_starts():
     base = {"Zaun": 2, "Void": 1}
@@ -13,8 +15,10 @@ def test_apply_emblem_starts():
     assert out["Void"] == 1
     assert out["Ixtal"] == 1
 
+
 def test_unit_power_missing_stats_is_zero():
     assert unit_power("TFT16_A", {}) == 0.0
+
 
 def test_unit_power_prefers_better_stats():
     stats = {

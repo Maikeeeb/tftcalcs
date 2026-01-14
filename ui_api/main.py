@@ -27,7 +27,7 @@ from bfl.set_loader import load_set_data
 from bfl.solver_api import SolverError, run_solver as solve_config
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SCHEMA_PATH = REPO_ROOT / "config_schema.json"
+SCHEMA_PATH = REPO_ROOT / "schemas" / "config_schema.json"
 SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 ITEMIZATION_VERSION = 2
 
@@ -45,13 +45,19 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
 
     json_path = Path(payload.get("json_path", base.json_path)).expanduser()
     metatft_txt_path = Path(payload.get("metatft_txt_path", base.metatft_txt_path)).expanduser()
-    metatft_traits_path = Path(payload.get("metatft_traits_path", base.metatft_traits_path)).expanduser()
+    metatft_traits_path = Path(
+        payload.get("metatft_traits_path", base.metatft_traits_path)
+    ).expanduser()
     team_size_input = payload.get("team_size", base.team_size)
     team_size_provided = "team_size" in payload
     team_size = _validate_int("team_size", team_size_input, allow_negative=False)
-    beam_width = _validate_int("beam_width", payload.get("beam_width", base.beam_width), allow_negative=False)
+    beam_width = _validate_int(
+        "beam_width", payload.get("beam_width", base.beam_width), allow_negative=False
+    )
     max_emblems_total = _validate_int(
-        "max_emblems_total", payload.get("max_emblems_total", base.max_emblems_total), allow_negative=False
+        "max_emblems_total",
+        payload.get("max_emblems_total", base.max_emblems_total),
+        allow_negative=False,
     )
 
     blacklist_raw = payload.get("blacklist_traits_by_name", base.blacklist_traits_by_name)
@@ -61,7 +67,10 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
         raise ConfigError("blacklist_traits_by_name must be a list of trait names.")
 
     emblem_start_counts = _load_int_map(
-        payload.get("emblem_start_counts"), base.emblem_start_counts, name="emblem_start_counts", allow_negative=False
+        payload.get("emblem_start_counts"),
+        base.emblem_start_counts,
+        name="emblem_start_counts",
+        allow_negative=False,
     )
     required_champions_raw = payload.get("required_champions")
     required_champions = _load_int_map(
@@ -102,15 +111,21 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
         "available_completed_items",
         payload.get("available_completed_items", base.available_completed_items),
     )
-    target_carries = _validate_str_list("target_carries", payload.get("target_carries", base.target_carries))
+    target_carries = _validate_str_list(
+        "target_carries", payload.get("target_carries", base.target_carries)
+    )
     team_traits = _validate_str_list("team_traits", payload.get("team_traits", base.team_traits))
-    needed_traits = _validate_str_list("needed_traits", payload.get("needed_traits", base.needed_traits))
+    needed_traits = _validate_str_list(
+        "needed_traits", payload.get("needed_traits", base.needed_traits)
+    )
     allow_reforge = payload.get("allow_reforge", base.allow_reforge)
     if not isinstance(allow_reforge, bool):
         raise ConfigError("allow_reforge must be a boolean.")
 
     if not available_components and "itemization_components" in payload:
-        available_components = _validate_str_list("itemization_components", payload.get("itemization_components"))
+        available_components = _validate_str_list(
+            "itemization_components", payload.get("itemization_components")
+        )
     if not available_completed_items and "itemization_completed_items" in payload:
         available_completed_items = _validate_str_list(
             "itemization_completed_items", payload.get("itemization_completed_items")
@@ -120,9 +135,13 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
             "itemization_candidate_champions", payload.get("itemization_candidate_champions")
         )
     if not team_traits and "itemization_team_traits" in payload:
-        team_traits = _validate_str_list("itemization_team_traits", payload.get("itemization_team_traits"))
+        team_traits = _validate_str_list(
+            "itemization_team_traits", payload.get("itemization_team_traits")
+        )
     if not needed_traits and "itemization_needed_traits" in payload:
-        needed_traits = _validate_str_list("itemization_needed_traits", payload.get("itemization_needed_traits"))
+        needed_traits = _validate_str_list(
+            "itemization_needed_traits", payload.get("itemization_needed_traits")
+        )
 
     team_size = apply_ryze_mode_defaults(
         mode,
@@ -160,7 +179,9 @@ def _config_from_payload(payload: Mapping[str, Any]) -> Config:
     try:
         champs = list_playable_champions(json_path, set_id)
     except Exception as exc:  # pragma: no cover - defensive wrapper
-        raise ConfigError(f"Failed to load champion list from {json_path} for set {set_id}: {exc}") from exc
+        raise ConfigError(
+            f"Failed to load champion list from {json_path} for set {set_id}: {exc}"
+        ) from exc
 
     _validate_required_champions(config, champs)
     return config
@@ -245,7 +266,9 @@ def run_solver_endpoint(config: Mapping[str, Any]):
         payload = _normalize_config_payload(config)
         validate(instance=payload, schema=SCHEMA)
     except ValidationError as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid configuration: {exc.message}") from exc
+        raise HTTPException(
+            status_code=400, detail=f"Invalid configuration: {exc.message}"
+        ) from exc
 
     try:
         solver_config = _config_from_payload(payload)
@@ -307,7 +330,9 @@ def run_itemization(payload: Mapping[str, Any]):
             detail=f"Invalid configuration for version {ITEMIZATION_VERSION}: {exc.message}",
         ) from exc
     except ConfigError as exc:
-        raise HTTPException(status_code=400, detail=f"Version {ITEMIZATION_VERSION} config error: {exc}") from exc
+        raise HTTPException(
+            status_code=400, detail=f"Version {ITEMIZATION_VERSION} config error: {exc}"
+        ) from exc
     except SolverError as exc:
         raise HTTPException(
             status_code=500,

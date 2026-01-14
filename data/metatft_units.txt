@@ -1,0 +1,1627 @@
+Unit
+
+Tier
+
+Avg Place
+
+Win Rate
+
+Frequency
+
+Popular Items
+Unlockable UnitBaron Nashor
+Baron Nashor
+
+S
+
+2.58
+
+34.0%
+
+199,271 2.6%
+
+Bloodthirster
+Infinity Edge
+Sterak's Gage
+Hand Of Justice
+Titan's Resolve
+Unlockable UnitRenekton
+Renekton
+
+S
+
+3.13
+
+26.5%
+
+194,253 2.6%
+
+Bloodthirster
+Sterak's Gage
+Titan's Resolve
+Thief's Gloves
+Hand Of Justice
+Unlockable UnitZaahen
+Zaahen
+
+S
+
+3.14
+
+19.0%
+
+82,037 1.1%
+
+Bloodthirster
+Titan's Resolve
+Sterak's Gage
+Hand Of Justice
+Infinity Edge
+Unlockable UnitVolibear
+Volibear
+
+S
+
+3.31
+
+23.0%
+
+812,164 10.7%
+
+Bloodthirster
+Sterak's Gage
+Thief's Gloves
+Titan's Resolve
+Hand Of Justice
+Unlockable UnitZiggs
+Ziggs
+
+S
+
+3.43
+
+23.3%
+
+928,167 12.2%
+
+Guinsoo's Rageblade
+Jeweled Gauntlet
+Spear of Shojin
+Void Staff
+Nashor's Tooth
+Unlockable UnitRyze
+Ryze
+
+S
+
+3.64
+
+21.0%
+
+634,592 8.3%
+
+Spear of Shojin
+Jeweled Gauntlet
+Void Staff
+Blue Buff
+Adaptive Helm
+Unlockable UnitSylas
+Sylas
+
+S
+
+3.65
+
+17.0%
+
+130,820 1.7%
+
+Jeweled Gauntlet
+Hand Of Justice
+Bloodthirster
+Thief's Gloves
+Hextech Gunblade
+Lucian & Senna
+Lucian & Senna
+
+S
+
+3.68
+
+19.7%
+
+1,277,986 16.8%
+
+Infinity Edge
+Spear of Shojin
+Guinsoo's Rageblade
+Last Whisper
+Red Buff
+Fiddlesticks
+Fiddlesticks
+
+S
+
+3.69
+
+19.8%
+
+1,218,573 16.0%
+
+Thief's Gloves
+Jeweled Gauntlet
+Morellonomicon
+Hand Of Justice
+Rabadon's Deathcap
+Unlockable UnitAatrox
+Aatrox
+
+S
+
+3.69
+
+15.7%
+
+175,040 2.3%
+
+Bloodthirster
+Hand Of Justice
+Titan's Resolve
+Sterak's Gage
+Guinsoo's Rageblade
+Unlockable UnitGalio
+Galio
+
+S
+
+3.73
+
+14.0%
+
+734,092 9.6%
+
+Thief's Gloves
+Dragon's Claw
+Adaptive Helm
+Gargoyle Stoneplate
+Warmog's Armor
+Unlockable UnitVeigar
+Veigar
+
+S
+
+3.74
+
+24.3%
+
+297,461 3.9%
+
+Rabadon's Deathcap
+Spear of Shojin
+Blue Buff
+Void Staff
+Jeweled Gauntlet
+Shyvana
+Shyvana
+
+S
+
+3.75
+
+19.7%
+
+1,376,427 18.1%
+
+Thief's Gloves
+Bloodthirster
+Sterak's Gage
+Hand Of Justice
+Titan's Resolve
+Unlockable UnitXerath
+Xerath
+
+S
+
+3.80
+
+18.2%
+
+121,122 1.6%
+
+Spear of Shojin
+Jeweled Gauntlet
+Archangel's Staff
+Adaptive Helm
+Blue Buff
+Unlockable UnitTahm Kench
+Tahm Kench
+
+S
+
+3.82
+
+22.3%
+
+567,753 7.5%
+
+Pile O' Citrus
+Protector's Vow
+Bloodthirster
+Spirit Visage
+Warmog's Armor
+Zilean
+Zilean
+
+S
+
+3.83
+
+18.0%
+
+556,040 7.3%
+
+Spear of Shojin
+Void Staff
+Jeweled Gauntlet
+Blue Buff
+Adaptive Helm
+Kindred
+Kindred
+
+S
+
+3.84
+
+16.4%
+
+1,266,779 16.6%
+
+Guinsoo's Rageblade
+Kraken's Fury
+Infinity Edge
+Giant Slayer
+Deathblade
+Unlockable UnitMel
+Mel
+
+S
+
+3.89
+
+14.0%
+
+291,724 3.8%
+
+Adaptive Helm
+Jeweled Gauntlet
+Spear of Shojin
+Blue Buff
+Void Staff
+Unlockable UnitThresh
+Thresh
+
+S
+
+3.92
+
+12.8%
+
+295,171 3.9%
+
+Bloodthirster
+Morellonomicon
+Void Staff
+Hand Of Justice
+Jeweled Gauntlet
+Unlockable UnitBrock
+Brock
+
+S
+
+3.95
+
+22.7%
+
+183,949 2.4%
+
+Bloodthirster
+Infinity Edge
+Sterak's Gage
+Hand Of Justice
+Titan's Resolve
+Unlockable UnitYone
+Yone
+
+S
+
+3.97
+
+15.2%
+
+172,756 2.3%
+
+Bloodthirster
+Guinsoo's Rageblade
+Titan's Resolve
+Hand Of Justice
+Edge of Night
+Unlockable UnitWarwick
+Warwick
+
+S
+
+4.06
+
+8.1%
+
+479,897 6.3%
+
+Bloodthirster
+Titan's Resolve
+Sterak's Gage
+Hand Of Justice
+Quicksilver
+Unlockable UnitSett
+Sett
+
+S
+
+4.06
+
+17.2%
+
+1,076,947 14.1%
+
+Jeweled Gauntlet
+Hand Of Justice
+Bloodthirster
+Thief's Gloves
+Titan's Resolve
+Ornn
+Ornn
+
+S
+
+4.10
+
+16.7%
+
+1,109,302 14.6%
+
+Thief's Gloves
+Gargoyle Stoneplate
+Warmog's Armor
+Spirit Visage
+Sunfire Cape
+Unlockable UnitKai'Sa
+Kai'Sa
+
+S
+
+4.17
+
+14.7%
+
+761,515 10.0%
+
+Guinsoo's Rageblade
+Jeweled Gauntlet
+Hextech Gunblade
+Void Staff
+Infinity Edge
+Azir
+Azir
+
+S
+
+4.20
+
+14.6%
+
+787,511 10.3%
+
+Guinsoo's Rageblade
+Jeweled Gauntlet
+Giant Slayer
+Void Staff
+Hextech Gunblade
+Lux
+Lux
+
+S
+
+4.20
+
+11.9%
+
+857,241 11.3%
+
+Jeweled Gauntlet
+Spear of Shojin
+Blue Buff
+Void Staff
+Archangel's Staff
+Unlockable UnitKobuko & Yuumi
+Kobuko & Yuumi
+
+A
+
+4.24
+
+16.1%
+
+1,236,525 16.2%
+
+Thief's Gloves
+Gargoyle Stoneplate
+Warmog's Armor
+Sunfire Cape
+Spirit Visage
+Unlockable UnitKalista
+Kalista
+
+A
+
+4.24
+
+11.7%
+
+301,987 4.0%
+
+Spear of Shojin
+Last Whisper
+Striker's Flail
+Infinity Edge
+Guinsoo's Rageblade
+Swain
+Swain
+
+A
+
+4.24
+
+13.1%
+
+2,470,210 32.4%
+
+Protector's Vow
+Sunfire Cape
+Spirit Visage
+Gargoyle Stoneplate
+Warmog's Armor
+Garen
+Garen
+
+A
+
+4.27
+
+11.4%
+
+1,115,508 14.7%
+
+Spirit Visage
+Gargoyle Stoneplate
+Sunfire Cape
+Warmog's Armor
+Bramble Vest
+Wukong
+Wukong
+
+A
+
+4.29
+
+14.9%
+
+2,018,255 26.5%
+
+Sunfire Cape
+Gargoyle Stoneplate
+Spirit Visage
+Warmog's Armor
+Evenshroud
+Unlockable UnitSinged
+Singed
+
+A
+
+4.30
+
+7.8%
+
+723,128 9.5%
+
+Morellonomicon
+Bloodthirster
+Void Staff
+Sunfire Cape
+Thief's Gloves
+Annie
+Annie
+
+A
+
+4.30
+
+13.3%
+
+426,948 5.6%
+
+Spear of Shojin
+Adaptive Helm
+Void Staff
+Blue Buff
+Jeweled Gauntlet
+Tibbers
+Tibbers
+
+A
+
+4.32
+
+13.4%
+
+368,954 4.8%
+
+Gargoyle Stoneplate
+Warmog's Armor
+Spirit Visage
+Bramble Vest
+Sunfire Cape
+Unlockable UnitGwen
+Gwen
+
+A
+
+4.33
+
+11.4%
+
+293,050 3.8%
+
+Jeweled Gauntlet
+Hand Of Justice
+Thief's Gloves
+Bloodthirster
+Titan's Resolve
+Blitzcrank
+Blitzcrank
+
+A
+
+4.34
+
+7.7%
+
+521,660 6.9%
+
+Gargoyle Stoneplate
+Spirit Visage
+Sunfire Cape
+Thief's Gloves
+Warmog's Armor
+Unlockable UnitYorick
+Yorick
+
+A
+
+4.35
+
+11.3%
+
+306,682 4.0%
+
+Gargoyle Stoneplate
+Spirit Visage
+Warmog's Armor
+Sunfire Cape
+Bramble Vest
+Jinx
+Jinx
+
+A
+
+4.35
+
+7.4%
+
+513,492 6.7%
+
+Guinsoo's Rageblade
+Infinity Edge
+Kraken's Fury
+Giant Slayer
+Deathblade
+Ekko
+Ekko
+
+A
+
+4.36
+
+7.4%
+
+501,834 6.6%
+
+Bloodthirster
+Titan's Resolve
+Guinsoo's Rageblade
+Hand Of Justice
+Jeweled Gauntlet
+Miss Fortune
+Miss Fortune
+
+A
+
+4.38
+
+17.0%
+
+678,862 8.9%
+
+Infinity Edge
+First Mate's Flintlock
+Spear of Shojin
+Dead Man's Dagger
+Captain's Brew
+Taric
+Taric
+
+B
+
+4.42
+
+14.7%
+
+2,038,831 26.8%
+
+Gargoyle Stoneplate
+Sunfire Cape
+Spirit Visage
+Warmog's Armor
+Thief's Gloves
+Bel'Veth
+Bel'Veth
+
+B
+
+4.43
+
+14.1%
+
+524,746 6.9%
+
+Bloodthirster
+Guinsoo's Rageblade
+Hand Of Justice
+Quicksilver
+Kraken's Fury
+Jarvan IV
+Jarvan IV
+
+B
+
+4.43
+
+10.7%
+
+995,665 13.1%
+
+Gargoyle Stoneplate
+Protector's Vow
+Evenshroud
+Crownguard
+Sunfire Cape
+Ambessa
+Ambessa
+
+B
+
+4.43
+
+10.9%
+
+743,720 9.8%
+
+Bloodthirster
+Thief's Gloves
+Hand Of Justice
+Sterak's Gage
+Titan's Resolve
+Yunara
+Yunara
+
+B
+
+4.43
+
+12.5%
+
+957,844 12.6%
+
+Guinsoo's Rageblade
+Infinity Edge
+Kraken's Fury
+Giant Slayer
+Deathblade
+Unlockable UnitPoppy
+Poppy
+
+B
+
+4.43
+
+13.3%
+
+1,443,881 19.0%
+
+Thief's Gloves
+Gargoyle Stoneplate
+Sunfire Cape
+Warmog's Armor
+Spirit Visage
+Unlockable UnitKennen
+Kennen
+
+B
+
+4.45
+
+16.0%
+
+1,604,441 21.1%
+
+Gargoyle Stoneplate
+Sunfire Cape
+Warmog's Armor
+Spirit Visage
+Thief's Gloves
+Unlockable UnitFizz
+Fizz
+
+B
+
+4.45
+
+17.7%
+
+933,510 12.3%
+
+Jeweled Gauntlet
+Hand Of Justice
+Rabadon's Deathcap
+Bloodthirster
+Thief's Gloves
+Kog'Maw
+Kog'Maw
+
+B
+
+4.47
+
+14.6%
+
+561,164 7.4%
+
+Guinsoo's Rageblade
+Void Staff
+Jeweled Gauntlet
+Needlessly Large Rod
+Recurve Bow
+Dr. Mundo
+Dr. Mundo
+
+B
+
+4.47
+
+10.9%
+
+1,197,133 15.7%
+
+Spirit Visage
+Gargoyle Stoneplate
+Warmog's Armor
+Sunfire Cape
+Bramble Vest
+Unlockable UnitDarius
+Darius
+
+B
+
+4.49
+
+10.8%
+
+317,081 4.2%
+
+Thief's Gloves
+Gargoyle Stoneplate
+Sunfire Cape
+Spirit Visage
+Warmog's Armor
+Unlockable UnitRift Herald
+Rift Herald
+
+B
+
+4.49
+
+13.3%
+
+634,147 8.3%
+
+Spirit Visage
+Gargoyle Stoneplate
+Sunfire Cape
+Warmog's Armor
+Bramble Vest
+Viego
+Viego
+
+B
+
+4.49
+
+10.5%
+
+275,265 3.6%
+
+Bloodthirster
+Titan's Resolve
+Edge of Night
+Hand Of Justice
+Quicksilver
+Sona
+Sona
+
+B
+
+4.49
+
+11.1%
+
+598,833 7.9%
+
+Archangel's Staff
+Jeweled Gauntlet
+Nashor's Tooth
+Hextech Gunblade
+Spear of Shojin
+Seraphine
+Seraphine
+
+B
+
+4.50
+
+10.2%
+
+1,012,080 13.3%
+
+Spear of Shojin
+Jeweled Gauntlet
+Morellonomicon
+Void Staff
+Blue Buff
+Vayne
+Vayne
+
+B
+
+4.51
+
+9.3%
+
+601,565 7.9%
+
+Kraken's Fury
+Guinsoo's Rageblade
+Hextech Gunblade
+Infinity Edge
+Giant Slayer
+Malzahar
+Malzahar
+
+B
+
+4.54
+
+13.1%
+
+462,559 6.1%
+
+Void Staff
+Jeweled Gauntlet
+Spear of Shojin
+Morellonomicon
+Blue Buff
+Shen
+Shen
+
+B
+
+4.55
+
+12.1%
+
+984,192 12.9%
+
+Thief's Gloves
+Sunfire Cape
+Spirit Visage
+Warmog's Armor
+Gargoyle Stoneplate
+Teemo
+Teemo
+
+B
+
+4.55
+
+16.5%
+
+634,181 8.3%
+
+Spear of Shojin
+Jeweled Gauntlet
+Rabadon's Deathcap
+Void Staff
+Nashor's Tooth
+Lissandra
+Lissandra
+
+B
+
+4.56
+
+11.6%
+
+733,308 9.6%
+
+Spear of Shojin
+Jeweled Gauntlet
+Void Staff
+Adaptive Helm
+Blue Buff
+Braum
+Braum
+
+B
+
+4.58
+
+10.8%
+
+928,426 12.2%
+
+Gargoyle Stoneplate
+Spirit Visage
+Warmog's Armor
+Sunfire Cape
+Bramble Vest
+Rek'Sai
+Rek'Sai
+
+B
+
+4.58
+
+14.7%
+
+407,362 5.4%
+
+Bloodthirster
+Hand Of Justice
+Thief's Gloves
+Infinity Edge
+Sterak's Gage
+Rumble
+Rumble
+
+B
+
+4.60
+
+16.0%
+
+688,725 9.0%
+
+Gargoyle Stoneplate
+Sunfire Cape
+Thief's Gloves
+Warmog's Armor
+Guinsoo's Rageblade
+Lulu
+Lulu
+
+C
+
+4.60
+
+16.4%
+
+553,516 7.3%
+
+Spear of Shojin
+Rabadon's Deathcap
+Void Staff
+Jeweled Gauntlet
+Thief's Gloves
+Unlockable UnitLeBlanc
+LeBlanc
+
+C
+
+4.61
+
+10.2%
+
+287,640 3.8%
+
+Jeweled Gauntlet
+Spear of Shojin
+Blue Buff
+Adaptive Helm
+Nashor's Tooth
+Sion
+Sion
+
+C
+
+4.62
+
+9.9%
+
+749,664 9.8%
+
+Sunfire Cape
+Spirit Visage
+Warmog's Armor
+Gargoyle Stoneplate
+Bramble Vest
+Vi
+Vi
+
+C
+
+4.62
+
+10.5%
+
+1,692,123 22.2%
+
+Thief's Gloves
+Bloodthirster
+Gargoyle Stoneplate
+Sunfire Cape
+Evenshroud
+Cho'Gath
+Cho'Gath
+
+C
+
+4.63
+
+12.9%
+
+571,918 7.5%
+
+Sunfire Cape
+Spirit Visage
+Thief's Gloves
+Gargoyle Stoneplate
+Warmog's Armor
+Unlockable UnitNasus
+Nasus
+
+C
+
+4.63
+
+11.0%
+
+179,574 2.4%
+
+Spirit Visage
+Gargoyle Stoneplate
+Warmog's Armor
+Sunfire Cape
+Bramble Vest
+Aphelios
+Aphelios
+
+C
+
+4.65
+
+10.8%
+
+388,914 5.1%
+
+Guinsoo's Rageblade
+Kraken's Fury
+Infinity Edge
+Giant Slayer
+Deathblade
+Draven
+Draven
+
+C
+
+4.65
+
+9.7%
+
+731,217 9.6%
+
+Guinsoo's Rageblade
+Infinity Edge
+Kraken's Fury
+Giant Slayer
+Last Whisper
+Nautilus
+Nautilus
+
+C
+
+4.67
+
+13.6%
+
+946,818 12.4%
+
+Gargoyle Stoneplate
+Sunfire Cape
+Evenshroud
+Spirit Visage
+Warmog's Armor
+Ashe
+Ashe
+
+C
+
+4.70
+
+9.0%
+
+451,273 5.9%
+
+Guinsoo's Rageblade
+Kraken's Fury
+Giant Slayer
+Infinity Edge
+Last Whisper
+Xin Zhao
+Xin Zhao
+
+C
+
+4.71
+
+9.9%
+
+1,065,165 14.0%
+
+Thief's Gloves
+Bloodthirster
+Titan's Resolve
+Sunfire Cape
+Gargoyle Stoneplate
+Briar
+Briar
+
+C
+
+4.72
+
+8.9%
+
+587,867 7.7%
+
+Thief's Gloves
+Bloodthirster
+Quickstriker Emblem
+Bilgewater Emblem
+Hand Of Justice
+Jhin
+Jhin
+
+C
+
+4.74
+
+12.3%
+
+326,327 4.3%
+
+Guinsoo's Rageblade
+Infinity Edge
+Kraken's Fury
+B.F. Sword
+Last Whisper
+Unlockable UnitAurelion Sol
+Aurelion Sol
+
+C
+
+4.75
+
+12.2%
+
+212,259 2.8%
+
+Spear of Shojin
+Guinsoo's Rageblade
+Blue Buff
+Adaptive Helm
+Jeweled Gauntlet
+Sejuani
+Sejuani
+
+C
+
+4.78
+
+9.0%
+
+682,493 9.0%
+
+Sunfire Cape
+Spirit Visage
+Protector's Vow
+Evenshroud
+Warmog's Armor
+Illaoi
+Illaoi
+
+C
+
+4.79
+
+12.9%
+
+689,925 9.1%
+
+Sunfire Cape
+Spirit Visage
+Thief's Gloves
+Gargoyle Stoneplate
+Warmog's Armor
+Tristana
+Tristana
+
+D
+
+4.80
+
+13.6%
+
+437,617 5.7%
+
+Infinity Edge
+Guinsoo's Rageblade
+Spear of Shojin
+Giant Slayer
+Kraken's Fury
+Caitlyn
+Caitlyn
+
+D
+
+4.81
+
+12.9%
+
+611,983 8.0%
+
+Infinity Edge
+Deathblade
+Striker's Flail
+B.F. Sword
+Guinsoo's Rageblade
+Twisted Fate
+Twisted Fate
+
+D
+
+4.81
+
+14.2%
+
+431,373 5.7%
+
+Captain's Brew
+Guinsoo's Rageblade
+Morellonomicon
+Lucky Doubloon
+Red Buff
+Unlockable UnitTryndamere
+Tryndamere
+
+D
+
+4.83
+
+6.2%
+
+173,590 2.3%
+
+Quicksilver
+Guinsoo's Rageblade
+Bloodthirster
+Infinity Edge
+The Darkin Scythe
+Yasuo
+Yasuo
+
+D
+
+4.83
+
+10.6%
+
+336,890 4.4%
+
+Infinity Edge
+Hand Of Justice
+Edge of Night
+Bloodthirster
+The Darkin Scythe
+Loris
+Loris
+
+D
+
+4.84
+
+8.3%
+
+674,526 8.9%
+
+Gargoyle Stoneplate
+Evenshroud
+Sunfire Cape
+Spirit Visage
+Warmog's Armor
+Ahri
+Ahri
+
+D
+
+4.85
+
+11.1%
+
+418,169 5.5%
+
+Jeweled Gauntlet
+Spear of Shojin
+Blue Buff
+Nashor's Tooth
+Void Staff
+Gangplank
+Gangplank
+
+D
+
+4.89
+
+11.8%
+
+510,306 6.7%
+
+Hand Of Justice
+Quicksilver
+Sterak's Gage
+Bloodthirster
+Infinity Edge
+Unlockable UnitSkarner
+Skarner
+
+D
+
+4.89
+
+11.9%
+
+574,312 7.5%
+
+Gargoyle Stoneplate
+Spirit Visage
+Sunfire Cape
+Warmog's Armor
+Evenshroud
+Unlockable UnitDiana
+Diana
+
+D
+
+4.89
+
+10.3%
+
+282,447 3.7%
+
+Guinsoo's Rageblade
+Bloodthirster
+Titan's Resolve
+Hand Of Justice
+Jeweled Gauntlet
+Unlockable UnitGraves
+Graves
+
+D
+
+4.95
+
+13.9%
+
+349,301 4.6%
+
+Quicksilver
+Infinity Edge
+Giant Slayer
+Hand Of Justice
+Bloodthirster
+Anivia
+Anivia
+
+D
+
+4.96
+
+7.3%
+
+259,627 3.4%
+
+Spear of Shojin
+Jeweled Gauntlet
+Void Staff
+Giant Slayer
+Archangel's Staff
+Unlockable UnitBard
+Bard
+
+D
+
+5.03
+
+9.2%
+
+402,211 5.3%
+
+Jeweled Gauntlet
+Spear of Shojin
+Archangel's Staff
+Nashor's Tooth
+Blue Buff
+Neeko
+Neeko
+
+D
+
+5.05
+
+8.7%
+
+994,825 13.1%
+
+Gargoyle Stoneplate
+Sunfire Cape
+Spirit Visage
+Warmog's Armor
+Protector's Vow
+Unlockable UnitT-Hex
+T-Hex
+
+D
+
+5.05
+
+6.5%
+
+201,758 2.6%
+
+Infinity Edge
+Striker's Flail
+Deathblade
+Giant Slayer
+Hand Of Justice
+Zoe
+Zoe
+
+D
+
+5.21
+
+8.8%
+
+242,242 3.2%
+
+Jeweled Gauntlet
+Spear of Shojin
+Guinsoo's Rageblade
+Nashor's Tooth
+Blue Buff
+Unlockable UnitNidalee
+Nidalee
+
+D
+
+5.28
+
+9.6%
+
+196,451 2.6%
+
+Jeweled Gauntlet
+Hand Of Justice
+Bloodthirster
+Giant Slayer
+Rabadon's Deathcap
+Leona
+Leona
+
+D
+
+5.35
+
+7.8%
+
+329,078 4.3%
+
+Gargoyle Stoneplate
+Warmog's Armor
+Spirit Visage
+Sunfire Cape
+Thief's Gloves
+Unlockable UnitOrianna
+Orianna
+
+D
+
+5.36
+
+5.8%
+
+204,473 2.7%
+
+Guinsoo's Rageblade
+Spear of Shojin
+Red Buff
+Needlessly Large Rod
+Void Staff
+Milio
+Milio
+
+D
+
+5.72
+
+7.7%
+
+358,292 4.7%
+
+Spear of Shojin
+Jeweled Gauntlet
+Void Staff
+Morellonomicon
+Nashor's Tooth
+Qiyana
+Qiyana
+
+D
+
+6.28
+
+4.1%
+
+242,500 3.2%
+
+Bloodthirster
+Infinity Edge
+Sterak's Gage
+Hand Of Justice
+Thief's Gloves

@@ -55,7 +55,7 @@ def _generate_default_required_champions() -> Dict[str, int]:
     from bfl.set_loader import load_set_data
 
     # Use default paths - same as default_config uses
-    json_path = REPO_ROOT / "en_us.json"
+    json_path = REPO_ROOT / "data" / "en_us.json"
     set_id = "16"
 
     _, champions, *_ = load_set_data(json_path, set_id)
@@ -220,10 +220,10 @@ def default_config() -> Config:
         bronze mode, and default MetaTFT weights.
     """
     return Config(
-        json_path=REPO_ROOT / "en_us.json",
+        json_path=REPO_ROOT / "data" / "en_us.json",
         set_id="16",
-        metatft_txt_path=REPO_ROOT / "metatft_units.txt",
-        metatft_traits_path=REPO_ROOT / "metatft_traits.txt",
+        metatft_txt_path=REPO_ROOT / "data" / "metatft_units.txt",
+        metatft_traits_path=REPO_ROOT / "data" / "metatft_traits.txt",
         team_size=9,
         beam_width=700,
         blacklist_traits_by_name=set(DEFAULT_BLACKLIST_TRAITS_BY_NAME),

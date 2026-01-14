@@ -38,6 +38,10 @@ def test_trait_power_uses_pessimistic_average():
     near_neutral = trait_power(
         "Noxus",
         3,
-        {"Noxus": [TraitStat(required=3, tier="C", avg=NEUTRAL_AVG_PLACEMENT, win=0.07, freq=0.05)]},
+        {
+            "Noxus": [
+                TraitStat(required=3, tier="C", avg=NEUTRAL_AVG_PLACEMENT, win=0.07, freq=0.05)
+            ]
+        },
     )
     assert near_neutral < 0.2

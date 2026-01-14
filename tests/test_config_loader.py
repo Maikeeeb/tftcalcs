@@ -54,7 +54,9 @@ def test_ryze_mode_defaults_to_required_ryze_and_level_9(tmp_path):
 
 def test_ryze_mode_respects_explicit_overrides(tmp_path):
     cfg_path = tmp_path / "cfg.json"
-    cfg_path.write_text(json.dumps({"mode": "ryze", "team_size": 8, "required_champions": {RYZE_API_NAME: 0}}))
+    cfg_path.write_text(
+        json.dumps({"mode": "ryze", "team_size": 8, "required_champions": {RYZE_API_NAME: 0}})
+    )
 
     cfg = load_config(str(cfg_path))
 

@@ -14,10 +14,34 @@ from bfl.bronze_for_life import solve_beam_search_bronze_with_emblems
 def toy_set_data():
     return {
         "champions": [
-            {"apiName": "TFT16_Alpha", "name": "Alpha", "characterName": "Alpha", "cost": 1, "traits": ["X", "Y"]},
-            {"apiName": "TFT16_Beta",  "name": "Beta",  "characterName": "Beta",  "cost": 1, "traits": ["X", "Z"]},
-            {"apiName": "TFT16_Gamma", "name": "Gamma", "characterName": "Gamma", "cost": 1, "traits": ["Y", "Z"]},
-            {"apiName": "TFT16_Delta", "name": "Delta", "characterName": "Delta", "cost": 1, "traits": ["W"]},  # exclusive
+            {
+                "apiName": "TFT16_Alpha",
+                "name": "Alpha",
+                "characterName": "Alpha",
+                "cost": 1,
+                "traits": ["X", "Y"],
+            },
+            {
+                "apiName": "TFT16_Beta",
+                "name": "Beta",
+                "characterName": "Beta",
+                "cost": 1,
+                "traits": ["X", "Z"],
+            },
+            {
+                "apiName": "TFT16_Gamma",
+                "name": "Gamma",
+                "characterName": "Gamma",
+                "cost": 1,
+                "traits": ["Y", "Z"],
+            },
+            {
+                "apiName": "TFT16_Delta",
+                "name": "Delta",
+                "characterName": "Delta",
+                "cost": 1,
+                "traits": ["W"],
+            },  # exclusive
         ],
         "traits": [
             {"name": "X", "effects": [{"minUnits": 2}, {"minUnits": 4}]},
@@ -33,7 +57,9 @@ def toy_set_data():
 def result_from_beam_search(toy_set_data):
     champs = [c["apiName"] for c in toy_set_data["champions"]]
     champ_traits = {c["apiName"]: c["traits"] for c in toy_set_data["champions"]}
-    trait_bps = {t["name"]: sorted(e["minUnits"] for e in t["effects"]) for t in toy_set_data["traits"]}
+    trait_bps = {
+        t["name"]: sorted(e["minUnits"] for e in t["effects"]) for t in toy_set_data["traits"]
+    }
     eligible = {"X", "Y", "Z"}
     power_map = {c: 0.0 for c in champs}
 

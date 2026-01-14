@@ -3,16 +3,16 @@
 This document summarizes the codebase structure, runtime data flow, and entry points so new contributors or coding agents can quickly locate behavior.
 
 ## Data files and schemas
-- **Set data** comes from `en_us.json`, whose champions/traits are filtered by `bfl.set_loader.load_set_data` when assembling the playable pool.
-- **MetaTFT pastes** in `metatft_units.txt` and `metatft_traits.txt` are optional but enable power/tank classification, trait scoring, and quality heuristics. When absent, the solver falls back to neutral weights.
-- **Configuration schema** lives in `config_schema.json` and mirrors the `bfl.config.Config` dataclass. The FastAPI service validates requests against this schema and the frontend form is generated from it.
+- **Set data** comes from `data/en_us.json`, whose champions/traits are filtered by `bfl.set_loader.load_set_data` when assembling the playable pool.
+- **MetaTFT pastes** in `data/metatft_units.txt` and `data/metatft_traits.txt` are optional but enable power/tank classification, trait scoring, and quality heuristics. When absent, the solver falls back to neutral weights.
+- **Configuration schema** lives in `schemas/config_schema.json` and mirrors the `bfl.config.Config` dataclass. The FastAPI service validates requests against this schema and the frontend form is generated from it.
 
 ## Python package layout (`bfl/`)
 - **Configuration (`config.py`, `config_loader.py`)** defines the `Config` dataclass, default paths, emblem seeds, required-champion flags, and helper loaders/savers. Validation helpers ensure integer maps, champion rules, and file paths are well-formed before a run.
 - **Set + MetaTFT ingestion (`set_loader.py`, `metatft.py`, `champion_registry.py`)** normalizes Riot set data, builds champion → trait maps, classifies eligible traits, and converts MetaTFT pastes into unit/trait power stats. Tank candidates are detected from item builds to enforce the optional “must have itemized tank” constraint.
 - **Trait helpers (`traits.py`)** add champion trait counts, apply starting emblem offsets, and mark eligible traits used by the solver.
 - **Solver core (`solver.py`)** implements the beam-search Bronze-for-Life optimizer with emblem modeling, required champion/trait checks, vertical seeding, and quality heuristics (piecewise bronze score, carry/tank thresholds, fake-bronze penalties). It exposes `solve_beam_search_bronze_with_emblems` for programmatic use plus helper utilities such as `build_required_team` and `feasibility_check`.
-- **Itemization solver (`itemization_solver.py`)** ranks carry candidates by how close they are to preferred item builds and breaks ties with team/needed trait fit. It loads item data from `en_us.json`, resolves available components/completed items (including normalizing tutorial item apiName aliases), and supports optional reforging heuristics.
+- **Itemization solver (`itemization_solver.py`)** ranks carry candidates by how close they are to preferred item builds and breaks ties with team/needed trait fit. It loads item data from `data/en_us.json`, resolves available components/completed items (including normalizing tutorial item apiName aliases), and supports optional reforging heuristics.
 - **Public API (`solver_api.py`)** orchestrates one end-to-end solve: it loads set/MetaTFT data, builds power maps and trait stats, validates config, and calls either the Bronze-for-Life solver or the itemization ranking solver based on mode. Structured results include context, meta weighting details, trait counts, and requirement satisfaction. Errors include a decision log for debugging.
 - **CLI entrypoint (`bronze_for_life.py`)** resolves config from CLI arguments or `config.json`, runs `run_bfl`, and prints team composition, bronze/upgraded trait breakdowns, emblem usage, and ineligible traits to stdout for quick inspection.
 
@@ -28,4 +28,4 @@ This document summarizes the codebase structure, runtime data flow, and entry po
 ## Examples and supporting files
 - `examples/bronze_for_life_tutorial.py` demonstrates multiple solver scenarios (no emblems, fixed emblems, auto-emblems, forced units) and is a good template for new integrations.
 - `TASKS.md` and existing docs (`docs/bronze_for_life.md`, `docs/ryze_constraints.md`) capture historical solver behavior notes.
-- `tft_teamplanner_code.py`, `tft_set16_teamplanner_mapping.json`, and `frontend/src/teamPlanner.ts` hold mapping logic for a separate team-planner helper, while `dragonhead.js` and `img/` store downloaded static assets used by the UI.
+- `utils/tft_teamplanner_code.py`, `utils/tft_set16_teamplanner_mapping.json`, and `frontend/src/teamPlanner.ts` hold mapping logic for a separate team-planner helper, while `img/` stores downloaded static assets used by the UI.

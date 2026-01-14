@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def test_itemization_schema_fields_present():
-    schema_path = Path(__file__).resolve().parent.parent / "config_schema.json"
+    schema_path = Path(__file__).resolve().parent.parent / "schemas" / "config_schema.json"
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     props = schema["properties"]
 

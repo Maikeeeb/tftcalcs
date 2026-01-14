@@ -1,5 +1,6 @@
 from bfl.bronze_for_life import parse_metatft_units, metatft_to_unit_stats
 
+
 def test_parse_metatft_units_basic():
     text = """
     Unit

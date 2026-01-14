@@ -1,0 +1,136 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Bronze for Life runtime configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "JSON-serializable configuration for the Bronze for Life solver. Omitted fields fall back to defaults.",
+  "properties": {
+    "json_path": {
+      "type": "string",
+      "description": "Path to the Riot set data JSON (en_us.json)."
+    },
+    "set_id": {
+      "type": "string",
+      "description": "Set identifier inside the set data file (e.g., '16')."
+    },
+    "metatft_txt_path": {
+      "type": "string",
+      "description": "Optional path to MetaTFT export text used for tie-break weights."
+    },
+    "metatft_traits_path": {
+      "type": "string",
+      "description": "Optional path to MetaTFT trait export text used for standard mode."
+    },
+    "team_size": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of units in the final team."
+    },
+    "beam_width": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Search beam width; larger values improve quality at the cost of speed."
+    },
+    "blacklist_traits_by_name": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Traits that should never count for Bronze for Life even if active."
+    },
+    "emblem_start_counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "description": "Fixed emblem counts applied before solving (trait name -> starting count)."
+    },
+    "max_emblems_total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Maximum number of emblems the solver may auto-assign in addition to fixed counts."
+    },
+    "required_champions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "enum": [-1, 0, 1],
+        "description": "-1 to ban, 0 to ignore, 1 to force into the team."
+      },
+      "description": "Champion requirements keyed by apiName."  
+    },
+    "required_traits_min": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "description": "Minimum trait counts that must be satisfied after emblems (trait name -> min count)."
+    },
+    "w_win": {
+      "type": "number",
+      "description": "Weight for MetaTFT win rate when computing unit power tie-breaks."
+    },
+    "w_avg": {
+      "type": "number",
+      "description": "Weight for MetaTFT average placement when computing unit power tie-breaks."
+    },
+    "w_freq": {
+      "type": "number",
+      "description": "Weight for MetaTFT frequency when computing unit power tie-breaks."
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["bronze", "standard", "ryze", "itemization"],
+      "description": "Bronze for Life (bronze), MetaTFT trait-first (standard), region-trait-focused Ryze mode, or itemization ranking."
+    },
+    "must_have_itemized_tank": {
+      "type": "boolean",
+      "description": "If true, the solver only returns teams that include a champion whose preferred items are tank items."
+    },
+    "seed_verticals": {
+      "type": "boolean",
+      "description": "If true, pre-seed the beam search with trait-vertical teams to reach far breakpoints."
+    },
+    "available_components": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Available item components (names or apiName) for itemization mode."
+    },
+    "available_completed_items": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Available completed items (names or apiName) for itemization mode."
+    },
+    "target_carries": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Optional list of carry candidates (champion apiName) to rank in itemization mode."
+    },
+    "team_traits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Traits currently active on the team (used as itemization tie-breakers)."
+    },
+    "needed_traits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Traits you want to add or reinforce (used as itemization tie-breakers)."
+    },
+    "allow_reforge": {
+      "type": "boolean",
+      "description": "If true, allow completed items to be reforged into another full item for itemization scoring."
+    }
+  }
+}
