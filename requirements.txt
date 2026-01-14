@@ -1,0 +1,4 @@
+# Production dependencies for Bronze for Life solver API
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+jsonschema>=4.19.0

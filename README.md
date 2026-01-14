@@ -93,7 +93,7 @@ The repository now ships with a lightweight FastAPI backend and a Vite + React +
    ```bash
    python -m venv .venv
    source .venv/bin/activate  # On Windows use: .venv\\Scripts\\activate
-   pip install fastapi uvicorn jsonschema
+   pip install -r requirements.txt
    ```
 3. **Install frontend packages.** Still in the repository root, move into the UI folder and install dependencies:
    ```bash
@@ -118,6 +118,16 @@ The repository now ships with a lightweight FastAPI backend and a Vite + React +
 6. **Open the UI.** Visit `http://localhost:5173` in your browser. The page will load the JSON schema and default solver config from the API, let you edit every field via a form, and offer a **Run solver** button. Keep both the API and Vite servers running while you experiment.
 
 The UI now includes a dedicated **Itemization** tab that calls the versioned `/v2/itemization/*` API routes. Use that tab to enter your item inventory, select target carries, and view the closest builds without changing the comp finder configuration.
+
+### Environment Configuration
+
+You can customize the API and frontend configuration using environment variables. Copy `.env.example` to `.env` in the repository root and `frontend/.env.example` to `frontend/.env` to customize settings:
+
+- **Backend**: Set `CORS_ORIGINS` to configure allowed origins (comma-separated)
+- **Frontend**: Set `VITE_API_BASE_URL` to point to a different API server
+- **Logging**: Configure `LOG_LEVEL` and `LOG_FORMAT` for backend logging
+
+See `.env.example` files for all available options and defaults.
 
 ## API Documentation
 
@@ -179,7 +189,7 @@ The FastAPI backend automatically generates OpenAPI/Swagger documentation. When 
 
 ### CORS Configuration
 
-The API is configured to accept requests from `http://localhost:5173` (the default Vite dev server port) to support the frontend development workflow. For production deployments, update the CORS settings in `ui_api/main.py`.
+The API is configured to accept requests from `http://localhost:5173` (the default Vite dev server port) by default. For production deployments or custom configurations, you can set the `CORS_ORIGINS` environment variable to a comma-separated list of allowed origins. See `.env.example` for configuration examples.
 
 ### Error Handling
 

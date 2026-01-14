@@ -21,17 +21,7 @@ import ItemizationResults from './ItemizationResults';
 import Loader from './Loader';
 import DebugLogCard from './DebugLogCard';
 import { ItemOption, ItemizationConfig, ItemizationReference, ItemizationRunResponse } from '../types';
-
-const API_BASE = 'http://localhost:8000';
-const ITEMIZATION_VERSION = 2;
-
-const fetchJson = async <T,>(path: string): Promise<T> => {
-  const res = await fetch(`${API_BASE}${path}`);
-  if (!res.ok) {
-    throw new Error(`Failed to fetch ${path}: ${res.statusText}`);
-  }
-  return (await res.json()) as T;
-};
+import { getItemizationConfig, getItemizationData, runItemization } from '../services/api';
 
 const normalizeConfig = (config: Partial<ItemizationConfig> | undefined): ItemizationConfig => ({
   available_components: config?.available_components ?? [],
@@ -124,37 +114,15 @@ const ItemizationPage = () => {
 
   const configQuery = useQuery({
     queryKey: ['itemization-config'],
-    queryFn: () => fetchJson<{ version: number; config: ItemizationConfig }>('/v2/itemization/config'),
+    queryFn: getItemizationConfig,
   });
   const dataQuery = useQuery({
     queryKey: ['itemization-data'],
-    queryFn: () => fetchJson<{ version: number; data: ItemizationReference }>('/v2/itemization/data'),
+    queryFn: getItemizationData,
   });
 
   const runMutation = useMutation({
-    mutationFn: async (payload: ItemizationConfig) => {
-      const res = await fetch(`${API_BASE}/v2/itemization/run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ version: ITEMIZATION_VERSION, config: { ...payload, mode: 'itemization' } }),
-      });
-
-      const rawText = await res.text();
-      let parsed: any;
-      try {
-        parsed = rawText ? JSON.parse(rawText) : undefined;
-      } catch {
-        parsed = undefined;
-      }
-
-      if (!res.ok) {
-        const detail = parsed?.detail ?? parsed ?? rawText;
-        const message = typeof detail === 'string' ? detail : detail?.error || 'Failed to run itemization solver';
-        throw new Error(message);
-      }
-
-      return parsed as ItemizationRunResponse;
-    },
+    mutationFn: runItemization,
   });
 
   const hasError = configQuery.error || dataQuery.error;

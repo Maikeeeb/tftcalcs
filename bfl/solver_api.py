@@ -1,6 +1,8 @@
 """Structured API for running Bronze for Life solver."""
 
 import json
+import logging
+import time
 from pathlib import Path
 from typing import Dict, List, Mapping, Set
 
@@ -22,6 +24,9 @@ from bfl.itemization_solver import ItemizationError, run_itemization_solver
 from bfl.set_loader import load_set_data
 from bfl.solver import solve_beam_search_bronze_with_emblems
 from bfl.traits import apply_emblem_starts, classify_traits
+
+# Module-level logger
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "build_name_to_api_map",
@@ -144,6 +149,12 @@ def _build_requirement_details(
 def run_bfl(config: Config) -> Dict[str, object]:
     """Execute the Bronze for Life solver and return a structured result."""
 
+    start_time = time.time()
+    logger.info(
+        f"Starting BFL solver: mode={config.mode}, team_size={config.team_size}, "
+        f"beam_width={config.beam_width}, set_id={config.set_id}"
+    )
+
     decision_log: List[str] = []
     decision_log.append(f"config: {json.dumps(config.to_dict(), sort_keys=True)}")
 
@@ -155,6 +166,9 @@ def run_bfl(config: Config) -> Dict[str, object]:
         )
 
         validate_config_against_data(config, champs, trait_bps)
+        logger.debug(
+            f"Config validated: {len(champs)} champions, {len(trait_bps)} trait breakpoints"
+        )
 
         metatft_text = load_metatft_txt(str(config.metatft_txt_path))
         unit_stats = metatft_to_unit_stats(metatft_text, set_data)
@@ -232,7 +246,14 @@ def run_bfl(config: Config) -> Dict[str, object]:
             seed_verticals=config.seed_verticals,
             decision_log=decision_log,
         )
+        duration = time.time() - start_time
+        logger.info(
+            f"Solver completed: team_size={len(team)}, bronze_count={bronze_count}, "
+            f"team_power={team_power:.2f}, duration={duration:.2f}s"
+        )
     except Exception as exc:
+        duration = time.time() - start_time
+        logger.error(f"Solver failed after {duration:.2f}s: {exc}", exc_info=True)
         decision_log.append(f"error: {exc}")
         raise SolverError(str(exc), decision_log, context_details) from exc
 
@@ -299,10 +320,17 @@ def run_bfl(config: Config) -> Dict[str, object]:
 def run_solver(config: Config) -> Dict[str, object]:
     """Execute the requested solver mode and return a structured result."""
 
+    logger.info(f"Running solver in {config.mode} mode")
+
     if config.mode == "itemization":
         try:
-            return run_itemization_solver(config)
+            start_time = time.time()
+            result = run_itemization_solver(config)
+            duration = time.time() - start_time
+            logger.info(f"Itemization solver completed in {duration:.2f}s")
+            return result
         except ItemizationError as exc:
+            logger.error(f"Itemization solver error: {exc}", exc_info=True)
             raise SolverError(str(exc), exc.debug_log, exc.context) from exc
 
     return run_bfl(config)

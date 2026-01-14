@@ -27,9 +27,9 @@ Thank you for your interest in contributing! This document provides guidelines f
    source .venv/bin/activate
    ```
 
-3. **Install dependencies:**
+3. **Install production dependencies:**
    ```bash
-   pip install fastapi uvicorn jsonschema
+   pip install -r requirements.txt
    ```
 
 4. **Install development dependencies:**

@@ -3,8 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
+import time
 from pathlib import Path
 from typing import Any, Mapping
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,19 +31,67 @@ from bfl.config_loader import (
 from bfl.itemization_solver import CARRY_ITEM_PREFERENCES, load_item_catalog
 from bfl.set_loader import load_set_data
 from bfl.solver_api import SolverError, run_solver as solve_config
+from ui_api.logging_config import setup_logging
+
+# Setup logging
+api_logger, _ = setup_logging()
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = REPO_ROOT / "schemas" / "config_schema.json"
 SCHEMA = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
 ITEMIZATION_VERSION = 2
 
+# CORS configuration: read from environment variable or default to localhost:5173
+# For production, set CORS_ORIGINS to a comma-separated list of allowed origins
+_cors_origins_env = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+CORS_ORIGINS = [origin.strip() for origin in _cors_origins_env.split(",") if origin.strip()]
+
 app = FastAPI(title="Bronze for Life UI API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """Middleware to log HTTP requests and responses."""
+
+    async def dispatch(self, request: Request, call_next: Any) -> Response:
+        start_time = time.time()
+        method = request.method
+        path = request.url.path
+
+        # Log request
+        api_logger.info(f"Request: {method} {path}")
+
+        try:
+            response = await call_next(request)
+            duration_ms = (time.time() - start_time) * 1000
+            status_code = response.status_code
+
+            # Log response based on status code
+            if status_code < 400:
+                api_logger.info(f"Response: {method} {path} - {status_code} ({duration_ms:.1f}ms)")
+            elif status_code < 500:
+                api_logger.warning(
+                    f"Response: {method} {path} - {status_code} ({duration_ms:.1f}ms)"
+                )
+            else:
+                api_logger.error(f"Response: {method} {path} - {status_code} ({duration_ms:.1f}ms)")
+
+            return response
+        except Exception as exc:
+            duration_ms = (time.time() - start_time) * 1000
+            api_logger.error(
+                f"Exception: {method} {path} - {type(exc).__name__}: {exc} ({duration_ms:.1f}ms)",
+                exc_info=True,
+            )
+            raise
+
+
+app.add_middleware(RequestLoggingMiddleware)
 
 
 def _config_from_payload(payload: Mapping[str, Any]) -> Config:
@@ -266,21 +320,29 @@ def run_solver_endpoint(config: Mapping[str, Any]):
         payload = _normalize_config_payload(config)
         validate(instance=payload, schema=SCHEMA)
     except ValidationError as exc:
+        api_logger.warning(f"Schema validation failed: {exc.message}")
         raise HTTPException(
             status_code=400, detail=f"Invalid configuration: {exc.message}"
         ) from exc
 
     try:
         solver_config = _config_from_payload(payload)
+        api_logger.info(
+            f"Running solver with mode={solver_config.mode}, team_size={solver_config.team_size}"
+        )
         result = solve_config(solver_config)
+        api_logger.info("Solver completed successfully")
     except ConfigError as exc:
+        api_logger.warning(f"Configuration error: {exc}")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except SolverError as exc:
+        api_logger.error(f"Solver error: {exc}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail={"error": str(exc), "debug_log": exc.debug_log, "context": exc.context},
         ) from exc
     except Exception as exc:  # pragma: no cover - keep error surface concise
+        api_logger.error(f"Unexpected error in solver endpoint: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return result
@@ -323,22 +385,30 @@ def run_itemization(payload: Mapping[str, Any]):
         validate(instance=raw_config, schema=SCHEMA)
         solver_config = _versioned_config_payload(payload)
         solver_config.mode = "itemization"
+        api_logger.info(
+            f"Running itemization solver with {len(solver_config.target_carries)} target carries"
+        )
         result = solve_config(solver_config)
+        api_logger.info("Itemization solver completed successfully")
     except ValidationError as exc:
+        api_logger.warning(f"Itemization schema validation failed: {exc.message}")
         raise HTTPException(
             status_code=400,
             detail=f"Invalid configuration for version {ITEMIZATION_VERSION}: {exc.message}",
         ) from exc
     except ConfigError as exc:
+        api_logger.warning(f"Itemization configuration error: {exc}")
         raise HTTPException(
             status_code=400, detail=f"Version {ITEMIZATION_VERSION} config error: {exc}"
         ) from exc
     except SolverError as exc:
+        api_logger.error(f"Itemization solver error: {exc}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail={"error": str(exc), "debug_log": exc.debug_log, "context": exc.context},
         ) from exc
     except Exception as exc:  # pragma: no cover - keep error surface concise
+        api_logger.error(f"Unexpected error in itemization endpoint: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return {"version": ITEMIZATION_VERSION, "result": result}
