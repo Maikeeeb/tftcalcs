@@ -14,11 +14,14 @@ This repository uses a three-layer agent role system:
 3. **Prompt** - Task-specific instructions (usage pattern, not a file)
 
 Available agents:
+- **[Planner Agent](agents/planner-agent.md)** - **Default entry point: analyzes prompts and coordinates other agents**
 - [Backend Solver Agent](agents/backend-solver-agent.md) - Python solver logic, Bronze-for-Life algorithm
 - [Frontend UI Agent](agents/frontend-ui-agent.md) - React/TypeScript, Material-UI components
 - [API Agent](agents/api-agent.md) - FastAPI endpoints, request/response handling
 - [Testing Agent](agents/testing-agent.md) - pytest, Vitest, test coverage
 - [Data Agent](agents/data-agent.md) - Data files, schemas, validation
+
+**Note:** The Planner Agent is the default coordinator. When no specific agent is mentioned, it will analyze the prompt and route to the appropriate specialized agent(s).
 
 ## Exceptions & Overrides
 

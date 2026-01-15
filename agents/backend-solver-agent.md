@@ -129,3 +129,49 @@ When tradeoffs occur, prefer decisions in this order:
 - **Quality unit**: A unit with strong winrate or average placement that activates at least one trait if they have a trait to activate
 - **Fake bronze**: A bronze trait composed entirely of low-quality units
 - **Mandatory unit**: A required tank or damage carry
+
+## Handoff Artifact Usage (Multi-Agent Workflows)
+
+When working in a multi-agent workflow:
+
+**Reading Context:**
+- Read the handoff artifact: `workflows/contexts/<feature-name>.md`
+- Review Planner Output section for solver/algorithm requirements
+- Check other agents' sections for dependencies
+- Review pending items assigned to Backend Solver Agent
+
+**Appending to Context:**
+- Find or create "Backend Solver Agent" section
+- Append implementation notes (do not overwrite)
+- List algorithm changes, scoring modifications, or solver updates
+- Note determinism guarantees maintained
+- **Never modify** other agents' sections
+
+**Pending Items:**
+- Explicitly list remaining solver work
+- Mark items that depend on other agents (e.g., data changes)
+- Update status if blocked
+
+**Example Context Section:**
+```markdown
+## Backend Solver Agent
+
+### Pass 1
+- Updated bronze scoring thresholds in scoring.py
+- Maintained determinism (same input = same output)
+- Added tests encoding the intended tradeoff
+- **Pending**: Performance optimization if needed
+```
+
+**Workflow Delegation Format:**
+When invoked in a workflow, you will receive:
+```
+Use the Backend Solver Agent defined in agents/backend-solver-agent.md.
+
+Workflow: workflows/update-scoring.md
+Context: workflows/contexts/scoring-update.md
+Pass: 1
+
+Read the context file and implement only solver-related pending items.
+Append your results to your section in the context file.
+```

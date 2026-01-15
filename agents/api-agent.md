@@ -138,3 +138,49 @@ Current endpoints:
 - Use URL versioning for breaking changes (e.g., `/v2/itemization/run`)
 - Maintain backward compatibility when possible
 - Document version differences clearly
+
+## Handoff Artifact Usage (Multi-Agent Workflows)
+
+When working in a multi-agent workflow:
+
+**Reading Context:**
+- Read the handoff artifact: `workflows/contexts/<feature-name>.md`
+- Review Planner Output section for API endpoint requirements
+- Check other agents' sections for dependencies
+- Review pending items assigned to API Agent
+
+**Appending to Context:**
+- Find or create "API Agent" section
+- Append implementation notes (do not overwrite)
+- List endpoints created/modified
+- Note validation, error handling, rate limiting
+- **Never modify** other agents' sections
+
+**Pending Items:**
+- Explicitly list remaining API work
+- Mark items that depend on other agents (e.g., data schema)
+- Update status if blocked
+
+**Example Context Section:**
+```markdown
+## API Agent
+
+### Pass 1
+- Created GET /api/reports endpoint with query parameter filtering
+- Added request validation using JSON Schema
+- Implemented error handling with proper HTTP status codes
+- **Pending**: Response pagination, caching headers
+```
+
+**Workflow Delegation Format:**
+When invoked in a workflow, you will receive:
+```
+Use the API Agent defined in agents/api-agent.md.
+
+Workflow: workflows/add-reports-page.md
+Context: workflows/contexts/reports-page.md
+Pass: 1
+
+Read the context file and implement only API-related pending items.
+Append your results to your section in the context file.
+```

@@ -159,3 +159,49 @@ When updating data files:
 - Handle missing data files gracefully
 - Validate data structure before processing
 - Log data loading errors appropriately
+
+## Handoff Artifact Usage (Multi-Agent Workflows)
+
+When working in a multi-agent workflow:
+
+**Reading Context:**
+- Read the handoff artifact: `workflows/contexts/<feature-name>.md`
+- Review Planner Output section for data/schema requirements
+- Check other agents' sections for dependencies
+- Review pending items assigned to Data Agent
+
+**Appending to Context:**
+- Find or create "Data Agent" section
+- Append implementation notes (do not overwrite)
+- List data files or schemas created/modified
+- Note validation rules added
+- **Never modify** other agents' sections
+
+**Pending Items:**
+- Explicitly list remaining data work
+- Mark items that depend on other agents (e.g., schema changes affecting API)
+- Update status if blocked
+
+**Example Context Section:**
+```markdown
+## Data Agent
+
+### Pass 1
+- Updated schemas/config_schema.json with new report filter fields
+- Added validation rules for date range and status filters
+- Updated data loading utilities to handle new schema
+- **Pending**: Migration guide if schema change is breaking
+```
+
+**Workflow Delegation Format:**
+When invoked in a workflow, you will receive:
+```
+Use the Data Agent defined in agents/data-agent.md.
+
+Workflow: workflows/add-reports-page.md
+Context: workflows/contexts/reports-page.md
+Pass: 1
+
+Read the context file and implement only data-related pending items.
+Append your results to your section in the context file.
+```

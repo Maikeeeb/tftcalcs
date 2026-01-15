@@ -175,3 +175,52 @@ npm test -- --watch       # Run in watch mode
 - Test error propagation through layers
 - Test configuration validation end-to-end
 - Test API contracts match frontend expectations
+
+## Handoff Artifact Usage (Multi-Agent Workflows)
+
+When working in a multi-agent workflow:
+
+**Reading Context:**
+- Read the handoff artifact: `workflows/contexts/<feature-name>.md`
+- Review Planner Output section for test requirements
+- Review all agents' sections to understand what was implemented
+- Check pending items assigned to Testing Agent
+
+**Appending to Context:**
+- Find or create "Testing Agent" section
+- Append test implementation notes (do not overwrite)
+- List tests created (backend, frontend, integration)
+- Note coverage achieved
+- **Never modify** other agents' sections
+
+**Pending Items:**
+- Explicitly list remaining test work
+- Note any test gaps or edge cases to cover
+- Update status if blocked by missing implementation
+
+**Example Context Section:**
+```markdown
+## Testing Agent
+
+### Pass 1
+- Added tests for GET /api/reports endpoint (validation, filtering, error cases)
+- Created tests for ReportsPage component (rendering, interactions, edge cases)
+- Added integration test for full flow (API → Frontend)
+- Coverage: 92% for new code
+- **Pending**: Accessibility tests, performance tests
+```
+
+**Workflow Delegation Format:**
+When invoked in a workflow, you will receive:
+```
+Use the Testing Agent defined in agents/testing-agent.md.
+
+Workflow: workflows/add-reports-page.md
+Context: workflows/contexts/reports-page.md
+Pass: 1
+
+Read the context file and implement only testing-related pending items.
+Append your results to your section in the context file.
+```
+
+**Note:** Testing Agent typically runs last in workflows to test all implemented features.
