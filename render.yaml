@@ -1,0 +1,25 @@
+# Render Blueprint for unified deployment (serving frontend from FastAPI)
+# See: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: tftcalcs
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt && 
+      cd frontend && 
+      npm install && 
+      npm run build
+    startCommand: uvicorn ui_api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: LOG_LEVEL
+        value: INFO
+      - key: LOG_FORMAT
+        value: json
+      - key: RATE_LIMIT_REQUESTS
+        value: 100
+      - key: RATE_LIMIT_WINDOW
+        value: 60
+      # CORS_ORIGINS not needed for unified deployment (same origin)

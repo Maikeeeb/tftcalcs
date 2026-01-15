@@ -3,6 +3,22 @@
 ## Scope
 
 - This file applies to the entire repository and all AI-assisted changes.
+- For role-specific guidelines, see the [`agents/`](agents/) directory.
+
+## Agent Roles
+
+This repository uses a three-layer agent role system:
+
+1. **AGENTS.md** (this file) - Global rules & non-negotiables
+2. **agents/*.md** - Reusable role definitions (see [`agents/index.md`](agents/index.md))
+3. **Prompt** - Task-specific instructions (usage pattern, not a file)
+
+Available agents:
+- [Backend Solver Agent](agents/backend-solver-agent.md) - Python solver logic, Bronze-for-Life algorithm
+- [Frontend UI Agent](agents/frontend-ui-agent.md) - React/TypeScript, Material-UI components
+- [API Agent](agents/api-agent.md) - FastAPI endpoints, request/response handling
+- [Testing Agent](agents/testing-agent.md) - pytest, Vitest, test coverage
+- [Data Agent](agents/data-agent.md) - Data files, schemas, validation
 
 ## Exceptions & Overrides
 
@@ -13,13 +29,6 @@
 - If an exception is approved, the agent should:
     - Propose an update to this file explaining why the exception exists
     - Scope the exception narrowly (what changes, what does not)
-
-## Invariants (Do Not Break)
-
-- Bronze-for-Life scoring must remain deterministic
-- The same input config must always produce the same team
-- Removing a bronze trait must always be a conscious tradeoff, not a side-effect
-- Adding unit quality must never invalidate mandatory board structure
 
 ## Non-Goals
 
@@ -44,75 +53,41 @@
 - Configuration helpers are in `bfl/config_loader.py`
 - Do NOT rename or remove config keys without updating the schema and tutorial
 
-## UI Workflow
+## Entry Points
 
-1. Create/activate a Python venv and install FastAPI dependencies
-2. Run `npm install` in the `frontend` directory
-3. Start the API with:
-   `uvicorn ui_api.main:app --reload --port 8000`
-4. Run frontend tests with `npm test` (in `frontend/` directory) before committing changes
-5. Verify frontend test coverage meets the 90% minimum requirement with `npm run test:coverage`
+- **Bronze for Life CLI:** Run via `python -m bfl.bronze_for_life`
+- **Tutorial:** See `examples/bronze_for_life_tutorial.py` for a walkthrough of CLI usage
+- **UI API:** Start with `uvicorn ui_api.main:app --reload --port 8000`
+- **Frontend:** Run `npm install` in `frontend/` directory, then `npm run dev`
 
-## Data Awareness
+For detailed workflow instructions, see:
+- [Frontend UI Agent](agents/frontend-ui-agent.md) - UI development workflow
+- [API Agent](agents/api-agent.md) - API development workflow
+- [Data Agent](agents/data-agent.md) - Data file management
 
-- Check `data/en_us.json` and the MetaTFT text files
-  (`data/metatft_units.txt`, `data/metatft_traits.txt`) when making data-related changes
-- Do not hardcode trait or unit names that already exist in these files
+## Configuration
+
+- Configuration files live in `config.json` and `schemas/config_schema.json`
+- Configuration helpers are in `bfl/config_loader.py`
+- Do NOT rename or remove config keys without updating the schema and tutorial
+- See [Data Agent](agents/data-agent.md) for data file management guidelines
 
 ---
 
-## Bronze for Life — Core Philosophy
-
-Bronze-for-Life mode is **not a standard optimization problem**.
-
-Agents must respect the following intent:
-
-- Bronze traits have **diminishing returns**
-    - The first ~6 bronze traits are mandatory
-    - Additional bronze traits are beneficial but not absolute
-- Bronze count must **never be treated as a linear objective**
-
-## Decision Hierarchy for Bronze for life algorithm
-
-When tradeoffs occur, prefer decisions in this order:
-
-1. Preserve Bronze-for-Life invariants
-2. Preserve mandatory board structure
-3. Preserve bronze count thresholds
-4. Improve unit quality
-5. Use trait statistics as tie-breakers only
-6. Micro-optimize scoring
-
-### Mandatory Board Structure
-
-- A valid Bronze-for-Life team must include:
-    - At least one **high-quality tank**
-    - At least one **high-quality damage carry**
-- A “quality” unit must activate **at least one of its traits**
-- It is acceptable to lose a bronze trait to add a top-tier or high-winrate unit
-
-### Trait Statistics
-
-- Trait statistics are **tie-breakers only** in Bronze-for-Life
-- Trait stats must not outweigh:
-    - Bronze count thresholds
-    - Mandatory quality units
-- Traits may be upgraded beyond bronze only if their stats are excellent
-  (e.g., average placement ≲ 4.2)
-
-### Emblems
-
-- Emblems may be used to preserve bronze count while improving unit quality
-- Emblem-only bronze traits should not be overly rewarded
+For Bronze-for-Life algorithm specifics, see [Backend Solver Agent](agents/backend-solver-agent.md).
 
 ---
 
 ## Architecture Constraints
 
-- Bronze-for-Life logic and Standard mode logic must remain conceptually distinct
-- Do NOT merge or unify scoring objectives unless explicitly requested
-- Beam search structure should not be rewritten unless explicitly instructed
+- Separation of concerns must be maintained:
+  - Data loading must not contain scoring logic
+  - Scoring logic must not perform search
+  - Search logic must not embed configuration defaults
+  - UI code must not contain solver logic
 - Prefer small, localized changes over global refactors
+- Large refactors must be split into staged, reviewable steps
+- For solver-specific architecture constraints, see [Backend Solver Agent](agents/backend-solver-agent.md)
 
 ## Coding Conventions
 
@@ -370,25 +345,9 @@ Update files in `docs/` when changes affect **technical implementation details**
   - Integration with other components
 - See `frontend/TEST_COVERAGE_SUMMARY.md` for current test coverage status and patterns
 
-## Anti-Patterns (Avoid)
+For solver-specific anti-patterns, see [Backend Solver Agent](agents/backend-solver-agent.md).
 
-- Linear bronze scoring (e.g., bronze_count * weight)
-- Collapsing Bronze-for-Life and Standard scoring into one formula
-- Replacing thresholds with continuous weights
-- Adding “clever” math without tests that encode intent
-
-## Determinism
-
-- Beam search must remain deterministic
-- Do not introduce randomness or non-seeded shuffles
-- Do not depend on file ordering, dict ordering, or hash iteration
-
-## Separation of Concerns
-
-- Data loading must not contain scoring logic
-- Scoring logic must not perform search
-- Search logic must not embed configuration defaults
-- UI code must not contain solver logic
+For solver-specific anti-patterns, determinism requirements, and separation of concerns, see [Backend Solver Agent](agents/backend-solver-agent.md).
 
 ## Change Discipline
 
@@ -416,11 +375,12 @@ Update files in `docs/` when changes affect **technical implementation details**
 
 ## Glossary
 
-- Bronze trait: A trait active exactly at its first breakpoint
-- Quality unit: A unit with strong winrate or average placement that activates at least one trait if they have a trait
-  to activate
-- Fake bronze: A bronze trait composed entirely of low-quality units
-- Mandatory unit: A required tank or damage carry
+- **Bronze trait**: A trait active exactly at its first breakpoint
+- **Quality unit**: A unit with strong winrate or average placement that activates at least one trait if they have a trait to activate
+- **Fake bronze**: A bronze trait composed entirely of low-quality units
+- **Mandatory unit**: A required tank or damage carry
+
+For solver-specific terminology and concepts, see [Backend Solver Agent](agents/backend-solver-agent.md).
 
 ## Learning from Changes
 
