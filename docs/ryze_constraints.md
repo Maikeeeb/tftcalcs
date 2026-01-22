@@ -15,5 +15,7 @@ filters remove too many region-bearing champions:
 
 The Bronze-for-Life and Standard modes are unaffected by these rules; they keep
 using the original eligible-trait logic. If you want Ryze to be optional in
-Ryze mode, explicitly set `"required_champions": {"TFT16_Ryze": 0}` and adjust
-`team_size` as needed.
+Ryze mode (e.g., for World Runes augment quests requiring 4 active regions),
+explicitly set `"required_champions": {"TFT16_Ryze": 0}` (optional) or
+`"required_champions": {"TFT16_Ryze": -1}` (banned). The solver will still
+default to `team_size=9` unless you explicitly override it.

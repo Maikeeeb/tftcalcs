@@ -8,6 +8,9 @@ const advancedFieldNames = new Set([
   'metatft_txt_path',
   'beam_width',
   'blacklist_traits_by_name',
+  'w_win',
+  'w_avg',
+  'w_freq',
 ]);
 
 const RootObjectFieldTemplate = (props: ObjectFieldTemplateProps) => {
@@ -56,7 +59,8 @@ const RootObjectFieldTemplate = (props: ObjectFieldTemplateProps) => {
             <Box>
               <Typography variant="subtitle1">Advanced solver settings</Typography>
               <Typography variant="body2" color="text.secondary">
-                JSON path, set id, MetaTFT export path, beam width, and trait blacklist.
+                MetaTFT weights (w_win, w_avg, w_freq), JSON path, set id, MetaTFT export path, beam width, and trait
+                blacklist.
               </Typography>
             </Box>
           </AccordionSummary>

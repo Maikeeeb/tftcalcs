@@ -211,8 +211,29 @@ def build_sort_key(
     upgraded: int,
     power: float,
     trait_score: float,
+    mode: str = "bronze",
 ) -> Tuple:
-    """Build sort key for beam search states."""
+    """Build sort key for beam search states.
+
+    For Ryze mode, prioritizes active region count over bronze_score to maximize
+    the number of active regions, which scales Ryze's power.
+    """
+    if mode == "ryze":
+        # For Ryze mode: prioritize active region count over bronze score
+        return (
+            1 if valid else 0,
+            -missing_required_one,
+            -missing_requirements,
+            active,  # Maximize active region traits
+            bronze_score,
+            quality_score,
+            -penalty,
+            trait_score,
+            bronze,
+            -upgraded,
+            power,
+        )
+    # Default (bronze/standard mode): prioritize bronze score
     return (
         1 if valid else 0,
         -missing_required_one,
@@ -247,6 +268,7 @@ def choose_best_emblems(
     tank_quality_threshold: float,
     bronze_threshold: int,
     team: Optional[List[str]] = None,
+    mode: str = "bronze",
 ) -> Dict[str, int]:
     """Choose optimal emblem combination to maximize team score.
 
@@ -346,6 +368,7 @@ def choose_best_emblems(
             upgraded,
             0.0,
             trait_score,
+            mode,
         )
         return bronze, active, upgraded, missing_requirements, key
 
@@ -392,6 +415,7 @@ def score_state(
     quality_threshold: float,
     tank_quality_threshold: float,
     bronze_threshold: int,
+    mode: str = "bronze",
 ) -> Tuple[
     int,
     int,
@@ -487,6 +511,7 @@ def score_state(
         tank_quality_threshold,
         bronze_threshold,
         team,
+        mode,
     )
     cnt2 = apply_emblem_starts(base_counts, emblem_counts)
 

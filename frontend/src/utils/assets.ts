@@ -154,4 +154,14 @@ export const isTankItemBuild = (items: string[] | undefined) => {
   return tankCount >= Math.ceil(totalItems / 2);
 };
 
+/**
+ * Strips the TFT16_ (or TFT{number}_) prefix from champion API names for display.
+ * @param apiName - The API name (e.g., "TFT16_Tristana")
+ * @returns Display name without prefix (e.g., "Tristana")
+ */
+export const stripTFTPrefix = (apiName: string): string => {
+  const match = apiName.match(/^TFT\d+_(.+)$/);
+  return match ? match[1] : apiName;
+};
+
 export { normalizeKey };

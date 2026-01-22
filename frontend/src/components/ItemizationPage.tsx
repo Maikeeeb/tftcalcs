@@ -13,8 +13,10 @@ import {
   Stack,
   Switch,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
+import { HelpOutline, PlayArrow } from '@mui/icons-material';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import ItemizationResults from './ItemizationResults';
@@ -140,18 +142,22 @@ const ItemizationPage = () => {
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography variant="h4" gutterBottom>
-          Itemization finder
+        <Typography variant="h4" gutterBottom sx={{ fontWeight: 600 }}>
+          Itemization Finder
         </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Enter your components and completed items to see which carries are closest to their ideal builds.
+        <Typography variant="body2" color="text.secondary">
+          Enter your available components and completed items to find which carries can build their ideal items. The
+          tool ranks champions based on how close they are to their optimal builds.
         </Typography>
       </Box>
 
       <Card>
-        <CardHeader title="Inventory & targets" />
+        <CardHeader
+          title="Inventory & Targets"
+          subheader="Add components and completed items from your inventory, then select target carries to prioritize"
+        />
         <CardContent>
-          {isLoading && <Loader />}
+          {isLoading && <Loader message="Loading itemization data…" />}
           {hasError && (
             <Alert severity="error">Failed to load itemization data. Please ensure the API is running.</Alert>
           )}
@@ -180,25 +186,69 @@ const ItemizationPage = () => {
                     target_carries: value.map((item) => item.apiName),
                   }))
                 }
-                renderInput={(params) => <TextField {...params} label="Target carries (optional)" />}
-              />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={config.allow_reforge}
-                    onChange={(event) => setConfig((prev) => ({ ...prev, allow_reforge: event.target.checked }))}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Target carries (optional)"
+                    helperText={
+                      config.target_carries.length > 0
+                        ? `Prioritizing ${config.target_carries.length} ${config.target_carries.length === 1 ? 'carry' : 'carries'}`
+                        : 'Select specific carries to prioritize, or leave empty to see all options'
+                    }
                   />
-                }
-                label="Allow reforging completed items"
+                )}
               />
-              <Box textAlign="right">
+              <Box
+                sx={{
+                  p: 2,
+                  bgcolor: 'background.default',
+                  borderRadius: 1,
+                  border: 1,
+                  borderColor: 'divider',
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="flex-start">
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={config.allow_reforge}
+                        onChange={(event) => setConfig((prev) => ({ ...prev, allow_reforge: event.target.checked }))}
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography variant="body2">
+                          <strong>Allow reforging completed items</strong>
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Consider breaking down completed items to craft better builds
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  <Tooltip title="Reforging allows the solver to break down completed items into their component parts to potentially craft better item combinations">
+                    <HelpOutline fontSize="small" color="action" sx={{ mt: 1 }} />
+                  </Tooltip>
+                </Stack>
+              </Box>
+              <Box
+                sx={{
+                  pt: 2,
+                  borderTop: 1,
+                  borderColor: 'divider',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                }}
+              >
                 <Button
                   variant="contained"
+                  size="large"
                   onClick={() => runMutation.mutate(config)}
-                  disabled={runMutation.isPending}
-                  endIcon={runMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+                  disabled={runMutation.isPending || (config.available_components.length === 0 && config.available_completed_items.length === 0)}
+                  startIcon={runMutation.isPending ? <CircularProgress size={20} color="inherit" /> : <PlayArrow />}
+                  sx={{ minWidth: 150 }}
                 >
-                  {runMutation.isPending ? 'Ranking…' : 'Rank carries'}
+                  {runMutation.isPending ? 'Ranking…' : 'Rank Carries'}
                 </Button>
               </Box>
             </Stack>
@@ -218,7 +268,10 @@ const ItemizationPage = () => {
 
       {runMutation.data ? (
         <Card>
-          <CardHeader title="Closest carry builds" />
+          <CardHeader
+            title="Ranked Carry Builds"
+            subheader={`Showing ${runMutation.data.result.solution.ranked_candidates.length} ${runMutation.data.result.solution.ranked_candidates.length === 1 ? 'candidate' : 'candidates'} ranked by build completeness`}
+          />
           <CardContent>
             <ItemizationResults result={runMutation.data.result} nameMap={nameMap} />
           </CardContent>

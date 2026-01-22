@@ -378,6 +378,28 @@ def get_itemization_schema(request: Request):
     return {"version": ITEMIZATION_VERSION, "schema": SCHEMA}
 
 
+@app.get("/champions")
+@limiter.limit(_rate_limit_string)
+def get_champions(request: Request):
+    """Return all champions with their traits for the current set."""
+    config = load_config(None)
+    set_data, _, champ_traits, _, _, _, _ = load_set_data(config.json_path, config.set_id)
+    champ_name_map = {
+        champ.get("apiName"): champ.get("name", champ.get("apiName"))
+        for champ in set_data.get("champions", [])
+        if champ.get("apiName")
+    }
+    champions = [
+        {
+            "apiName": api_name,
+            "name": champ_name_map.get(api_name, api_name),
+            "traits": champ_traits.get(api_name, []),
+        }
+        for api_name in sorted(champ_traits.keys())
+    ]
+    return {"champions": champions}
+
+
 @app.get("/v2/itemization/config")
 @limiter.limit(_rate_limit_string)
 def get_itemization_config(request: Request):

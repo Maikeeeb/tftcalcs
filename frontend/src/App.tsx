@@ -9,14 +9,17 @@ import {
   CircularProgress,
   Container,
   FormControlLabel,
+  IconButton,
   Stack,
   Switch,
   Tab,
   Tabs,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from '@mui/material';
+import { Brightness4, Brightness7, PlayArrow } from '@mui/icons-material';
 import Form from '@rjsf/mui';
 import validator from '@rjsf/validator-ajv8';
 import type CoreForm from '@rjsf/core';
@@ -33,7 +36,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { AppProps, ConfigData, SolverResponse } from './types';
 import championCosts from './data/champion_costs.json';
 import unlockableChampions from './data/unlockable_champions.json';
-import { getSchema, getDefaultConfig, runSolver, SolverRunError } from './services/api';
+import { getSchema, getDefaultConfig, runSolver, SolverRunError, getChampions } from './services/api';
 
 const RYZE_API_NAME = 'TFT16_Ryze';
 const REGION_TRAITS = [
@@ -80,6 +83,7 @@ function App({ mode, onToggleColorMode }: AppProps) {
 
   const schemaQuery = useQuery({ queryKey: ['schema'], queryFn: getSchema });
   const configQuery = useQuery({ queryKey: ['config'], queryFn: getDefaultConfig });
+  const championsQuery = useQuery({ queryKey: ['champions'], queryFn: getChampions });
 
   useEffect(() => {
     if (configQuery.data) {
@@ -174,7 +178,7 @@ function App({ mode, onToggleColorMode }: AppProps) {
         'ui:field': 'mapping',
         'ui:options': {
           heading: 'Champions',
-          searchPlaceholder: 'Search champions…',
+          searchPlaceholder: 'Search champions or traits (e.g., "tristana" or "yordle")…',
           imageType: 'champion',
           enumOptions: [
             { value: -1, label: 'Ban (-1)' },
@@ -183,6 +187,15 @@ function App({ mode, onToggleColorMode }: AppProps) {
           ],
           unlockableValues: unlockableChampions,
           championCosts,
+          championTraits: championsQuery.data
+            ? championsQuery.data.champions.reduce<Record<string, string[]>>(
+                (acc, champ) => {
+                  acc[champ.apiName] = champ.traits;
+                  return acc;
+                },
+                {},
+              )
+            : undefined,
         },
       },
       mode: { 'ui:widget': 'hidden' },
@@ -195,7 +208,7 @@ function App({ mode, onToggleColorMode }: AppProps) {
       needed_traits: { 'ui:widget': 'hidden' },
       allow_reforge: { 'ui:widget': 'hidden' },
     }),
-    [],
+    [championsQuery.data],
   );
 
   const handleModeToggle = (_: MouseEvent<HTMLElement>, value: 'bronze' | 'standard' | 'ryze' | null) => {
@@ -218,9 +231,9 @@ function App({ mode, onToggleColorMode }: AppProps) {
 
   return (
     <ErrorBoundary>
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Container maxWidth="lg" sx={{ py: 3 }}>
         <Stack spacing={3}>
-        <Stack spacing={2}>
+          {/* Header */}
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             justifyContent="space-between"
@@ -228,80 +241,104 @@ function App({ mode, onToggleColorMode }: AppProps) {
             spacing={2}
           >
             <Box>
-              <Typography variant="h4" gutterBottom>
-                TFT Calculator UI
+              <Typography variant="h4" gutterBottom sx={{ fontWeight: 600 }}>
+                TFT Calculator
               </Typography>
-              <Typography variant="body1" color="text.secondary" paragraph>
-                Switch between the comp finder and itemization tooling without changing the Bronze solver configuration.
+              <Typography variant="body2" color="text.secondary">
+                Find optimal team compositions and itemization strategies
               </Typography>
             </Box>
-            <FormControlLabel
-              control={<Switch checked={mode === 'dark'} onChange={onToggleColorMode} />}
-              label={mode === 'dark' ? 'Dark mode' : 'Light mode'}
-            />
+            <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+              <IconButton onClick={onToggleColorMode} color="inherit" aria-label="toggle theme">
+                {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+              </IconButton>
+            </Tooltip>
           </Stack>
+
+          {/* Main Navigation Tabs */}
           <Tabs
             value={activeTab}
             onChange={(_, value) => setActiveTab(value)}
             textColor="primary"
             indicatorColor="primary"
+            sx={{ borderBottom: 1, borderColor: 'divider' }}
           >
-            <Tab value="comp" label="Comp finder" />
+            <Tab value="comp" label="Comp Finder" />
             <Tab value="itemization" label="Itemization" />
           </Tabs>
-        </Stack>
 
         {activeTab === 'comp' ? (
           <>
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              justifyContent="space-between"
-              alignItems={{ xs: 'flex-start', sm: 'center' }}
-              spacing={2}
-            >
-              <Box>
-                <Typography variant="h4" gutterBottom>
-                  {activeMode === 'standard'
-                    ? 'Standard mode'
-                    : activeMode === 'ryze'
-                      ? 'Ryze mode'
-                      : 'Bronze for Life'}{' '}
-                  UI
-                </Typography>
-                <Typography variant="body1" color="text.secondary" paragraph>
-                  Edit the solver configuration via JSON Schema, then run the solver to view the resulting team, traits,
-                  and requirements.
-                </Typography>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Mode
-                  </Typography>
-                  <ToggleButtonGroup
-                    color="primary"
-                    value={activeMode}
-                    exclusive
-                    onChange={handleModeToggle}
-                    size="small"
-                  >
-                    <ToggleButton value="bronze">Bronze for Life</ToggleButton>
-                    <ToggleButton value="ryze">Ryze (region traits)</ToggleButton>
-                    <ToggleButton value="standard">Standard</ToggleButton>
-                  </ToggleButtonGroup>
-                </Stack>
-                {activeMode === 'ryze' ? (
-                  <Alert severity="info" sx={{ mt: 1 }}>
-                    Ryze mode counts only origin traits ({REGION_TRAITS.join(', ')}). Ryze is required by default and
-                    boards use a level 9 team size unless overridden.
-                  </Alert>
-                ) : null}
-              </Box>
-            </Stack>
-            <Card>
-              <CardHeader title="Solver configuration" />
+            {/* Mode Selector Section */}
+            <Card variant="outlined">
               <CardContent>
-                {isLoading && <Loader />}
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="h6" gutterBottom>
+                      Solver Mode
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Choose the solving mode that matches your strategy
+                    </Typography>
+                  </Box>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: 60 }}>
+                      Mode:
+                    </Typography>
+                    <ToggleButtonGroup
+                      color="primary"
+                      value={activeMode}
+                      exclusive
+                      onChange={handleModeToggle}
+                      size="small"
+                      fullWidth={false}
+                    >
+                      <ToggleButton value="bronze">Bronze for Life</ToggleButton>
+                      <ToggleButton value="ryze">Ryze</ToggleButton>
+                      <ToggleButton value="standard">Standard</ToggleButton>
+                    </ToggleButtonGroup>
+                  </Stack>
+                  {activeMode === 'ryze' ? (
+                    <Alert severity="info" icon={false} sx={{ mt: 1 }}>
+                      <Typography variant="body2">
+                        <strong>Ryze mode:</strong> Counts only origin traits ({REGION_TRAITS.join(', ')}). Ryze is
+                        required by default and boards use a level 9 team size unless overridden.
+                      </Typography>
+                    </Alert>
+                  ) : activeMode === 'bronze' ? (
+                    <Alert severity="info" icon={false} sx={{ mt: 1 }}>
+                      <Typography variant="body2">
+                        <strong>Bronze for Life:</strong> Optimizes for traits active exactly at their first breakpoint,
+                        focusing on bronze trait activation.
+                      </Typography>
+                    </Alert>
+                  ) : (
+                    <Alert severity="info" icon={false} sx={{ mt: 1 }}>
+                      <Typography variant="body2">
+                        <strong>Standard mode:</strong> General-purpose team composition solver without bronze trait
+                        constraints.
+                      </Typography>
+                    </Alert>
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader
+                title="Configuration"
+                subheader="Adjust champion requirements, trait minimums, and emblems to customize your team search"
+              />
+              <CardContent>
+                {isLoading && <Loader message="Loading configuration…" />}
                 {hasError && (
-                  <Alert severity="error">Failed to load schema or default config. Please ensure the API is running.</Alert>
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    <Typography variant="body2" gutterBottom>
+                      <strong>Failed to load configuration</strong>
+                    </Typography>
+                    <Typography variant="body2">
+                      Please ensure the API is running on port 8000. Check the console for more details.
+                    </Typography>
+                  </Alert>
                 )}
                 {!isLoading && !hasError && schemaQuery.data && formData ? (
                   <Form
@@ -338,11 +375,13 @@ function App({ mode, onToggleColorMode }: AppProps) {
                 ) : null}
                 <Box
                   mt={3}
+                  pt={3}
+                  sx={{ borderTop: 1, borderColor: 'divider' }}
                   display="flex"
                   justifyContent="space-between"
                   alignItems="center"
                   flexDirection={{ xs: 'column', sm: 'row' }}
-                  gap={1.5}
+                  gap={2}
                 >
                   <FormControlLabel
                     control={
@@ -357,15 +396,24 @@ function App({ mode, onToggleColorMode }: AppProps) {
                         }}
                       />
                     }
-                    label="Must have itemized tank"
+                    label={
+                      <Typography variant="body2">
+                        <strong>Require itemized tank</strong>
+                        <Typography variant="caption" display="block" color="text.secondary">
+                          Ensure at least one unit has tank items
+                        </Typography>
+                      </Typography>
+                    }
                   />
                   <Button
                     variant="contained"
+                    size="large"
                     onClick={handleRunClick}
                     disabled={!formData || runMutation.isPending}
-                    endIcon={runMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
+                    startIcon={runMutation.isPending ? <CircularProgress size={20} color="inherit" /> : <PlayArrow />}
+                    sx={{ minWidth: 150 }}
                   >
-                    {runMutation.isPending ? 'Running…' : 'Run solver'}
+                    {runMutation.isPending ? 'Running…' : 'Run Solver'}
                   </Button>
                 </Box>
               </CardContent>

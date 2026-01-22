@@ -118,6 +118,15 @@ export async function getItemizationData(): Promise<{ version: number; data: Ite
 }
 
 /**
+ * Get all champions with their traits
+ */
+export async function getChampions(): Promise<{
+  champions: Array<{ apiName: string; name: string; traits: string[] }>;
+}> {
+  return fetchJson<{ champions: Array<{ apiName: string; name: string; traits: string[] }> }>('/champions');
+}
+
+/**
  * Run the itemization solver with the provided configuration
  */
 export async function runItemization(config: ItemizationConfig): Promise<ItemizationRunResponse> {

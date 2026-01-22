@@ -9,12 +9,14 @@ import TraitsSummary from './TraitsSummary';
 
 function ResultsSection({ response, mustHaveItemizedTank }: { response: SolverResponse; mustHaveItemizedTank: boolean }) {
   return (
-    <Stack spacing={3} mt={2} mb={4}>
+    <Stack spacing={3} mt={3} mb={4}>
       <TeamRoster response={response} mustHaveItemizedTank={mustHaveItemizedTank} />
       <TraitsSummary response={response} />
       <RequirementsCard response={response} />
       <MetaCard response={response} />
-      <DebugLogCard lines={response.debug_log} />
+      {response.debug_log && response.debug_log.length > 0 && (
+        <DebugLogCard lines={response.debug_log} />
+      )}
     </Stack>
   );
 }

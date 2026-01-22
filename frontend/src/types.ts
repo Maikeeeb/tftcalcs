@@ -131,4 +131,5 @@ export type MappingFieldOptions = {
   imageType?: 'trait' | 'emblem' | 'champion';
   unlockableValues?: string[];
   championCosts?: Record<string, number>;
+  championTraits?: Record<string, string[]>;
 };

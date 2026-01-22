@@ -1,11 +1,15 @@
-import { CircularProgress, Stack, Typography } from '@mui/material';
+import { Box, CircularProgress, Stack, Typography } from '@mui/material';
 
-function Loader() {
+function Loader({ message }: { message?: string }) {
   return (
-    <Stack direction="row" spacing={1} alignItems="center">
-      <CircularProgress size={20} />
-      <Typography>Loading…</Typography>
-    </Stack>
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
+      <Stack direction="row" spacing={2} alignItems="center">
+        <CircularProgress size={24} />
+        <Typography variant="body2" color="text.secondary">
+          {message || 'Loading…'}
+        </Typography>
+      </Stack>
+    </Box>
   );
 }
 

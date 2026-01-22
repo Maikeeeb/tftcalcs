@@ -250,6 +250,7 @@ def solve_beam_search_bronze_with_emblems(
             tank_quality_threshold,
             bronze_threshold,
             team,
+            mode,
         )
 
     # Create a closure for score_state that captures all necessary context
@@ -288,6 +289,7 @@ def solve_beam_search_bronze_with_emblems(
             quality_threshold,
             tank_quality_threshold,
             bronze_threshold,
+            mode,
         )
 
     def add_initial_state(team: List[str], base_counts: Dict[str, int], team_power: float):
@@ -319,7 +321,13 @@ def solve_beam_search_bronze_with_emblems(
             qc,
         ) = score_state_closure(team, base_counts, missing_one)
 
-        if bronze_threshold >= 6 and bronze + remaining * 3 < bronze_threshold:
+        # For Ryze mode, relax pruning since we prioritize active region count over bronze
+        if mode == "ryze":
+            # Use active count for pruning in Ryze mode - allow more exploration
+            # Only prune if we're very far from reaching any reasonable threshold
+            if active + remaining < 4:
+                return
+        elif bronze_threshold >= 6 and bronze + remaining * 3 < bronze_threshold:
             return
 
         bronze_key = bronze_score
@@ -336,6 +344,7 @@ def solve_beam_search_bronze_with_emblems(
             upgraded,
             team_power,
             trait_score,
+            mode,
         )
 
         initial_states.append((team, base_counts, team_power, sort_key, missing_one))
@@ -432,7 +441,13 @@ def solve_beam_search_bronze_with_emblems(
                     qc,
                 ) = score_state_closure(new_team, new_counts, new_missing_required_one)
 
-                if bronze_threshold >= 6 and bronze + new_remaining_slots * 3 < bronze_threshold:
+                # For Ryze mode, relax pruning since we prioritize active region count over bronze
+                if mode == "ryze":
+                    # Use active count for pruning in Ryze mode - allow more exploration
+                    # Only prune if we're very far from reaching any reasonable threshold
+                    if active + new_remaining_slots < 4:
+                        continue
+                elif bronze_threshold >= 6 and bronze + new_remaining_slots * 3 < bronze_threshold:
                     continue
 
                 bronze_key = bronze_score
@@ -452,6 +467,7 @@ def solve_beam_search_bronze_with_emblems(
                     upgraded,
                     new_power,
                     trait_score,
+                    mode,
                 )
                 candidates.append(
                     (new_team, new_counts, new_power, new_key, new_missing_required_one)
@@ -502,7 +518,13 @@ def solve_beam_search_bronze_with_emblems(
             qc,
         ) = score_state_closure(team, base_counts, missing_required_one)
 
-        if (
+        # For Ryze mode, relax pruning since we prioritize active region count over bronze
+        if mode == "ryze":
+            # Use active count for pruning in Ryze mode - allow more exploration
+            remaining_slots = team_size - _team_slots(team, slot_sizes)
+            if active + remaining_slots < 4:
+                continue
+        elif (
             bronze_threshold >= 6
             and bronze + (team_size - _team_slots(team, slot_sizes)) * 3 < bronze_threshold
         ):
@@ -523,6 +545,7 @@ def solve_beam_search_bronze_with_emblems(
             upgraded,
             team_power,
             trait_score,
+            mode,
         )
 
         evaluated_states.append(
@@ -555,6 +578,33 @@ def solve_beam_search_bronze_with_emblems(
         valid_states, key=lambda x: x[3]
     )
 
+    # Ensure the team has exactly team_size slots
+    current_slots = _team_slots(best_team, slot_sizes)
+    remaining_slots = team_size - current_slots
+    if remaining_slots > 0:
+        # Try to fill the remaining slots with valid champions
+        team_set = set(best_team)
+        for c in playable_champs:
+            if remaining_slots <= 0:
+                break
+            if c in team_set:
+                continue
+            slot_cost = slot_sizes.get(c, 1)
+            if slot_cost > remaining_slots:
+                continue
+            # Add the champion to fill the team
+            best_team.append(c)
+            team_set.add(c)
+            remaining_slots -= slot_cost
+            add_champion_traits(best_base_counts, c, champ_traits, trait_value_overrides)
+            best_power += power_map.get(c, 0.0)
+
+        if remaining_slots > 0:
+            logger.log(
+                f"Warning: Selected team has {current_slots} slots but team_size={team_size}. "
+                f"Could only fill {team_size - remaining_slots} total slots."
+            )
+
     emblem_counts = choose_best_emblems_closure(
         best_base_counts, best_missing_required_one, best_team
     )
@@ -563,10 +613,11 @@ def solve_beam_search_bronze_with_emblems(
         best_team, champ_traits, trait_bps, eligible_traits, emblem_counts, trait_value_overrides
     )
 
+    final_slots = _team_slots(best_team, slot_sizes)
     logger.log(
         "selected team: "
         f"{sorted(best_team)} bronze={len(bronze_traits)} active={len(active_traits)} upgraded={len(upgraded_traits)} "
-        f"emblems={emblem_counts} team_power={best_power:.2f}"
+        f"emblems={emblem_counts} team_power={best_power:.2f} slots={final_slots}/{team_size}"
     )
 
     for t, min_count in required_traits_min.items():

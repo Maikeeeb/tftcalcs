@@ -26,6 +26,7 @@ import {
   getItemImage,
   getTraitImage,
   isTankItemBuild,
+  stripTFTPrefix,
 } from '../utils/assets';
 
 function TeamRoster({ response, mustHaveItemizedTank }: { response: SolverResponse; mustHaveItemizedTank: boolean }) {
@@ -142,7 +143,7 @@ function TeamRoster({ response, mustHaveItemizedTank }: { response: SolverRespon
                 />
               ) : undefined
             }
-            title={unit}
+            title={stripTFTPrefix(unit)}
             subheader={`Cost: ${info?.cost ?? 'N/A'}`}
             action={
               showItems.length ? (
@@ -233,15 +234,41 @@ function TeamRoster({ response, mustHaveItemizedTank }: { response: SolverRespon
   const missingItemsList = Array.from(missingItemImages);
 
   return (
-      <Card>
-        <CardHeader
-          title="Team"
-          subheader={`Team power: ${solution.team_power.toFixed(2)} • ${traitLabel}: ${solution.bronze_count}`}
-        />
+    <Card>
+      <CardHeader
+        title="Team Composition"
+        subheader={
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 0.5 }}>
+            <Chip
+              label={`Team Power: ${solution.team_power.toFixed(2)}`}
+              size="small"
+              color="primary"
+              variant="outlined"
+            />
+            <Chip
+              label={`${traitLabel}: ${solution.bronze_count}`}
+              size="small"
+              color="secondary"
+              variant="outlined"
+            />
+          </Stack>
+        }
+      />
       <CardContent>
         <Stack spacing={2}>
-          <Box>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+          <Box
+            sx={{
+              p: 2,
+              bgcolor: 'background.default',
+              borderRadius: 1,
+              border: 1,
+              borderColor: 'divider',
+            }}
+          >
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} justifyContent="space-between">
+              <Typography variant="body2" color="text.secondary">
+                Copy this team code to import into Team Planner
+              </Typography>
               <Tooltip
                 placement="top"
                 title={
@@ -254,13 +281,13 @@ function TeamRoster({ response, mustHaveItemizedTank }: { response: SolverRespon
               >
                 <span>
                   <Button
-                    variant="outlined"
+                    variant="contained"
                     startIcon={copyStatus === 'copied' ? <CheckCircle /> : <ContentCopy />}
-                    color={copyStatus === 'error' ? 'error' : 'primary'}
+                    color={copyStatus === 'copied' ? 'success' : copyStatus === 'error' ? 'error' : 'primary'}
                     onClick={handleCopyCode}
                     disabled={!teamPlannerCode.code}
                   >
-                    {copyStatus === 'copied' ? 'Copied!' : 'Copy code'}
+                    {copyStatus === 'copied' ? 'Copied!' : 'Copy Team Code'}
                   </Button>
                 </span>
               </Tooltip>
